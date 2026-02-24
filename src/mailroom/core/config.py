@@ -18,7 +18,8 @@ class MailroomSettings(BaseSettings):
     # Required credentials -- no defaults, fails if missing
     jmap_token: str
 
-    # CardDAV password -- not required in Phase 1 (empty default for forward compat)
+    # CardDAV credentials -- not required in Phase 1 (empty defaults for forward compat)
+    carddav_username: str = ""
     carddav_password: str = ""
 
     # Polling
@@ -32,6 +33,9 @@ class MailroomSettings(BaseSettings):
     label_to_feed: str = "@ToFeed"
     label_to_paper_trail: str = "@ToPaperTrail"
     label_to_jail: str = "@ToJail"
+
+    # Error label (verified at startup alongside other labels)
+    label_mailroom_error: str = "@MailroomError"
 
     # Contact group names
     group_imbox: str = "Imbox"
@@ -74,3 +78,13 @@ class MailroomSettings(BaseSettings):
                 "destination": self.group_jail,
             },
         }
+
+    @property
+    def contact_groups(self) -> list[str]:
+        """Return all contact group names for startup validation."""
+        return [
+            self.group_imbox,
+            self.group_feed,
+            self.group_paper_trail,
+            self.group_jail,
+        ]

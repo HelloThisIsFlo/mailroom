@@ -11,6 +11,7 @@ dependencies = [
     "httpx",
     "pydantic-settings",
     "structlog",
+    "vobject>=0.9.9",
 ]
 
 [dependency-groups]
