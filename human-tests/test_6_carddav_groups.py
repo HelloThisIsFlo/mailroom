@@ -5,7 +5,6 @@ Test contacts will be created and added to groups.
 You must manually delete them after the test.
 """
 
-import logging
 import sys
 from pathlib import Path
 
@@ -100,7 +99,8 @@ print("\n=== Step 4: ETag conflict test (deterministic) ===")
 print("  Injecting a stale ETag on the first PUT to force a 412 and verify retry.")
 
 # Enable debug logging so we can see the conflict + retry
-logging.basicConfig(level=logging.DEBUG, format="  [%(name)s] %(message)s")
+from mailroom.core.logging import configure_logging
+configure_logging("debug")
 
 if len(settings.contact_groups) < 2:
     print("  --- STEP 4 SKIP ---")
@@ -144,8 +144,6 @@ else:
         sys.exit(1)
     finally:
         client._http.put = original_put
-        logging.disable(logging.NOTSET)
-        logging.getLogger().handlers.clear()
 
 # Cleanup instructions
 print("\n=== Cleanup ===")
