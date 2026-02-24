@@ -1,1 +1,1 @@
-"""Workflow modules: triage, sweep."""
+"""Workflow modules: screener triage pipeline."""

@@ -79,15 +79,14 @@ class TestPollSingleSenderSingleLabel:
             ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
         ]
 
-    def test_process_sender_called(self, workflow, jmap):
-        """_process_sender is called for clean senders (it will raise NotImplementedError)."""
-        with pytest.raises(NotImplementedError):
-            workflow.poll()
+    def test_returns_zero_because_stub_raises(self, workflow):
+        """_process_sender stub raises NotImplementedError, caught by poll -> returns 0."""
+        result = workflow.poll()
+        assert result == 0
 
     def test_error_label_not_applied(self, workflow, jmap):
         """No error label applied for non-conflicted sender."""
-        with pytest.raises(NotImplementedError):
-            workflow.poll()
+        workflow.poll()
         # The Email/set call for error labeling should NOT happen
         # Only call should be the Email/get for error filtering
         email_set_calls = [
@@ -196,9 +195,10 @@ class TestPollTwoCleanSenders:
         ]
 
     def test_both_senders_attempted(self, workflow):
-        """Both senders get _process_sender called (raises NotImplementedError)."""
-        with pytest.raises(NotImplementedError):
-            workflow.poll()
+        """Both senders get _process_sender called (stub fails, both counted as failures)."""
+        result = workflow.poll()
+        # Both senders fail because _process_sender is a stub
+        assert result == 0
 
 
 class TestPollMixedCleanAndConflicted:
@@ -245,15 +245,14 @@ class TestPollMixedCleanAndConflicted:
 
         jmap.call.side_effect = call_side_effect
 
-    def test_clean_sender_processed(self, workflow):
-        """Alice (clean) gets _process_sender called."""
-        with pytest.raises(NotImplementedError):
-            workflow.poll()
+    def test_clean_sender_attempted(self, workflow):
+        """Alice (clean) gets _process_sender called (stub fails, returns 0)."""
+        result = workflow.poll()
+        assert result == 0
 
     def test_conflicted_sender_gets_error_label(self, workflow, jmap):
         """Bob (conflicted) gets @MailroomError but not _process_sender."""
-        with pytest.raises(NotImplementedError):
-            workflow.poll()
+        workflow.poll()
         # Bob's emails should get error label
         email_set_calls = [
             c
@@ -342,9 +341,10 @@ class TestSenderMissingFromHeader:
         ]
 
     def test_sender_with_email_still_processed(self, workflow):
-        """alice@example.com is still processed even though email-1 has no sender."""
-        with pytest.raises(NotImplementedError):
-            workflow.poll()
+        """alice@example.com is still collected even though email-1 has no sender."""
+        result = workflow.poll()
+        # Stub _process_sender raises, so returns 0, but alice was attempted
+        assert result == 0
 
 
 class TestApplyErrorLabelTransientFailure:

@@ -37,6 +37,9 @@ class MailroomSettings(BaseSettings):
     # Error label (verified at startup alongside other labels)
     label_mailroom_error: str = "@MailroomError"
 
+    # Screener mailbox name (configurable for flexibility)
+    screener_mailbox: str = "Screener"
+
     # Contact group names
     group_imbox: str = "Imbox"
     group_feed: str = "Feed"
@@ -64,18 +67,22 @@ class MailroomSettings(BaseSettings):
             self.label_to_imbox: {
                 "group": self.group_imbox,
                 "destination": self.group_imbox,
+                "destination_mailbox": "Inbox",
             },
             self.label_to_feed: {
                 "group": self.group_feed,
                 "destination": self.group_feed,
+                "destination_mailbox": "Feed",
             },
             self.label_to_paper_trail: {
                 "group": self.group_paper_trail,
                 "destination": self.group_paper_trail,
+                "destination_mailbox": "Paper Trail",
             },
             self.label_to_jail: {
                 "group": self.group_jail,
                 "destination": self.group_jail,
+                "destination_mailbox": "Jail",
             },
         }
 

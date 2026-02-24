@@ -19,6 +19,7 @@ MAILROOM_ENV_VARS = [
     "MAILROOM_GROUP_FEED",
     "MAILROOM_GROUP_PAPER_TRAIL",
     "MAILROOM_GROUP_JAIL",
+    "MAILROOM_SCREENER_MAILBOX",
 ]
 
 
@@ -92,10 +93,60 @@ def test_label_group_mapping(monkeypatch):
 
     mapping = settings.label_to_group_mapping
 
-    assert mapping["@ToImbox"] == {"group": "Imbox", "destination": "Imbox"}
-    assert mapping["@ToFeed"] == {"group": "Feed", "destination": "Feed"}
-    assert mapping["@ToPaperTrail"] == {"group": "Paper Trail", "destination": "Paper Trail"}
-    assert mapping["@ToJail"] == {"group": "Jail", "destination": "Jail"}
+    assert mapping["@ToImbox"] == {
+        "group": "Imbox",
+        "destination": "Imbox",
+        "destination_mailbox": "Inbox",
+    }
+    assert mapping["@ToFeed"] == {
+        "group": "Feed",
+        "destination": "Feed",
+        "destination_mailbox": "Feed",
+    }
+    assert mapping["@ToPaperTrail"] == {
+        "group": "Paper Trail",
+        "destination": "Paper Trail",
+        "destination_mailbox": "Paper Trail",
+    }
+    assert mapping["@ToJail"] == {
+        "group": "Jail",
+        "destination": "Jail",
+        "destination_mailbox": "Jail",
+    }
 
     # Exactly 4 entries
     assert len(mapping) == 4
+
+
+def test_screener_mailbox_default(monkeypatch):
+    """screener_mailbox defaults to 'Screener'."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+
+    assert settings.screener_mailbox == "Screener"
+
+
+def test_screener_mailbox_override(monkeypatch):
+    """screener_mailbox can be overridden via env var."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+    monkeypatch.setenv("MAILROOM_SCREENER_MAILBOX", "MyScreener")
+
+    settings = MailroomSettings()
+
+    assert settings.screener_mailbox == "MyScreener"
+
+
+def test_destination_mailbox_in_mapping(monkeypatch):
+    """Each label mapping includes destination_mailbox field."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    mapping = settings.label_to_group_mapping
+
+    # Imbox destination is Inbox (the actual mailbox, not the group name)
+    assert mapping["@ToImbox"]["destination_mailbox"] == "Inbox"
+    # Others match the group/destination name
+    assert mapping["@ToFeed"]["destination_mailbox"] == "Feed"
+    assert mapping["@ToPaperTrail"]["destination_mailbox"] == "Paper Trail"
+    assert mapping["@ToJail"]["destination_mailbox"] == "Jail"
