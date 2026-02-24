@@ -61,12 +61,12 @@ Plans:
   2. The same flow works for all four destinations: Imbox (with Inbox re-label), Feed, Paper Trail, and Jail
   3. Processing the same email twice does not create duplicate contacts or duplicate email moves (idempotent)
   4. If the CardDAV call fails mid-processing, the triage label remains on the email and the next poll cycle retries successfully
-**Plans:** 3 plans (2 complete, 1 gap closure)
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md -- ScreenerWorkflow poll cycle with conflict detection and error labeling (TDD)
 - [x] 03-02-PLAN.md -- Per-sender triage processing: upsert, sweep, relabel, already-grouped check (TDD)
-- [ ] 03-03-PLAN.md -- Gap closure: sender display name propagation from JMAP From header to contact creation (TDD)
+- [x] 03-03-PLAN.md -- Gap closure: sender display name propagation from JMAP From header to contact creation (TDD)
 
 ### Phase 4: Packaging and Deployment
 **Goal**: Mailroom runs as a long-lived polling service in a Docker container on the home Kubernetes cluster, with all configuration externalized and credentials securely managed
@@ -92,5 +92,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
-| 3. Triage Pipeline | 2/3 | Gap closure | 2026-02-24 |
+| 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
 | 4. Packaging and Deployment | 0/2 | Not started | - |

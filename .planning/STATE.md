@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 3 complete. Triage pipeline ready for Phase 4 (packaging and deployment).
+**Current focus:** Phase 3 complete (including gap closure). Triage pipeline ready for Phase 4 (packaging and deployment).
 
 ## Current Position
 
 Phase: 3 of 4 (Triage Pipeline)
-Plan: 2 of 2 in current phase
-Status: Phase 03 complete -- all triage pipeline plans done
-Last activity: 2026-02-24 - Plan 03-02 complete: per-sender triage processing pipeline with all 4 destinations
+Plan: 3 of 3 in current phase
+Status: Phase 03 complete -- all triage pipeline plans done including gap closure
+Last activity: 2026-02-24 - Plan 03-03 complete: sender display name propagation from JMAP to contact creation
 
 Progress: [█████████░] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 3.0 min
-- Total execution time: 0.45 hours
+- Total plans completed: 10
+- Average duration: 3.2 min
+- Total execution time: 0.53 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████████░] 90%
 |-------|-------|-------|----------|
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
 | 02-carddav-client-validation-gate | 3/3 | 10 min | 3.3 min |
-| 03-triage-pipeline | 2/2 | 8 min | 4.0 min |
+| 03-triage-pipeline | 3/3 | 13 min | 4.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (4 min), 02-03 (3 min), 03-01 (4 min), 03-02 (4 min)
+- Last 5 plans: 02-03 (3 min), 03-01 (4 min), 03-02 (4 min), 03-03 (5 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -76,6 +76,9 @@ Recent decisions affecting current work:
 - [03-02]: CardDAVClient.check_membership added as public method to keep protocol logic in the client (not workflow)
 - [03-02]: Destination mailbox resolved via config's destination_mailbox field (Imbox->Inbox, others match group name)
 - [03-02]: Empty sweep still removes triage label -- sweep query always executes per user decision
+- [03-03]: _process_sender sender_names parameter optional (default None) for backward compatibility with direct callers
+- [03-03]: First non-None name wins for sender_names across multiple emails from same sender
+- [03-03]: Empty/whitespace name normalization to None at JMAP extraction layer (not workflow)
 
 ### Pending Todos
 
@@ -94,5 +97,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 03-02-PLAN.md
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
