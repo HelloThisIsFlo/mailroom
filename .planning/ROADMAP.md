@@ -12,7 +12,7 @@ Mailroom delivers a single capability: one label tap triages an entire sender. T
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation and JMAP Client** - Config, logging, and a working JMAP client that can query, extract, move, and relabel emails
+- [x] **Phase 1: Foundation and JMAP Client** - Config, logging, and a working JMAP client that can query, extract, move, and relabel emails (completed 2026-02-24)
 - [ ] **Phase 2: CardDAV Client (Validation Gate)** - A verified CardDAV client that can manage contacts and group membership, validated against live Fastmail
 - [ ] **Phase 3: Triage Pipeline** - End-to-end screener workflow wiring both clients into the poll-triage-sweep sequence
 - [ ] **Phase 4: Packaging and Deployment** - Main polling loop, Docker image, k8s manifests, running service in the home cluster
@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Given an email in a triage mailbox, the service extracts the sender address and can remove the triage label using JMAP patch syntax
   4. The service can query all Screener emails from a specific sender and batch-move them to a destination mailbox, adding Inbox label when the destination is Imbox
   5. All operations produce structured JSON log output with action, sender, timestamp, and success/failure
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md -- Project scaffold, configuration module, and structured logging
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and JMAP Client | 0/3 | Not started | - |
+| 1. Foundation and JMAP Client | 0/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 0/2 | Not started | - |
 | 3. Triage Pipeline | 0/2 | Not started | - |
 | 4. Packaging and Deployment | 0/2 | Not started | - |
