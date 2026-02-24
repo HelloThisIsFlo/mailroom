@@ -45,11 +45,12 @@ Plans:
   2. Adding a contact to a group (e.g., Imbox) via KIND:group MEMBER entry causes Fastmail rules targeting that group to fire correctly on new email from that sender
   3. Searching for an existing contact by email address finds the contact without creating a duplicate -- verified by running the same sender through twice
   4. Concurrent edits are handled safely: the client sends If-Match ETags on PUT and retries on 412 Precondition Failed
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Config update, CardDAV client core (auth, PROPFIND discovery, group validation) (TDD)
+- [ ] 02-02-PLAN.md -- Contact operations: search, create, group membership, upsert with merge-cautious logic (TDD)
+- [ ] 02-03-PLAN.md -- Human test scripts for live Fastmail validation (validation gate checkpoint)
 
 ### Phase 3: Triage Pipeline
 **Goal**: The complete screener workflow runs end-to-end: poll for triaged emails, process each sender (upsert contact into group, sweep Screener emails, relabel for Imbox, remove triage label), with retry safety on failure
@@ -89,6 +90,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and JMAP Client | 0/3 | Complete    | 2026-02-24 |
-| 2. CardDAV Client (Validation Gate) | 0/2 | Not started | - |
+| 2. CardDAV Client (Validation Gate) | 0/3 | Not started | - |
 | 3. Triage Pipeline | 0/2 | Not started | - |
 | 4. Packaging and Deployment | 0/2 | Not started | - |
