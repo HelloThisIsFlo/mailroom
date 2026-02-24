@@ -135,10 +135,6 @@ except Exception as e:
 print("\n=== Step 5: ETag conflict test (deterministic) ===")
 print("  Injecting a stale ETag on the first PUT to force a 412 and verify retry.")
 
-# Enable debug logging so we can see the conflict + retry
-from mailroom.core.logging import configure_logging
-configure_logging("debug")
-
 if len(settings.contact_groups) < 2:
     print("  --- STEP 5 SKIP ---")
     print("  Need at least 2 groups to test ETag conflict. Skipping.")
