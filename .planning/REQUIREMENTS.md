@@ -91,41 +91,41 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| JMAP-01 | — | Pending |
-| JMAP-02 | — | Pending |
-| JMAP-03 | — | Pending |
-| JMAP-04 | — | Pending |
-| JMAP-05 | — | Pending |
-| JMAP-06 | — | Pending |
-| JMAP-07 | — | Pending |
-| JMAP-08 | — | Pending |
-| CDAV-01 | — | Pending |
-| CDAV-02 | — | Pending |
-| CDAV-03 | — | Pending |
-| CDAV-04 | — | Pending |
-| CDAV-05 | — | Pending |
-| TRIAGE-01 | — | Pending |
-| TRIAGE-02 | — | Pending |
-| TRIAGE-03 | — | Pending |
-| TRIAGE-04 | — | Pending |
-| TRIAGE-05 | — | Pending |
-| TRIAGE-06 | — | Pending |
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| CONF-03 | — | Pending |
-| LOG-01 | — | Pending |
-| LOG-02 | — | Pending |
-| DEPLOY-01 | — | Pending |
-| DEPLOY-02 | — | Pending |
-| DEPLOY-03 | — | Pending |
-| DEPLOY-04 | — | Pending |
-| DEPLOY-05 | — | Pending |
+| JMAP-01 | Phase 1 | Pending |
+| JMAP-02 | Phase 1 | Pending |
+| JMAP-03 | Phase 1 | Pending |
+| JMAP-04 | Phase 1 | Pending |
+| JMAP-05 | Phase 1 | Pending |
+| JMAP-06 | Phase 1 | Pending |
+| JMAP-07 | Phase 1 | Pending |
+| JMAP-08 | Phase 1 | Pending |
+| CDAV-01 | Phase 2 | Pending |
+| CDAV-02 | Phase 2 | Pending |
+| CDAV-03 | Phase 2 | Pending |
+| CDAV-04 | Phase 2 | Pending |
+| CDAV-05 | Phase 2 | Pending |
+| TRIAGE-01 | Phase 3 | Pending |
+| TRIAGE-02 | Phase 3 | Pending |
+| TRIAGE-03 | Phase 3 | Pending |
+| TRIAGE-04 | Phase 3 | Pending |
+| TRIAGE-05 | Phase 3 | Pending |
+| TRIAGE-06 | Phase 3 | Pending |
+| CONF-01 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Pending |
+| CONF-03 | Phase 1 | Pending |
+| LOG-01 | Phase 1 | Pending |
+| LOG-02 | Phase 1 | Pending |
+| DEPLOY-01 | Phase 4 | Pending |
+| DEPLOY-02 | Phase 4 | Pending |
+| DEPLOY-03 | Phase 4 | Pending |
+| DEPLOY-04 | Phase 4 | Pending |
+| DEPLOY-05 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29 ⚠️
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after initial definition*
+*Last updated: 2026-02-23 after roadmap creation*
