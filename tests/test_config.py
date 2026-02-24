@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from mailroom.core.config import MailroomSettings
 
-
 # Env vars that might leak into tests from the host environment
 MAILROOM_ENV_VARS = [
     "MAILROOM_JMAP_TOKEN",
