@@ -1,7 +1,10 @@
-"""Tests for CardDAV client: PROPFIND discovery, connection, and group validation."""
+"""Tests for CardDAV client: discovery, connection, groups, and contact ops."""
+
+import uuid
 
 import httpx
 import pytest
+import vobject
 from pytest_httpx import HTTPXMock
 
 from mailroom.clients.carddav import CardDAVClient
@@ -340,3 +343,212 @@ class TestValidateGroups:
         assert "Imbox" in result
         assert "Alice Smith" not in result
         assert "Bob Jones" not in result
+
+
+# --- Search by Email Tests ---
+
+
+ADDRESSBOOK_URL = (
+    "https://carddav.fastmail.com"
+    "/dav/addressbooks/user/user@fastmail.com/Default/"
+)
+
+
+class TestSearchByEmail:
+    """Tests for CardDAVClient.search_by_email()."""
+
+    def test_search_by_email_finds_contact(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """REPORT with email filter returns matching contact data."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([
+            (
+                "/dav/ab/Default/contact-alice.vcf",
+                "etag-alice",
+                _contact_vcard("Alice Smith", "uid-alice", "alice@example.com"),
+            ),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=report_body,
+        )
+
+        results = client.search_by_email("alice@example.com")
+
+        assert len(results) == 1
+        assert results[0]["href"] == "/dav/ab/Default/contact-alice.vcf"
+        assert results[0]["etag"] == '"etag-alice"'
+        assert "vcard_data" in results[0]
+
+    def test_search_by_email_no_results(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """REPORT with no matches returns empty list."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=report_body,
+        )
+
+        results = client.search_by_email("nobody@example.com")
+
+        assert results == []
+
+    def test_search_by_email_multiple_results(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """REPORT returns multiple contacts when the same email appears on different vCards."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([
+            (
+                "/dav/ab/Default/contact-alice.vcf",
+                "etag-alice",
+                _contact_vcard(
+                    "Alice Smith", "uid-alice", "shared@example.com"
+                ),
+            ),
+            (
+                "/dav/ab/Default/contact-bob.vcf",
+                "etag-bob",
+                _contact_vcard(
+                    "Bob Jones", "uid-bob", "shared@example.com"
+                ),
+            ),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=report_body,
+        )
+
+        results = client.search_by_email("shared@example.com")
+
+        assert len(results) == 2
+
+    def test_search_not_connected_raises(self, client: CardDAVClient) -> None:
+        """search_by_email before connect() raises RuntimeError."""
+        with pytest.raises(RuntimeError, match="not connected"):
+            client.search_by_email("test@example.com")
+
+    def test_search_by_email_sends_report_request(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """search_by_email sends a REPORT request with addressbook-query XML."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=report_body,
+        )
+
+        client.search_by_email("test@example.com")
+
+        # The 4th request (after 3 PROPFIND discovery) should be a REPORT
+        requests = httpx_mock.get_requests()
+        report_req = requests[3]
+        assert report_req.method == "REPORT"
+        body = report_req.content.decode("utf-8")
+        assert "addressbook-query" in body
+        assert "prop-filter" in body
+        assert "EMAIL" in body
+        assert "test@example.com" in body
+
+
+# --- Create Contact Tests ---
+
+
+class TestCreateContact:
+    """Tests for CardDAVClient.create_contact()."""
+
+    def test_create_contact_sends_valid_vcard(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """PUT sends a valid vCard 3.0 with FN, EMAIL, NOTE, UID."""
+        _connect_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane Smith")
+
+        # The 4th request (after 3 PROPFIND) should be the PUT
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        assert put_req.method == "PUT"
+
+        # Parse the sent vCard body
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+        assert card.version.value == "3.0"
+        assert card.fn.value == "Jane Smith"
+        assert card.email.value == "jane@example.com"
+        assert "Added by Mailroom on" in card.note.value
+        # UID should be a valid UUID
+        uuid.UUID(card.uid.value)
+
+    def test_create_contact_returns_href_etag_uid(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """create_contact returns dict with href, etag, and uid keys."""
+        _connect_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        result = client.create_contact("jane@example.com", "Jane Smith")
+
+        assert "href" in result
+        assert "etag" in result
+        assert "uid" in result
+        assert result["etag"] == '"new-etag"'
+        # href should contain the UUID and end with .vcf
+        assert result["href"].endswith(".vcf")
+
+    def test_create_contact_uses_if_none_match(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """PUT request includes If-None-Match: * to prevent overwriting."""
+        _connect_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane Smith")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        assert put_req.headers.get("if-none-match") == "*"
+
+    def test_create_contact_email_prefix_fallback(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """When display_name is None, FN is set to the email prefix."""
+        _connect_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+        assert card.fn.value == "jane"

@@ -1,8 +1,10 @@
-"""CardDAV client for Fastmail: Basic auth, PROPFIND discovery, and group validation."""
+"""CardDAV client for Fastmail: auth, discovery, group validation, and contact ops."""
 
 from __future__ import annotations
 
+import uuid
 import xml.etree.ElementTree as ET
+from datetime import date
 
 import httpx
 import vobject
@@ -242,3 +244,116 @@ class CardDAVClient:
         # Store validated groups for later use
         self._groups = {g: groups[g] for g in required_groups}
         return self._groups
+
+    def search_by_email(self, email: str) -> list[dict]:
+        """Search for contacts matching an email address.
+
+        Sends a REPORT addressbook-query with a case-insensitive email
+        prop-filter to find existing contacts.
+
+        Args:
+            email: Email address to search for.
+
+        Returns:
+            List of dicts with 'href', 'etag', and 'vcard_data' keys.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+        """
+        addressbook_url = self._require_connection()
+
+        # Build the REPORT XML body using ElementTree for proper escaping
+        query = ET.Element(
+            f"{CARDDAV}addressbook-query",
+            {
+                "xmlns:D": "DAV:",
+                "xmlns:C": "urn:ietf:params:xml:ns:carddav",
+            },
+        )
+        prop = ET.SubElement(query, f"{DAV}prop")
+        ET.SubElement(prop, f"{DAV}getetag")
+        ET.SubElement(prop, f"{CARDDAV}address-data")
+
+        filt = ET.SubElement(query, f"{CARDDAV}filter", {"test": "anyof"})
+        prop_filter = ET.SubElement(
+            filt, f"{CARDDAV}prop-filter", {"name": "EMAIL"}
+        )
+        text_match = ET.SubElement(
+            prop_filter,
+            f"{CARDDAV}text-match",
+            {
+                "collation": "i;unicode-casemap",
+                "match-type": "equals",
+            },
+        )
+        text_match.text = email
+
+        xml_body = ET.tostring(query, encoding="unicode", xml_declaration=True)
+
+        resp = self._http.request(
+            "REPORT",
+            addressbook_url,
+            content=xml_body.encode("utf-8"),
+            headers={
+                "Content-Type": "application/xml; charset=utf-8",
+                "Depth": "1",
+            },
+        )
+        resp.raise_for_status()
+
+        return self._parse_multistatus(resp.content)
+
+    def create_contact(
+        self, email: str, display_name: str | None = None
+    ) -> dict:
+        """Create a new contact vCard in the addressbook.
+
+        Builds a vCard 3.0 with FN, N, EMAIL, NOTE, UID and PUTs it
+        using If-None-Match: * to prevent overwriting existing contacts.
+
+        Args:
+            email: Contact email address.
+            display_name: Display name (falls back to email prefix if None).
+
+        Returns:
+            Dict with 'href', 'etag', and 'uid' keys.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+        """
+        addressbook_url = self._require_connection()
+
+        contact_uid = str(uuid.uuid4())
+        name = display_name or email.split("@")[0]
+
+        # Build vCard using vobject
+        card = vobject.vCard()
+        card.add("uid").value = contact_uid
+        card.add("fn").value = name
+        card.add("n").value = vobject.vcard.Name(given=name)
+        email_prop = card.add("email")
+        email_prop.value = email
+        email_prop.type_param = "INTERNET"
+        card.add("note").value = (
+            f"Added by Mailroom on {date.today().isoformat()}"
+        )
+
+        # PUT to addressbook with If-None-Match
+        href_path = f"{contact_uid}.vcf"
+        put_url = f"{addressbook_url}{href_path}"
+
+        resp = self._http.put(
+            put_url,
+            content=card.serialize().encode("utf-8"),
+            headers={
+                "Content-Type": "text/vcard; charset=utf-8",
+                "If-None-Match": "*",
+            },
+        )
+        resp.raise_for_status()
+
+        return {
+            "href": f"/{contact_uid}.vcf",
+            "etag": resp.headers.get("etag", ""),
+            "uid": contact_uid,
+        }
