@@ -5,6 +5,7 @@ Test contacts will be created and added to groups.
 You must manually delete them after the test.
 """
 
+import logging
 import sys
 from pathlib import Path
 
@@ -94,29 +95,45 @@ if response.strip().lower() == "fail":
     sys.exit(1)
 print("  --- STEP 3 PASS ---")
 
-# Step 4: ETag conflict test
-print("\n=== Step 4: ETag conflict test ===")
-print("  This test verifies that add_to_group handles concurrent edits safely.")
-print()
+# Step 4: Deterministic ETag conflict test
+print("\n=== Step 4: ETag conflict test (deterministic) ===")
+print("  Injecting a stale ETag on the first PUT to force a 412 and verify retry.")
 
-# Use a second group for this test
+# Enable debug logging so we can see the conflict + retry
+logging.basicConfig(level=logging.DEBUG, format="  [%(name)s] %(message)s")
+
 if len(settings.contact_groups) < 2:
     print("  --- STEP 4 SKIP ---")
     print("  Need at least 2 groups to test ETag conflict. Skipping.")
 else:
     second_group = settings.contact_groups[1]
-    print(f"  Target group for conflict test: '{second_group}'")
+    print(f"  Target group: '{second_group}'")
     print()
-    print(f"  Now edit the '{second_group}' group in Fastmail:")
-    print("  (Add or remove any contact from the group in the Fastmail web UI.)")
-    input("  After editing, press Enter to continue: ")
-    print()
-    print(f"  Attempting add_to_group('{second_group}', '{contact_uid}')...")
+
+    # Monkey-patch the first PUT to inject a stale ETag, forcing a 412.
+    # add_to_group's retry will then GET fresh and succeed on attempt 2.
+    original_put = client._http.put
+    first_attempt = [True]
+
+    def patched_put(*args, **kwargs):
+        if first_attempt[0]:
+            first_attempt[0] = False
+            if "headers" in kwargs and "If-Match" in kwargs["headers"]:
+                real_etag = kwargs["headers"]["If-Match"]
+                kwargs["headers"] = dict(kwargs["headers"])
+                kwargs["headers"]["If-Match"] = '"stale-etag-intentional"'
+                print(f"  [INJECTED] Replaced If-Match {real_etag} -> '\"stale-etag-intentional\"'")
+        return original_put(*args, **kwargs)
+
+    client._http.put = patched_put
+
     try:
         new_etag = client.add_to_group(second_group, contact_uid)
-        print(f"  Success! New group ETag: {new_etag}")
-        print("  (If you edited the group, the client fetched the fresh vCard")
-        print("   with the updated ETag and succeeded on the first PUT.)")
+        print()
+        if not first_attempt[0]:
+            # first_attempt is False = the patch fired, meaning 412 was triggered
+            print("  412 conflict triggered and retry succeeded!")
+        print(f"  Final group ETag: {new_etag}")
         print("  --- STEP 4 PASS ---")
     except RuntimeError as e:
         print("  --- STEP 4 FAIL ---")
@@ -125,6 +142,10 @@ else:
     except Exception as e:
         print(f"  --- STEP 4 FAIL ---\n  {e}")
         sys.exit(1)
+    finally:
+        client._http.put = original_put
+        logging.disable(logging.NOTSET)
+        logging.getLogger().handlers.clear()
 
 # Cleanup instructions
 print("\n=== Cleanup ===")

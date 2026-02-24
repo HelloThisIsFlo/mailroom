@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 import httpx
 import vobject
@@ -389,11 +392,15 @@ class CardDAVClient:
 
         member_urn = f"urn:uuid:{contact_uid}"
 
-        for _attempt in range(max_retries):
+        for attempt in range(max_retries):
             # GET current group vCard
             resp = self._http.get(group_url)
             resp.raise_for_status()
             current_etag = resp.headers.get("etag", "")
+            logger.debug(
+                "add_to_group(%s) attempt %d: GET etag=%s",
+                group_name, attempt + 1, current_etag,
+            )
 
             card = vobject.readOne(resp.text)
 
@@ -403,6 +410,7 @@ class CardDAVClient:
             )
             existing_urns = [m.value for m in existing_members]
             if member_urn in existing_urns:
+                logger.debug("Contact already in group %s, skipping", group_name)
                 return current_etag
 
             # Add new member
@@ -419,13 +427,22 @@ class CardDAVClient:
             )
 
             if put_resp.status_code == 412:
-                continue  # ETag conflict, retry
+                logger.warning(
+                    "add_to_group(%s) attempt %d: 412 ETag conflict "
+                    "(stale etag=%s), retrying...",
+                    group_name, attempt + 1, current_etag,
+                )
+                continue
 
             put_resp.raise_for_status()
 
             # Update stored ETag
             new_etag = put_resp.headers.get("etag", "")
             self._groups[group_name]["etag"] = new_etag
+            logger.debug(
+                "add_to_group(%s) attempt %d: success, new etag=%s",
+                group_name, attempt + 1, new_etag,
+            )
             return new_etag
 
         raise RuntimeError(
