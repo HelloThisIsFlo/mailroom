@@ -94,8 +94,45 @@ if response.strip().lower() == "fail":
     sys.exit(1)
 print("  --- STEP 3 PASS ---")
 
-# Step 4: Deterministic ETag conflict test
-print("\n=== Step 4: ETag conflict test (deterministic) ===")
+# Step 4: Observational ETag test — does Fastmail change ETags on web UI edits?
+print(f"\n=== Step 4: Fastmail ETag behavior observation ===")
+print("  This checks whether Fastmail produces a new ETag when a group is")
+print("  edited through the web UI — something the CardDAV spec doesn't guarantee.")
+
+group_for_etag_test = first_group
+group_info = groups[group_for_etag_test]
+group_url = f"https://{client._hostname}{group_info['href']}"
+
+try:
+    resp_before = client._http.get(group_url)
+    resp_before.raise_for_status()
+    etag_before = resp_before.headers.get("etag", "")
+    print(f"  ETag before: {etag_before}")
+    print()
+    print(f"  Now edit the '{group_for_etag_test}' group in Fastmail web UI:")
+    print("  (Add or remove any contact, or rename the group and rename it back.)")
+    input("  After editing, press Enter to continue: ")
+
+    resp_after = client._http.get(group_url)
+    resp_after.raise_for_status()
+    etag_after = resp_after.headers.get("etag", "")
+    print(f"  ETag after:  {etag_after}")
+
+    if etag_before != etag_after:
+        print("  Result: ETag CHANGED — Fastmail updates ETags on web UI group edits.")
+        print("  This means real concurrent edits would trigger 412 as expected.")
+        print("  --- STEP 4 PASS ---")
+    else:
+        print("  Result: ETag UNCHANGED — Fastmail may not update ETags for web UI edits.")
+        print("  Our retry logic still works (tested deterministically in Step 5),")
+        print("  but real-world 412 conflicts from web UI edits may not occur.")
+        print("  --- STEP 4 INFO --- (not a failure, just an observation)")
+except Exception as e:
+    print(f"  --- STEP 4 FAIL ---\n  {e}")
+    sys.exit(1)
+
+# Step 5: Deterministic ETag conflict test
+print("\n=== Step 5: ETag conflict test (deterministic) ===")
 print("  Injecting a stale ETag on the first PUT to force a 412 and verify retry.")
 
 # Enable debug logging so we can see the conflict + retry
@@ -103,7 +140,7 @@ from mailroom.core.logging import configure_logging
 configure_logging("debug")
 
 if len(settings.contact_groups) < 2:
-    print("  --- STEP 4 SKIP ---")
+    print("  --- STEP 5 SKIP ---")
     print("  Need at least 2 groups to test ETag conflict. Skipping.")
 else:
     second_group = settings.contact_groups[1]
@@ -134,13 +171,13 @@ else:
             # first_attempt is False = the patch fired, meaning 412 was triggered
             print("  412 conflict triggered and retry succeeded!")
         print(f"  Final group ETag: {new_etag}")
-        print("  --- STEP 4 PASS ---")
+        print("  --- STEP 5 PASS ---")
     except RuntimeError as e:
-        print("  --- STEP 4 FAIL ---")
+        print("  --- STEP 5 FAIL ---")
         print(f"  add_to_group failed after retries: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"  --- STEP 4 FAIL ---\n  {e}")
+        print(f"  --- STEP 5 FAIL ---\n  {e}")
         sys.exit(1)
     finally:
         client._http.put = original_put
