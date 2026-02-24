@@ -41,7 +41,7 @@ class ScreenerWorkflow:
     def poll(self) -> int:
         """Execute one poll cycle. Returns count of successfully processed senders."""
         # Step 1: Collect all triaged emails grouped by sender
-        triaged = self._collect_triaged()
+        triaged, sender_names = self._collect_triaged()
 
         # Step 2: If empty, log and return
         if not triaged:
@@ -59,7 +59,7 @@ class ScreenerWorkflow:
         processed = 0
         for sender, emails in clean.items():
             try:
-                self._process_sender(sender, emails)
+                self._process_sender(sender, emails, sender_names)
                 processed += 1
             except Exception:
                 self._log.warning(
@@ -79,15 +79,21 @@ class ScreenerWorkflow:
 
         return processed
 
-    def _collect_triaged(self) -> dict[str, list[tuple[str, str]]]:
+    def _collect_triaged(
+        self,
+    ) -> tuple[dict[str, list[tuple[str, str]]], dict[str, str | None]]:
         """Collect all triaged emails across all labels, grouped by sender.
 
         Returns:
-            Dict mapping sender email -> list of (email_id, label_name) tuples.
-            Emails already marked with @MailroomError are filtered out.
+            Tuple of (triaged, sender_names):
+            - triaged: Dict mapping sender email -> list of (email_id, label_name) tuples.
+              Emails already marked with @MailroomError are filtered out.
+            - sender_names: Dict mapping sender email -> display name (or None).
+              Stores the first non-None display name seen across a sender's emails.
         """
         # Collect emails from all triage labels
         raw: dict[str, list[tuple[str, str]]] = {}
+        sender_names: dict[str, str | None] = {}
         all_email_ids: list[str] = []
 
         for label_name in self._settings.triage_labels:
@@ -96,7 +102,7 @@ class ScreenerWorkflow:
             if not email_ids:
                 continue
 
-            # Get sender addresses for these emails
+            # Get sender addresses and names for these emails
             senders = self._jmap.get_email_senders(email_ids)
 
             for email_id in email_ids:
@@ -109,12 +115,18 @@ class ScreenerWorkflow:
                     )
                     continue
 
-                sender = senders[email_id]
-                raw.setdefault(sender, []).append((email_id, label_name))
+                sender_email, sender_name = senders[email_id]
+                raw.setdefault(sender_email, []).append((email_id, label_name))
                 all_email_ids.append(email_id)
 
+                # Store first non-None name seen for this sender
+                if sender_email not in sender_names or (
+                    sender_names[sender_email] is None and sender_name is not None
+                ):
+                    sender_names[sender_email] = sender_name
+
         if not all_email_ids:
-            return {}
+            return {}, {}
 
         # Filter out emails that already have @MailroomError
         error_id = self._mailbox_ids[self._settings.label_mailroom_error]
@@ -141,7 +153,7 @@ class ScreenerWorkflow:
         }
 
         if not errored_ids:
-            return raw
+            return raw, sender_names
 
         # Rebuild the dict without errored emails
         filtered: dict[str, list[tuple[str, str]]] = {}
@@ -152,7 +164,7 @@ class ScreenerWorkflow:
             if clean_emails:
                 filtered[sender] = clean_emails
 
-        return filtered
+        return filtered, sender_names
 
     def _detect_conflicts(
         self,
@@ -225,6 +237,7 @@ class ScreenerWorkflow:
         self,
         sender: str,
         emails: list[tuple[str, str]],
+        sender_names: dict[str, str | None] | None = None,
     ) -> None:
         """Process a single sender's triage.
 
@@ -258,7 +271,8 @@ class ScreenerWorkflow:
             return
 
         # Step 2: Upsert contact into group (CardDAV)
-        result = self._carddav.upsert_contact(sender, None, group_name)
+        display_name = (sender_names or {}).get(sender)
+        result = self._carddav.upsert_contact(sender, display_name, group_name)
         log.info("contact_upserted", action=result["action"], uid=result["uid"])
 
         # Step 3: Sweep all Screener emails from this sender (JMAP)

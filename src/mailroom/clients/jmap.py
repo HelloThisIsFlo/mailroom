@@ -193,17 +193,21 @@ class JMAPClient:
 
         return all_ids
 
-    def get_email_senders(self, email_ids: list[str]) -> dict[str, str]:
-        """Get sender email address for each email ID.
+    def get_email_senders(
+        self, email_ids: list[str]
+    ) -> dict[str, tuple[str, str | None]]:
+        """Get sender email address and display name for each email ID.
 
         Uses Email/get with properties=["id", "from"] and extracts
-        the first from[].email value.
+        the first from[].email and from[].name values.
 
         Args:
             email_ids: List of email IDs to look up.
 
         Returns:
-            Dict mapping email_id to sender email address string.
+            Dict mapping email_id to (sender_email, display_name) tuple.
+            display_name is None when the From header has no name,
+            an empty name, or a whitespace-only name.
         """
         responses = self.call(
             [
@@ -220,11 +224,15 @@ class JMAPClient:
         )
         email_list = responses[0][1]["list"]
 
-        result: dict[str, str] = {}
+        result: dict[str, tuple[str, str | None]] = {}
         for email in email_list:
             from_list = email.get("from", [])
             if from_list:
-                result[email["id"]] = from_list[0]["email"]
+                sender_email = from_list[0]["email"]
+                name = from_list[0].get("name") or None
+                if name and not name.strip():
+                    name = None
+                result[email["id"]] = (sender_email, name)
 
         return result
 
