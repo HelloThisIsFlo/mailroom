@@ -37,11 +37,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Logging & Configuration
 
-- [ ] **CONF-01**: All label names and contact group names are configurable via environment variables (k8s ConfigMap)
-- [ ] **CONF-02**: Polling interval is configurable via environment variable
-- [ ] **CONF-03**: Fastmail credentials are read from environment variables (k8s Secret)
-- [ ] **LOG-01**: Service produces structured JSON logs with action, sender, timestamp, success/failure
-- [ ] **LOG-02**: Errors are logged with enough context to diagnose without accessing the cluster
+- [x] **CONF-01**: All label names and contact group names are configurable via environment variables (k8s ConfigMap)
+- [x] **CONF-02**: Polling interval is configurable via environment variable
+- [x] **CONF-03**: Fastmail credentials are read from environment variables (k8s Secret)
+- [x] **LOG-01**: Service produces structured JSON logs with action, sender, timestamp, success/failure
+- [x] **LOG-02**: Errors are logged with enough context to diagnose without accessing the cluster
 
 ### Deployment
 
@@ -110,11 +110,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRIAGE-04 | Phase 3 | Pending |
 | TRIAGE-05 | Phase 3 | Pending |
 | TRIAGE-06 | Phase 3 | Pending |
-| CONF-01 | Phase 1 | Pending |
-| CONF-02 | Phase 1 | Pending |
-| CONF-03 | Phase 1 | Pending |
-| LOG-01 | Phase 1 | Pending |
-| LOG-02 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Complete |
+| CONF-02 | Phase 1 | Complete |
+| CONF-03 | Phase 1 | Complete |
+| LOG-01 | Phase 1 | Complete |
+| LOG-02 | Phase 1 | Complete |
 | DEPLOY-01 | Phase 4 | Pending |
 | DEPLOY-02 | Phase 4 | Pending |
 | DEPLOY-03 | Phase 4 | Pending |
