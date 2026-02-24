@@ -61,11 +61,11 @@ Plans:
   2. The same flow works for all four destinations: Imbox (with Inbox re-label), Feed, Paper Trail, and Jail
   3. Processing the same email twice does not create duplicate contacts or duplicate email moves (idempotent)
   4. If the CardDAV call fails mid-processing, the triage label remains on the email and the next poll cycle retries successfully
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- ScreenerWorkflow poll cycle with conflict detection and error labeling (TDD)
+- [ ] 03-02-PLAN.md -- Per-sender triage processing: upsert, sweep, relabel, already-grouped check (TDD)
 
 ### Phase 4: Packaging and Deployment
 **Goal**: Mailroom runs as a long-lived polling service in a Docker container on the home Kubernetes cluster, with all configuration externalized and credentials securely managed
