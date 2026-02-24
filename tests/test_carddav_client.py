@@ -144,30 +144,55 @@ class TestConnect:
 # --- vCard Fixtures for Group Validation ---
 
 
-def _group_vcard(fn: str, uid: str) -> str:
-    """Build an Apple-style group vCard string."""
-    return (
-        "BEGIN:VCARD\r\n"
-        "VERSION:3.0\r\n"
-        f"UID:{uid}\r\n"
-        f"FN:{fn}\r\n"
-        f"N:{fn};;;;\r\n"
-        "X-ADDRESSBOOKSERVER-KIND:group\r\n"
-        "END:VCARD"
-    )
+def _group_vcard(
+    fn: str, uid: str, members: list[str] | None = None
+) -> str:
+    """Build an Apple-style group vCard string.
+
+    Args:
+        fn: Group display name.
+        uid: Group UID.
+        members: Optional list of member contact UIDs.
+    """
+    lines = [
+        "BEGIN:VCARD",
+        "VERSION:3.0",
+        f"UID:{uid}",
+        f"FN:{fn}",
+        f"N:{fn};;;;",
+        "X-ADDRESSBOOKSERVER-KIND:group",
+    ]
+    for member_uid in members or []:
+        lines.append(
+            f"X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:{member_uid}"
+        )
+    lines.append("END:VCARD")
+    return "\r\n".join(lines)
 
 
-def _contact_vcard(fn: str, uid: str, email: str) -> str:
+def _contact_vcard(
+    fn: str,
+    uid: str,
+    email: str,
+    *,
+    note: str | None = None,
+    extra_emails: list[str] | None = None,
+) -> str:
     """Build a regular contact vCard string (not a group)."""
-    return (
-        "BEGIN:VCARD\r\n"
-        "VERSION:3.0\r\n"
-        f"UID:{uid}\r\n"
-        f"FN:{fn}\r\n"
-        f"N:{fn};;;;\r\n"
-        f"EMAIL;TYPE=INTERNET:{email}\r\n"
-        "END:VCARD"
-    )
+    lines = [
+        "BEGIN:VCARD",
+        "VERSION:3.0",
+        f"UID:{uid}",
+        f"FN:{fn}",
+        f"N:{fn};;;;",
+        f"EMAIL;TYPE=INTERNET:{email}",
+    ]
+    for extra in extra_emails or []:
+        lines.append(f"EMAIL;TYPE=INTERNET:{extra}")
+    if note:
+        lines.append(f"NOTE:{note}")
+    lines.append("END:VCARD")
+    return "\r\n".join(lines)
 
 
 def _build_report_response(items: list[tuple[str, str, str]]) -> bytes:
@@ -552,3 +577,410 @@ class TestCreateContact:
         vcard_body = put_req.content.decode("utf-8")
         card = vobject.readOne(vcard_body)
         assert card.fn.value == "jane"
+
+
+# --- Add to Group Tests ---
+
+GROUP_HREF = "/dav/ab/Default/group-imbox.vcf"
+GROUP_URL = f"https://carddav.fastmail.com{GROUP_HREF}"
+
+
+def _setup_client_with_groups(
+    client: CardDAVClient, httpx_mock: HTTPXMock
+) -> None:
+    """Connect client and populate _groups dict for add_to_group tests."""
+    _connect_client(client, httpx_mock)
+    # Manually set up the groups dict as if validate_groups() ran
+    client._groups = {
+        "Imbox": {
+            "href": GROUP_HREF,
+            "etag": '"etag-imbox-1"',
+            "uid": "uid-imbox",
+        },
+    }
+
+
+class TestAddToGroup:
+    """Tests for CardDAVClient.add_to_group()."""
+
+    def test_add_to_group_appends_member(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """PUT body contains new member and preserves existing members."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing_member = "existing-member-uid"
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=[existing_member]
+        )
+        # Mock GET for group vCard
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        # Mock PUT success
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        new_uid = "new-contact-uid"
+        client.add_to_group("Imbox", new_uid)
+
+        # Check the PUT body
+        requests = httpx_mock.get_requests()
+        # After 3 PROPFIND + 1 GET + 1 PUT
+        put_req = requests[4]
+        assert put_req.method == "PUT"
+        put_body = put_req.content.decode("utf-8")
+
+        # Both old and new members should be present
+        assert f"urn:uuid:{existing_member}" in put_body
+        assert f"urn:uuid:{new_uid}" in put_body
+
+    def test_add_to_group_uses_if_match(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """PUT includes If-Match with the ETag from the GET response."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.add_to_group("Imbox", "some-uid")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[4]
+        assert put_req.headers.get("if-match") == '"etag-imbox-1"'
+
+    def test_add_to_group_retries_on_412(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """On 412, re-fetches group and retries PUT successfully."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard("Imbox", "uid-imbox")
+
+        # Attempt 1: GET -> PUT returns 412
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-v1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=412,
+        )
+        # Attempt 2: GET (fresh) -> PUT success
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-v2"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-v3"'},
+        )
+
+        client.add_to_group("Imbox", "new-uid")
+
+        # Count PUTs: should be exactly 2
+        requests = httpx_mock.get_requests()
+        put_requests = [
+            r for r in requests if r.method == "PUT"
+        ]
+        assert len(put_requests) == 2
+
+    def test_add_to_group_raises_after_max_retries(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """After exhausting retries, raises RuntimeError."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard("Imbox", "uid-imbox")
+
+        # 3 attempts: GET -> PUT(412) each time
+        for etag_n in range(1, 4):
+            httpx_mock.add_response(
+                url=GROUP_URL,
+                status_code=200,
+                content=group_body.encode("utf-8"),
+                headers={"etag": f'"etag-v{etag_n}"'},
+            )
+            httpx_mock.add_response(
+                url=GROUP_URL,
+                status_code=412,
+            )
+
+        with pytest.raises(RuntimeError, match="retries"):
+            client.add_to_group("Imbox", "new-uid")
+
+    def test_add_to_group_skips_if_already_member(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """No PUT when contact is already in the group."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing_uid = "already-in-group-uid"
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=[existing_uid]
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+
+        client.add_to_group("Imbox", existing_uid)
+
+        # No PUT should have been sent (only PROPFIND + GET)
+        requests = httpx_mock.get_requests()
+        put_requests = [
+            r for r in requests if r.method == "PUT"
+        ]
+        assert len(put_requests) == 0
+
+
+# --- Upsert Contact Tests ---
+
+
+class TestUpsertContact:
+    """Tests for CardDAVClient.upsert_contact()."""
+
+    def test_upsert_new_contact(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """New sender: creates contact then adds to group."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        # Mock search_by_email returning empty
+        search_body = _build_report_response([])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=search_body,
+        )
+        # Mock create_contact PUT
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-contact-etag"'},
+        )
+        # Mock add_to_group: GET group vCard
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        # Mock add_to_group: PUT group vCard
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["action"] == "created"
+        assert result["group"] == "Imbox"
+        assert "uid" in result
+
+    def test_upsert_existing_contact_adds_to_group(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing sender: skips create, adds to group."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        # Mock search returning existing contact
+        existing = _contact_vcard(
+            "Jane Smith",
+            "existing-uid",
+            "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            (
+                "/dav/ab/Default/jane.vcf",
+                "etag-jane",
+                existing,
+            ),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=search_body,
+        )
+        # Mock add_to_group: GET group vCard
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        # Mock add_to_group: PUT group vCard
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["action"] == "existing"
+        assert result["uid"] == "existing-uid"
+        assert result["group"] == "Imbox"
+
+        # create_contact should NOT have been called (no extra PUT)
+        requests = httpx_mock.get_requests()
+        put_requests = [
+            r for r in requests if r.method == "PUT"
+        ]
+        # Only the group PUT, no contact PUT
+        assert len(put_requests) == 1
+
+    def test_upsert_existing_contact_no_overwrite(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact with filled fields: nothing overwritten."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        # Contact already has FN, N, NOTE, EMAIL -- nothing to fill
+        existing = _contact_vcard(
+            "Jane Smith",
+            "existing-uid",
+            "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            (
+                "/dav/ab/Default/jane.vcf",
+                "etag-jane",
+                existing,
+            ),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=search_body,
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["action"] == "existing"
+        # No contact update PUT should have been sent
+        # (only the group PUT from add_to_group)
+        requests = httpx_mock.get_requests()
+        put_requests = [
+            r for r in requests if r.method == "PUT"
+        ]
+        assert len(put_requests) == 1  # only group PUT
+
+    def test_upsert_existing_contact_merge_cautious(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact missing email: new email added without overwrite."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        # Contact has a different email; the new one should be added
+        existing = _contact_vcard(
+            "Jane Smith",
+            "existing-uid",
+            "jane.personal@example.com",
+            note="My friend Jane",
+        )
+        search_body = _build_report_response([
+            (
+                "/dav/ab/Default/jane.vcf",
+                "etag-jane",
+                existing,
+            ),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL,
+            status_code=207,
+            content=search_body,
+        )
+        # Mock the merge PUT for the contact update
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane.work@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["action"] == "existing"
+
+        # Find the contact update PUT (not the group PUT)
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+
+        # Parse the updated vCard
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        # Original fields preserved
+        assert card.fn.value == "Jane Smith"
+        assert card.note.value == "My friend Jane"
+
+        # Both emails present
+        emails = [e.value for e in card.contents.get("email", [])]
+        assert "jane.personal@example.com" in emails
+        assert "jane.work@example.com" in emails

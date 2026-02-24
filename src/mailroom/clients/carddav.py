@@ -357,3 +357,171 @@ class CardDAVClient:
             "etag": resp.headers.get("etag", ""),
             "uid": contact_uid,
         }
+
+    def add_to_group(
+        self,
+        group_name: str,
+        contact_uid: str,
+        max_retries: int = 3,
+    ) -> str:
+        """Add a contact to a group by modifying the group's vCard.
+
+        Fetches the group vCard, appends an X-ADDRESSBOOKSERVER-MEMBER
+        entry, and PUTs it back with If-Match for concurrency safety.
+        Retries on 412 Precondition Failed (ETag conflict).
+
+        Args:
+            group_name: Name of the group (must exist in self._groups).
+            contact_uid: UID of the contact to add.
+            max_retries: Maximum number of retry attempts on 412.
+
+        Returns:
+            The new ETag of the group vCard after successful PUT.
+
+        Raises:
+            RuntimeError: After exhausting retries on 412 conflicts.
+        """
+        self._require_connection()
+        group_info = self._groups[group_name]
+        href = group_info["href"]
+        group_url = f"https://{self._hostname}{href}"
+
+        member_urn = f"urn:uuid:{contact_uid}"
+
+        for _attempt in range(max_retries):
+            # GET current group vCard
+            resp = self._http.get(group_url)
+            resp.raise_for_status()
+            current_etag = resp.headers.get("etag", "")
+
+            card = vobject.readOne(resp.text)
+
+            # Check if already a member
+            existing_members = card.contents.get(
+                "x-addressbookserver-member", []
+            )
+            existing_urns = [m.value for m in existing_members]
+            if member_urn in existing_urns:
+                return current_etag
+
+            # Add new member
+            card.add("x-addressbookserver-member").value = member_urn
+
+            # PUT with If-Match
+            put_resp = self._http.put(
+                group_url,
+                content=card.serialize().encode("utf-8"),
+                headers={
+                    "Content-Type": "text/vcard; charset=utf-8",
+                    "If-Match": current_etag,
+                },
+            )
+
+            if put_resp.status_code == 412:
+                continue  # ETag conflict, retry
+
+            put_resp.raise_for_status()
+
+            # Update stored ETag
+            new_etag = put_resp.headers.get("etag", "")
+            self._groups[group_name]["etag"] = new_etag
+            return new_etag
+
+        raise RuntimeError(
+            f"Failed to add member to group {group_name} "
+            f"after {max_retries} retries (ETag conflict)"
+        )
+
+    def upsert_contact(
+        self,
+        email: str,
+        display_name: str | None,
+        group_name: str,
+    ) -> dict:
+        """Search-or-create a contact and add it to a group.
+
+        Orchestrates the full contact management flow:
+        1. Search for existing contact by email
+        2. If not found: create new contact
+        3. If found: merge-cautious update (fill empty fields only)
+        4. Add contact to the specified group
+
+        Args:
+            email: Sender email address.
+            display_name: Sender display name (may be None).
+            group_name: Target group name (must exist in self._groups).
+
+        Returns:
+            Dict with 'action' ("created" or "existing"),
+            'uid', and 'group' keys.
+        """
+        results = self.search_by_email(email)
+
+        if not results:
+            # New contact
+            new_contact = self.create_contact(email, display_name)
+            self.add_to_group(group_name, new_contact["uid"])
+            return {
+                "action": "created",
+                "uid": new_contact["uid"],
+                "group": group_name,
+            }
+
+        # Existing contact -- use first match
+        result = results[0]
+        card = vobject.readOne(result["vcard_data"])
+        contact_uid = card.uid.value
+
+        # Merge-cautious update: fill empty fields, never overwrite
+        changed = False
+
+        # Check if this email is already on the contact
+        existing_emails = [
+            e.value.lower()
+            for e in card.contents.get("email", [])
+        ]
+        if email.lower() not in existing_emails:
+            new_email = card.add("email")
+            new_email.value = email
+            new_email.type_param = "INTERNET"
+            changed = True
+
+        # Only set FN if missing or empty
+        fn_value = getattr(card, "fn", None)
+        if (
+            fn_value is None
+            or not fn_value.value.strip()
+        ) and display_name:
+            if fn_value is None:
+                card.add("fn").value = display_name
+            else:
+                card.fn.value = display_name
+            changed = True
+
+        # Only add NOTE if none exists
+        note_value = card.contents.get("note", [])
+        if not note_value:
+            card.add("note").value = (
+                f"Added by Mailroom on {date.today().isoformat()}"
+            )
+            changed = True
+
+        # PUT updated vCard if anything changed
+        if changed:
+            href = result["href"]
+            etag = result["etag"]
+            self._http.put(
+                f"https://{self._hostname}{href}",
+                content=card.serialize().encode("utf-8"),
+                headers={
+                    "Content-Type": "text/vcard; charset=utf-8",
+                    "If-Match": etag,
+                },
+            )
+
+        self.add_to_group(group_name, contact_uid)
+        return {
+            "action": "existing",
+            "uid": contact_uid,
+            "group": group_name,
+        }
