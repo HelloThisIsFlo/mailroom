@@ -9,29 +9,29 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation and JMAP Client)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-24 -- Completed 01-02-PLAN.md (JMAP session discovery and mailbox resolution)
+Phase: 1 of 4 (Foundation and JMAP Client) -- COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-02-24 -- Completed 01-03-PLAN.md (JMAP email query, sender extraction, and batch move)
 
-Progress: [██░░░░░░░░] 17%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 2.5 min
-- Total execution time: 0.08 hours
+- Total plans completed: 3
+- Average duration: 2.7 min
+- Total execution time: 0.13 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-and-jmap-client | 2/3 | 5 min | 2.5 min |
+| 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (2 min)
-- Trend: --
+- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 01-03 (3 min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -51,6 +51,9 @@ Recent decisions affecting current work:
 - [01-02]: Inbox resolved by role='inbox' (not name) to avoid parent/child name collisions
 - [01-02]: Custom mailboxes prefer top-level (parentId=None) for duplicate name disambiguation
 - [01-02]: RuntimeError with 'not connected' message for pre-connect access guards
+- [01-03]: query_emails() combines JMAP-03 and JMAP-06 via optional sender parameter (not separate methods)
+- [01-03]: batch_move_emails() is generic -- Imbox/Inbox special case is caller responsibility (passes inbox_id in add_mailbox_ids)
+- [01-03]: Batch chunking at 100 emails per Email/set call (conservative under 500 minimum maxObjectsInSet)
 
 ### Pending Todos
 
@@ -63,5 +66,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 01-02-PLAN.md (JMAP session discovery and mailbox resolution)
+Stopped at: Completed 01-03-PLAN.md (JMAP email query, sender extraction, and batch move) -- Phase 1 complete
 Resume file: None

@@ -11,12 +11,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **JMAP-01**: Service can authenticate with Fastmail JMAP API using Bearer token
 - [x] **JMAP-02**: Service can resolve mailbox names to mailbox IDs (Screener, @ToImbox, @ToFeed, @ToPaperTrail, @ToJail, Inbox)
-- [ ] **JMAP-03**: Service can query emails by mailbox/label to find triaged emails
-- [ ] **JMAP-04**: Service can extract sender email address from a triaged email
-- [ ] **JMAP-05**: Service can remove a triage label from a processed email using JMAP patch syntax
-- [ ] **JMAP-06**: Service can query Screener for all emails from a specific sender
-- [ ] **JMAP-07**: Service can batch-update swept emails (remove Screener label, add destination label)
-- [ ] **JMAP-08**: Service can add Inbox label to swept emails when destination is Imbox
+- [x] **JMAP-03**: Service can query emails by mailbox/label to find triaged emails
+- [x] **JMAP-04**: Service can extract sender email address from a triaged email
+- [x] **JMAP-05**: Service can remove a triage label from a processed email using JMAP patch syntax
+- [x] **JMAP-06**: Service can query Screener for all emails from a specific sender
+- [x] **JMAP-07**: Service can batch-update swept emails (remove Screener label, add destination label)
+- [x] **JMAP-08**: Service can add Inbox label to swept emails when destination is Imbox
 
 ### CardDAV Integration
 
@@ -93,12 +93,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | JMAP-01 | Phase 1 | Complete |
 | JMAP-02 | Phase 1 | Complete |
-| JMAP-03 | Phase 1 | Pending |
-| JMAP-04 | Phase 1 | Pending |
-| JMAP-05 | Phase 1 | Pending |
-| JMAP-06 | Phase 1 | Pending |
-| JMAP-07 | Phase 1 | Pending |
-| JMAP-08 | Phase 1 | Pending |
+| JMAP-03 | Phase 1 | Complete |
+| JMAP-04 | Phase 1 | Complete |
+| JMAP-05 | Phase 1 | Complete |
+| JMAP-06 | Phase 1 | Complete |
+| JMAP-07 | Phase 1 | Complete |
+| JMAP-08 | Phase 1 | Complete |
 | CDAV-01 | Phase 2 | Pending |
 | CDAV-02 | Phase 2 | Pending |
 | CDAV-03 | Phase 2 | Pending |
