@@ -90,6 +90,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
-| 2. CardDAV Client (Validation Gate) | 3/3 | Complete | 2026-02-24 |
+| 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
 | 3. Triage Pipeline | 0/2 | Not started | - |
 | 4. Packaging and Deployment | 0/2 | Not started | - |
