@@ -28,12 +28,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Triage Workflow
 
-- [ ] **TRIAGE-01**: Service polls for emails with triage labels every 5 minutes (configurable)
+- [x] **TRIAGE-01**: Service polls for emails with triage labels every 5 minutes (configurable)
 - [ ] **TRIAGE-02**: For each triaged email: extract sender, create/update contact, assign to group, remove triage label
 - [ ] **TRIAGE-03**: After contact assignment, sweep all Screener emails from that sender to the correct destination
 - [ ] **TRIAGE-04**: For Imbox triage: swept emails get Inbox label re-added so they appear immediately
 - [ ] **TRIAGE-05**: Processing is idempotent — re-processing the same email does not create duplicate contacts
-- [ ] **TRIAGE-06**: If CardDAV fails, triage label is left in place for retry on next poll cycle
+- [x] **TRIAGE-06**: If CardDAV fails, triage label is left in place for retry on next poll cycle
 
 ### Logging & Configuration
 
@@ -104,12 +104,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CDAV-03 | Phase 2 | Complete |
 | CDAV-04 | Phase 2 | Complete |
 | CDAV-05 | Phase 2 | Complete |
-| TRIAGE-01 | Phase 3 | Pending |
+| TRIAGE-01 | Phase 3 | Complete |
 | TRIAGE-02 | Phase 3 | Pending |
 | TRIAGE-03 | Phase 3 | Pending |
 | TRIAGE-04 | Phase 3 | Pending |
 | TRIAGE-05 | Phase 3 | Pending |
-| TRIAGE-06 | Phase 3 | Pending |
+| TRIAGE-06 | Phase 3 | Complete |
 | CONF-01 | Phase 1 | Complete |
 | CONF-02 | Phase 1 | Complete |
 | CONF-03 | Phase 1 | Complete |

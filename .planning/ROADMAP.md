@@ -64,7 +64,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- ScreenerWorkflow poll cycle with conflict detection and error labeling (TDD)
+- [x] 03-01-PLAN.md -- ScreenerWorkflow poll cycle with conflict detection and error labeling (TDD)
 - [ ] 03-02-PLAN.md -- Per-sender triage processing: upsert, sweep, relabel, already-grouped check (TDD)
 
 ### Phase 4: Packaging and Deployment
@@ -91,5 +91,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
-| 3. Triage Pipeline | 0/2 | Not started | - |
+| 3. Triage Pipeline | 1/2 | In progress | - |
 | 4. Packaging and Deployment | 0/2 | Not started | - |

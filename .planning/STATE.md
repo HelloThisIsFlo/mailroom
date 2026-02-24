@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 2 complete. Ready for Phase 3: Triage Pipeline
+**Current focus:** Phase 3 in progress. Building triage pipeline workflow.
 
 ## Current Position
 
-Phase: 2 of 4 (CardDAV Client Validation Gate) -- COMPLETE
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase complete -- validation gate passed, all CardDAV operations verified against live Fastmail
-Last activity: 2026-02-24 - Phase 2 validation gate PASSED: all human test scripts confirmed against live Fastmail
+Phase: 3 of 4 (Triage Pipeline)
+Plan: 1 of 2 in current phase
+Status: Plan 03-01 complete -- ScreenerWorkflow poll cycle with conflict detection
+Last activity: 2026-02-24 - Plan 03-01 complete: ScreenerWorkflow poll cycle, conflict detection, @MailroomError labeling
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 2.7 min
-- Total execution time: 0.31 hours
+- Total plans completed: 8
+- Average duration: 2.9 min
+- Total execution time: 0.38 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [███████░░░] 70%
 |-------|-------|-------|----------|
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
 | 02-carddav-client-validation-gate | 3/3 | 10 min | 3.3 min |
+| 03-triage-pipeline | 1/2 | 4 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (3 min), 02-01 (3 min), 02-02 (4 min), 02-03 (3 min)
+- Last 5 plans: 02-01 (3 min), 02-02 (4 min), 02-03 (3 min), 03-01 (4 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -67,6 +68,10 @@ Recent decisions affecting current work:
 - [02-03]: Manual cleanup after tests to allow visual Fastmail verification first
 - [02-03]: Discovery URL fixed from / to /.well-known/carddav for proper CardDAV discovery
 - [02-03]: Logging deferred to uniform approach in later phase (added then reverted per user preference)
+- [03-01]: poll() catches all exceptions from _process_sender via except Exception for retry safety (TRIAGE-06)
+- [03-01]: _apply_error_label wraps all JMAP calls in try/except to prevent transient failures from crashing poll cycle
+- [03-01]: Post-query @MailroomError filtering via Email/get with mailboxIds check (single JMAP call)
+- [03-01]: destination_mailbox added to label_to_group_mapping for self-contained destination routing
 
 ### Pending Todos
 
@@ -85,5 +90,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02-03-PLAN.md -- Phase 2 validation gate passed
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
