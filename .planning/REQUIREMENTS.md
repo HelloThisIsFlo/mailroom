@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### CardDAV Integration
 
-- [ ] **CDAV-01**: Service can authenticate with Fastmail CardDAV using Basic auth (app password)
+- [x] **CDAV-01**: Service can authenticate with Fastmail CardDAV using Basic auth (app password)
 - [ ] **CDAV-02**: Service can search contacts by email address to check for existing contacts
 - [ ] **CDAV-03**: Service can create a new contact vCard for a sender
 - [ ] **CDAV-04**: Service can add a contact to a contact group (Imbox, Feed, Paper Trail, Jail)
@@ -99,7 +99,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JMAP-06 | Phase 1 | Complete |
 | JMAP-07 | Phase 1 | Complete |
 | JMAP-08 | Phase 1 | Complete |
-| CDAV-01 | Phase 2 | Pending |
+| CDAV-01 | Phase 2 | Complete |
 | CDAV-02 | Phase 2 | Pending |
 | CDAV-03 | Phase 2 | Pending |
 | CDAV-04 | Phase 2 | Pending |

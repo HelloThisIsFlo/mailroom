@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 1: Foundation and JMAP Client
+**Current focus:** Phase 2: CardDAV Client (Validation Gate)
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation and JMAP Client) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-24 - Completed quick task 1: Commit human tests, gitignore, and dependency changes from phase verification
+Phase: 2 of 4 (CardDAV Client Validation Gate)
+Plan: 1 of 3 in current phase
+Status: Executing
+Last activity: 2026-02-24 - Completed 02-01: CardDAV client foundation (connect, discovery, group validation)
 
-Progress: [██░░░░░░░░] 25%
+Progress: [████░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 2.7 min
-- Total execution time: 0.13 hours
+- Total plans completed: 4
+- Average duration: 2.8 min
+- Total execution time: 0.18 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
+| 02-carddav-client-validation-gate | 1/3 | 3 min | 3.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 01-03 (3 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 01-03 (3 min), 02-01 (3 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -54,6 +55,9 @@ Recent decisions affecting current work:
 - [01-03]: query_emails() combines JMAP-03 and JMAP-06 via optional sender parameter (not separate methods)
 - [01-03]: batch_move_emails() is generic -- Imbox/Inbox special case is caller responsibility (passes inbox_id in add_mailbox_ids)
 - [01-03]: Batch chunking at 100 emails per Email/set call (conservative under 500 minimum maxObjectsInSet)
+- [02-01]: REPORT addressbook-query with no filter for single-round-trip group fetch
+- [02-01]: card.contents dict access for vobject X-properties (more reliable than attribute access)
+- [02-01]: Full absolute URLs in _addressbook_url for simpler downstream usage
 
 ### Pending Todos
 
@@ -72,5 +76,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed quick task 1 (commit Phase 1 verification artifacts)
+Stopped at: Completed 02-01-PLAN.md (CardDAV client foundation)
 Resume file: None
