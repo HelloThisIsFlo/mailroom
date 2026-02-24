@@ -433,6 +433,50 @@ class CardDAVClient:
             f"after {max_retries} retries (ETag conflict)"
         )
 
+    def check_membership(
+        self,
+        contact_uid: str,
+        exclude_group: str | None = None,
+    ) -> str | None:
+        """Check if a contact is a member of any validated group.
+
+        Iterates over all validated groups (from validate_groups()),
+        fetches each group's vCard, and checks for the contact's UID
+        in X-ADDRESSBOOKSERVER-MEMBER entries.
+
+        Args:
+            contact_uid: UID of the contact to check.
+            exclude_group: If provided, skip this group (used to check
+                for membership in a DIFFERENT group than the target).
+
+        Returns:
+            The name of the group the contact is in, or None if not
+            found in any (non-excluded) group.
+        """
+        self._require_connection()
+        member_urn = f"urn:uuid:{contact_uid}"
+
+        for group_name, group_info in self._groups.items():
+            if group_name == exclude_group:
+                continue
+
+            href = group_info["href"]
+            group_url = f"https://{self._hostname}{href}"
+
+            resp = self._http.get(group_url)
+            resp.raise_for_status()
+
+            card = vobject.readOne(resp.text)
+            existing_members = card.contents.get(
+                "x-addressbookserver-member", []
+            )
+            existing_urns = [m.value for m in existing_members]
+
+            if member_urn in existing_urns:
+                return group_name
+
+        return None
+
     def upsert_contact(
         self,
         email: str,

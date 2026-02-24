@@ -1,8 +1,9 @@
-"""ScreenerWorkflow: poll cycle orchestration with conflict detection and error labeling."""
+"""ScreenerWorkflow: poll cycle orchestration with conflict detection, error labeling, and per-sender triage processing."""
 
 from __future__ import annotations
 
 import structlog
+import vobject
 
 from mailroom.clients.carddav import CardDAVClient
 from mailroom.clients.jmap import JMAPClient
@@ -20,7 +21,8 @@ class ScreenerWorkflow:
     2. Filter out emails already marked with @MailroomError
     3. Detect conflicting triage labels (same sender, different labels)
     4. Apply @MailroomError to conflicted senders
-    5. Process each clean sender (stub in this plan, filled by Plan 02)
+    5. Process each clean sender: check already-grouped, upsert contact,
+       sweep Screener emails, remove triage label (last step)
     """
 
     def __init__(
@@ -226,6 +228,96 @@ class ScreenerWorkflow:
     ) -> None:
         """Process a single sender's triage.
 
-        Stub in this plan -- Plan 02 implements per-sender processing.
+        Steps execute in strict order. If any step fails, the exception
+        propagates and the triage label is NOT removed (retry on next poll
+        per TRIAGE-06).
+
+        1. Extract label and group from emails
+        2. Already-grouped check (TRIAGE-05 conflict detection)
+        3. Upsert contact into group (TRIAGE-02)
+        4. Sweep all Screener emails from sender (TRIAGE-03)
+        5. Move swept emails to destination (TRIAGE-03 + TRIAGE-04)
+        6. Remove triage label from triggering emails -- LAST STEP
         """
-        raise NotImplementedError("Plan 02 implements per-sender processing")
+        label_name = emails[0][1]  # All emails have the same label (conflict-free)
+        email_ids = [eid for eid, _ in emails]
+        group_name = self._settings.label_to_group_mapping[label_name]["group"]
+
+        log = self._log.bind(sender=sender, label=label_name, group=group_name)
+
+        # Step 1: Already-grouped check
+        existing_group = self._check_already_grouped(sender, group_name)
+        if existing_group is not None:
+            # Sender is in a DIFFERENT group -- apply @MailroomError and return
+            log.warning(
+                "already_grouped",
+                existing_group=existing_group,
+                target_group=group_name,
+            )
+            self._apply_error_label(sender, emails)
+            return
+
+        # Step 2: Upsert contact into group (CardDAV)
+        result = self._carddav.upsert_contact(sender, None, group_name)
+        log.info("contact_upserted", action=result["action"], uid=result["uid"])
+
+        # Step 3: Sweep all Screener emails from this sender (JMAP)
+        screener_id = self._mailbox_ids[self._settings.screener_mailbox]
+        sender_emails = self._jmap.query_emails(screener_id, sender=sender)
+
+        # Step 4: Move swept emails to destination
+        if sender_emails:
+            add_ids = self._get_destination_mailbox_ids(label_name)
+            self._jmap.batch_move_emails(sender_emails, screener_id, add_ids)
+            log.info("emails_swept", count=len(sender_emails))
+
+        # Step 5: Remove triage label from triggering emails -- LAST STEP
+        label_id = self._mailbox_ids[label_name]
+        for email_id in email_ids:
+            self._jmap.remove_label(email_id, label_id)
+
+        log.info(
+            "triage_complete",
+            sender=sender,
+            emails_moved=len(sender_emails),
+        )
+
+    def _get_destination_mailbox_ids(self, label_name: str) -> list[str]:
+        """Return the mailbox IDs to add when sweeping for this label's destination.
+
+        Looks up the destination_mailbox from the config mapping and resolves
+        it to a mailbox ID.
+
+        - Imbox: destination_mailbox is "Inbox", returns [inbox_id]
+        - Feed/Paper Trail/Jail: destination_mailbox matches mailbox name
+        """
+        mapping = self._settings.label_to_group_mapping[label_name]
+        destination_mailbox = mapping["destination_mailbox"]
+        return [self._mailbox_ids[destination_mailbox]]
+
+    def _check_already_grouped(
+        self,
+        sender: str,
+        target_group: str,
+    ) -> str | None:
+        """Check if sender is already a member of a contact group different from the target.
+
+        - Searches CardDAV for the sender's contact.
+        - If no contact found: returns None (new sender, safe to proceed).
+        - If contact found: checks group membership via CardDAVClient.check_membership.
+        - If contact is in a non-target group: returns that group name (conflict).
+        - If contact is in the target group or no group: returns None (safe).
+
+        Transient CardDAV failures propagate up to _process_sender's try/except
+        boundary (retry on next poll per TRIAGE-06).
+        """
+        results = self._carddav.search_by_email(sender)
+        if not results:
+            return None
+
+        # Extract contact UID from vCard
+        card = vobject.readOne(results[0]["vcard_data"])
+        contact_uid = card.uid.value
+
+        # Check if this contact is in any group other than the target
+        return self._carddav.check_membership(contact_uid, exclude_group=target_group)
