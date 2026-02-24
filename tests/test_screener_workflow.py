@@ -1,6 +1,6 @@
 """TDD tests for ScreenerWorkflow poll cycle, conflict detection, error labeling, and per-sender processing."""
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call
 
 import pytest
 import vobject
