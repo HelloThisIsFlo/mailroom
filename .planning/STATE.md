@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 1 of 4 (Foundation and JMAP Client)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-02-24 -- Completed 01-01-PLAN.md (Project scaffold, config, logging)
+Last activity: 2026-02-24 -- Completed 01-02-PLAN.md (JMAP session discovery and mailbox resolution)
 
-Progress: [█░░░░░░░░░] 8%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 3 min
-- Total execution time: 0.05 hours
+- Total plans completed: 2
+- Average duration: 2.5 min
+- Total execution time: 0.08 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-and-jmap-client | 1/3 | 3 min | 3 min |
+| 01-foundation-and-jmap-client | 2/3 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (2 min)
 - Trend: --
 
 *Updated after each plan completion*
@@ -48,6 +48,9 @@ Recent decisions affecting current work:
 - [01-01]: PrintLoggerFactory writes to stderr for proper Docker/k8s log collection
 - [01-01]: cache_logger_on_first_use=False for testability
 - [01-01]: carddav_password with empty default for Phase 1 forward compat
+- [01-02]: Inbox resolved by role='inbox' (not name) to avoid parent/child name collisions
+- [01-02]: Custom mailboxes prefer top-level (parentId=None) for duplicate name disambiguation
+- [01-02]: RuntimeError with 'not connected' message for pre-connect access guards
 
 ### Pending Todos
 
@@ -60,5 +63,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 01-01-PLAN.md (Project scaffold, config, logging)
+Stopped at: Completed 01-02-PLAN.md (JMAP session discovery and mailbox resolution)
 Resume file: None

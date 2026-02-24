@@ -9,8 +9,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### JMAP Integration
 
-- [ ] **JMAP-01**: Service can authenticate with Fastmail JMAP API using Bearer token
-- [ ] **JMAP-02**: Service can resolve mailbox names to mailbox IDs (Screener, @ToImbox, @ToFeed, @ToPaperTrail, @ToJail, Inbox)
+- [x] **JMAP-01**: Service can authenticate with Fastmail JMAP API using Bearer token
+- [x] **JMAP-02**: Service can resolve mailbox names to mailbox IDs (Screener, @ToImbox, @ToFeed, @ToPaperTrail, @ToJail, Inbox)
 - [ ] **JMAP-03**: Service can query emails by mailbox/label to find triaged emails
 - [ ] **JMAP-04**: Service can extract sender email address from a triaged email
 - [ ] **JMAP-05**: Service can remove a triage label from a processed email using JMAP patch syntax
@@ -91,8 +91,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| JMAP-01 | Phase 1 | Pending |
-| JMAP-02 | Phase 1 | Pending |
+| JMAP-01 | Phase 1 | Complete |
+| JMAP-02 | Phase 1 | Complete |
 | JMAP-03 | Phase 1 | Pending |
 | JMAP-04 | Phase 1 | Pending |
 | JMAP-05 | Phase 1 | Pending |
