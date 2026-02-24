@@ -87,7 +87,6 @@ class ScreenerWorkflow:
         # Collect emails from all triage labels
         raw: dict[str, list[tuple[str, str]]] = {}
         all_email_ids: list[str] = []
-        email_id_to_label: dict[str, str] = {}
 
         for label_name in self._settings.triage_labels:
             label_id = self._mailbox_ids[label_name]
@@ -111,7 +110,6 @@ class ScreenerWorkflow:
                 sender = senders[email_id]
                 raw.setdefault(sender, []).append((email_id, label_name))
                 all_email_ids.append(email_id)
-                email_id_to_label[email_id] = label_name
 
         if not all_email_ids:
             return {}
