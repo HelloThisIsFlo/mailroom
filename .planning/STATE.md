@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 4 (CardDAV Client Validation Gate)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-24 - Completed 02-02: Contact operations (search, create, group, upsert)
+Plan: 3 of 3 in current phase
+Status: Checkpoint (human-verify) -- awaiting user validation of CardDAV against live Fastmail
+Last activity: 2026-02-24 - Completed 02-03 Task 1: Human test scripts created, checkpoint pending
 
-Progress: [██████░░░░] 56%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 3.0 min
-- Total execution time: 0.25 hours
+- Total plans completed: 6
+- Average duration: 2.8 min
+- Total execution time: 0.28 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
-| 02-carddav-client-validation-gate | 2/3 | 7 min | 3.5 min |
+| 02-carddav-client-validation-gate | 3/3 | 10 min | 3.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (2 min), 01-03 (3 min), 02-01 (3 min), 02-02 (4 min)
+- Last 5 plans: 01-03 (3 min), 02-01 (3 min), 02-02 (4 min), 02-03 (3 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [02-02]: First-match strategy for duplicate contacts during upsert (deterministic behavior)
 - [02-02]: Merge-cautious: only fill empty fields, never overwrite existing data
 - [02-02]: add_to_group is idempotent (skips PUT when contact already a member)
+- [02-03]: ETag conflict test uses external edit (user edits group in Fastmail) for deterministic testing
+- [02-03]: Each human test script is standalone with own connection/validation
+- [02-03]: Manual cleanup after tests to allow visual Fastmail verification first
 
 ### Pending Todos
 
@@ -80,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02-02-PLAN.md (Contact operations)
+Stopped at: 02-03-PLAN.md Task 2 checkpoint:human-verify -- user must run test scripts against live Fastmail
 Resume file: None
