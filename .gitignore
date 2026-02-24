@@ -1,0 +1,12 @@
+# Environment
+.env
+human-tests/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Tools
+.ruff_cache/
+.pytest_cache/
