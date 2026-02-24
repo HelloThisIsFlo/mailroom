@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 2: CardDAV Client (Validation Gate)
+**Current focus:** Phase 2 complete. Ready for Phase 3: Triage Pipeline
 
 ## Current Position
 
-Phase: 2 of 4 (CardDAV Client Validation Gate)
-Plan: 3 of 3 in current phase
-Status: Checkpoint (human-verify) -- awaiting user validation of CardDAV against live Fastmail
-Last activity: 2026-02-24 - Completed 02-03 Task 1: Human test scripts created, checkpoint pending
+Phase: 2 of 4 (CardDAV Client Validation Gate) -- COMPLETE
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase complete -- validation gate passed, all CardDAV operations verified against live Fastmail
+Last activity: 2026-02-24 - Phase 2 validation gate PASSED: all human test scripts confirmed against live Fastmail
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 2.8 min
-- Total execution time: 0.28 hours
+- Total plans completed: 7
+- Average duration: 2.7 min
+- Total execution time: 0.31 hours
 
 **By Phase:**
 
@@ -65,6 +65,8 @@ Recent decisions affecting current work:
 - [02-03]: ETag conflict test uses external edit (user edits group in Fastmail) for deterministic testing
 - [02-03]: Each human test script is standalone with own connection/validation
 - [02-03]: Manual cleanup after tests to allow visual Fastmail verification first
+- [02-03]: Discovery URL fixed from / to /.well-known/carddav for proper CardDAV discovery
+- [02-03]: Logging deferred to uniform approach in later phase (added then reverted per user preference)
 
 ### Pending Todos
 
@@ -72,7 +74,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 2]: CardDAV KIND:group contact model is from training data, not live-verified. Phase 2 must begin with manual prototype against Fastmail before writing pipeline code.
+- ~~[Phase 2]: CardDAV KIND:group contact model is from training data, not live-verified.~~ RESOLVED: Validated against live Fastmail on 2026-02-24. All operations confirmed working.
 
 ### Quick Tasks Completed
 
@@ -83,5 +85,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: 02-03-PLAN.md Task 2 checkpoint:human-verify -- user must run test scripts against live Fastmail
+Stopped at: Completed 02-03-PLAN.md -- Phase 2 validation gate passed
 Resume file: None
