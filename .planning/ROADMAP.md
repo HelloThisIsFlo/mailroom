@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation and JMAP Client** - Config, logging, and a working JMAP client that can query, extract, move, and relabel emails (completed 2026-02-24)
 - [x] **Phase 2: CardDAV Client (Validation Gate)** - A verified CardDAV client that can manage contacts and group membership, validated against live Fastmail (completed 2026-02-24)
-- [ ] **Phase 3: Triage Pipeline** - End-to-end screener workflow wiring both clients into the poll-triage-sweep sequence
+- [x] **Phase 3: Triage Pipeline** - End-to-end screener workflow wiring both clients into the poll-triage-sweep sequence (completed 2026-02-24)
 - [ ] **Phase 4: Packaging and Deployment** - Main polling loop, Docker image, k8s manifests, running service in the home cluster
 
 ## Phase Details
@@ -61,11 +61,11 @@ Plans:
   2. The same flow works for all four destinations: Imbox (with Inbox re-label), Feed, Paper Trail, and Jail
   3. Processing the same email twice does not create duplicate contacts or duplicate email moves (idempotent)
   4. If the CardDAV call fails mid-processing, the triage label remains on the email and the next poll cycle retries successfully
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md -- ScreenerWorkflow poll cycle with conflict detection and error labeling (TDD)
-- [ ] 03-02-PLAN.md -- Per-sender triage processing: upsert, sweep, relabel, already-grouped check (TDD)
+- [x] 03-02-PLAN.md -- Per-sender triage processing: upsert, sweep, relabel, already-grouped check (TDD)
 
 ### Phase 4: Packaging and Deployment
 **Goal**: Mailroom runs as a long-lived polling service in a Docker container on the home Kubernetes cluster, with all configuration externalized and credentials securely managed
@@ -91,5 +91,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
-| 3. Triage Pipeline | 1/2 | In progress | - |
+| 3. Triage Pipeline | 2/2 | Complete    | 2026-02-24 |
 | 4. Packaging and Deployment | 0/2 | Not started | - |

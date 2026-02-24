@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 3 in progress. Building triage pipeline workflow.
+**Current focus:** Phase 3 complete. Triage pipeline ready for Phase 4 (packaging and deployment).
 
 ## Current Position
 
 Phase: 3 of 4 (Triage Pipeline)
-Plan: 1 of 2 in current phase
-Status: Plan 03-01 complete -- ScreenerWorkflow poll cycle with conflict detection
-Last activity: 2026-02-24 - Plan 03-01 complete: ScreenerWorkflow poll cycle, conflict detection, @MailroomError labeling
+Plan: 2 of 2 in current phase
+Status: Phase 03 complete -- all triage pipeline plans done
+Last activity: 2026-02-24 - Plan 03-02 complete: per-sender triage processing pipeline with all 4 destinations
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 2.9 min
-- Total execution time: 0.38 hours
+- Total plans completed: 9
+- Average duration: 3.0 min
+- Total execution time: 0.45 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [████████░░] 80%
 |-------|-------|-------|----------|
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
 | 02-carddav-client-validation-gate | 3/3 | 10 min | 3.3 min |
-| 03-triage-pipeline | 1/2 | 4 min | 4.0 min |
+| 03-triage-pipeline | 2/2 | 8 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3 min), 02-02 (4 min), 02-03 (3 min), 03-01 (4 min)
+- Last 5 plans: 02-02 (4 min), 02-03 (3 min), 03-01 (4 min), 03-02 (4 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -72,6 +72,10 @@ Recent decisions affecting current work:
 - [03-01]: _apply_error_label wraps all JMAP calls in try/except to prevent transient failures from crashing poll cycle
 - [03-01]: Post-query @MailroomError filtering via Email/get with mailboxIds check (single JMAP call)
 - [03-01]: destination_mailbox added to label_to_group_mapping for self-contained destination routing
+- [03-02]: _check_already_grouped runs during per-sender processing (not pre-mutation gate) to handle CardDAV transient failures via retry
+- [03-02]: CardDAVClient.check_membership added as public method to keep protocol logic in the client (not workflow)
+- [03-02]: Destination mailbox resolved via config's destination_mailbox field (Imbox->Inbox, others match group name)
+- [03-02]: Empty sweep still removes triage label -- sweep query always executes per user decision
 
 ### Pending Todos
 
@@ -90,5 +94,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 03-01-PLAN.md
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
