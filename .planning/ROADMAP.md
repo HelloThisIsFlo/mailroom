@@ -29,12 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Given an email in a triage mailbox, the service extracts the sender address and can remove the triage label using JMAP patch syntax
   4. The service can query all Screener emails from a specific sender and batch-move them to a destination mailbox, adding Inbox label when the destination is Imbox
   5. All operations produce structured JSON log output with action, sender, timestamp, and success/failure
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Project scaffold, configuration module, and structured logging
+- [ ] 01-02-PLAN.md -- JMAP client: session discovery and mailbox resolution (TDD)
+- [ ] 01-03-PLAN.md -- JMAP client: email query, extraction, and move operations (TDD)
 
 ### Phase 2: CardDAV Client (Validation Gate)
 **Goal**: The service can search, create, and update contacts via CardDAV, and reliably assign contacts to Fastmail contact groups using the KIND:group model -- verified against live Fastmail before proceeding
