@@ -1,8 +1,10 @@
-"""JMAP client for Fastmail session discovery, method calls, and mailbox resolution."""
+"""JMAP client for Fastmail: session, mailbox resolution, and email operations."""
 
 from __future__ import annotations
 
 import httpx
+
+BATCH_SIZE = 100  # Max emails per Email/set call (conservative under Fastmail's 500 minimum)
 
 
 class JMAPClient:
@@ -139,3 +141,182 @@ class JMAPClient:
             )
 
         return result
+
+    def query_emails(
+        self,
+        mailbox_id: str,
+        sender: str | None = None,
+        limit: int = 100,
+    ) -> list[str]:
+        """Query email IDs in a mailbox, optionally filtered by sender.
+
+        Handles pagination automatically when total exceeds the page size.
+
+        Args:
+            mailbox_id: The JMAP mailbox ID to query.
+            sender: Optional sender email address to filter by.
+            limit: Maximum emails per page (used for pagination).
+
+        Returns:
+            List of email ID strings.
+        """
+        email_filter: dict = {"inMailbox": mailbox_id}
+        if sender is not None:
+            email_filter["from"] = sender
+
+        all_ids: list[str] = []
+        position = 0
+
+        while True:
+            responses = self.call(
+                [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": self.account_id,
+                            "filter": email_filter,
+                            "limit": limit,
+                            "position": position,
+                        },
+                        "q0",
+                    ]
+                ]
+            )
+            data = responses[0][1]
+            ids = data["ids"]
+            total = data["total"]
+            all_ids.extend(ids)
+
+            if len(all_ids) >= total:
+                break
+            position = len(all_ids)
+
+        return all_ids
+
+    def get_email_senders(self, email_ids: list[str]) -> dict[str, str]:
+        """Get sender email address for each email ID.
+
+        Uses Email/get with properties=["id", "from"] and extracts
+        the first from[].email value.
+
+        Args:
+            email_ids: List of email IDs to look up.
+
+        Returns:
+            Dict mapping email_id to sender email address string.
+        """
+        responses = self.call(
+            [
+                [
+                    "Email/get",
+                    {
+                        "accountId": self.account_id,
+                        "ids": email_ids,
+                        "properties": ["id", "from"],
+                    },
+                    "g0",
+                ]
+            ]
+        )
+        email_list = responses[0][1]["list"]
+
+        result: dict[str, str] = {}
+        for email in email_list:
+            from_list = email.get("from", [])
+            if from_list:
+                result[email["id"]] = from_list[0]["email"]
+
+        return result
+
+    def remove_label(self, email_id: str, mailbox_id: str) -> None:
+        """Remove a single mailbox label from an email.
+
+        Uses JMAP patch syntax to remove only the specified label
+        without affecting other mailbox assignments.
+
+        Args:
+            email_id: The email to modify.
+            mailbox_id: The mailbox label to remove.
+
+        Raises:
+            RuntimeError: If Email/set reports the update failed.
+        """
+        responses = self.call(
+            [
+                [
+                    "Email/set",
+                    {
+                        "accountId": self.account_id,
+                        "update": {
+                            email_id: {f"mailboxIds/{mailbox_id}": None},
+                        },
+                    },
+                    "s0",
+                ]
+            ]
+        )
+        data = responses[0][1]
+        not_updated = data.get("notUpdated")
+        if not_updated:
+            errors = [
+                f"{eid}: {err.get('description', 'unknown error')}"
+                for eid, err in not_updated.items()
+            ]
+            raise RuntimeError(
+                f"Failed to remove label from emails: {', '.join(errors)}"
+            )
+
+    def batch_move_emails(
+        self,
+        email_ids: list[str],
+        remove_mailbox_id: str,
+        add_mailbox_ids: list[str],
+    ) -> None:
+        """Batch-move emails: remove source label, add destination label(s).
+
+        Builds JMAP patch syntax for each email and processes in chunks
+        of BATCH_SIZE to stay under Fastmail's maxObjectsInSet limit.
+
+        The caller includes inbox_id in add_mailbox_ids when the
+        destination is Imbox (JMAP-08 special case).
+
+        Args:
+            email_ids: List of email IDs to move.
+            remove_mailbox_id: Mailbox label to remove from each email.
+            add_mailbox_ids: Mailbox labels to add to each email.
+
+        Raises:
+            RuntimeError: If any emails fail to update, with failed IDs listed.
+        """
+        for chunk_start in range(0, len(email_ids), BATCH_SIZE):
+            chunk = email_ids[chunk_start : chunk_start + BATCH_SIZE]
+
+            update: dict = {}
+            for email_id in chunk:
+                patch: dict = {f"mailboxIds/{remove_mailbox_id}": None}
+                for add_id in add_mailbox_ids:
+                    patch[f"mailboxIds/{add_id}"] = True
+                update[email_id] = patch
+
+            responses = self.call(
+                [
+                    [
+                        "Email/set",
+                        {
+                            "accountId": self.account_id,
+                            "update": update,
+                        },
+                        "s0",
+                    ]
+                ]
+            )
+            data = responses[0][1]
+            not_updated = data.get("notUpdated")
+            if not_updated:
+                errors = [
+                    f"{eid}: {err.get('description', 'unknown error')}"
+                    for eid, err in not_updated.items()
+                ]
+                raise RuntimeError(
+                    f"Failed to move emails: {', '.join(errors)}"
+                )
