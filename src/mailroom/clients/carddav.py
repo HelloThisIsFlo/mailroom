@@ -65,6 +65,7 @@ class CardDAVClient:
         self._http = httpx.Client(
             auth=httpx.BasicAuth(username, password),
             headers={"Content-Type": "application/xml; charset=utf-8"},
+            follow_redirects=True,
         )
         self._addressbook_url: str | None = None
         self._groups: dict[str, dict] = {}
@@ -73,7 +74,7 @@ class CardDAVClient:
         """Discover the default address book URL via 3-step PROPFIND chain.
 
         Steps:
-        1. PROPFIND / for current-user-principal
+        1. PROPFIND /.well-known/carddav for current-user-principal
         2. PROPFIND principal for addressbook-home-set
         3. PROPFIND home with Depth:1 for addressbook collections
 
@@ -81,10 +82,10 @@ class CardDAVClient:
             httpx.HTTPStatusError: On 401 (bad credentials) or other HTTP errors.
             httpx.ConnectError: On network failure.
         """
-        # Step 1: Find principal URL
+        # Step 1: Find principal URL (RFC 6764 well-known entry point)
         resp = self._http.request(
             "PROPFIND",
-            f"https://{self._hostname}/",
+            f"https://{self._hostname}/.well-known/carddav",
             content=PROPFIND_PRINCIPAL,
             headers={"Depth": "0"},
         )

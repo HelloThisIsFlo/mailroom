@@ -77,7 +77,7 @@ def client() -> CardDAVClient:
 def _mock_discovery(httpx_mock: HTTPXMock) -> None:
     """Helper: mock the 3-step PROPFIND discovery chain."""
     httpx_mock.add_response(
-        url="https://carddav.fastmail.com/",
+        url="https://carddav.fastmail.com/.well-known/carddav",
         status_code=207,
         content=PROPFIND_PRINCIPAL_RESPONSE,
     )
@@ -115,7 +115,7 @@ class TestConnect:
     ) -> None:
         """401 on the first PROPFIND raises HTTPStatusError."""
         httpx_mock.add_response(
-            url="https://carddav.fastmail.com/",
+            url="https://carddav.fastmail.com/.well-known/carddav",
             status_code=401,
         )
 
