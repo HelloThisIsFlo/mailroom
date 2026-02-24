@@ -74,7 +74,7 @@ class TestPollSingleSenderSingleLabel:
             return []
 
         jmap.query_emails.side_effect = query_side_effect
-        jmap.get_email_senders.return_value = {"email-1": "alice@example.com"}
+        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
         # Email/get: email-1 does NOT have error label
         jmap.call.return_value = [
             ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
@@ -115,7 +115,7 @@ class TestPollConflictingSender:
         def sender_side_effect(email_ids):
             result = {}
             for eid in email_ids:
-                result[eid] = "bob@example.com"
+                result[eid] = ("bob@example.com", "Bob Example")
             return result
 
         jmap.get_email_senders.side_effect = sender_side_effect
@@ -178,8 +178,8 @@ class TestPollTwoCleanSenders:
 
         jmap.query_emails.side_effect = query_side_effect
         jmap.get_email_senders.return_value = {
-            "email-1": "alice@example.com",
-            "email-2": "carol@example.com",
+            "email-1": ("alice@example.com", "Alice"),
+            "email-2": ("carol@example.com", "Carol"),
         }
         # Neither has error label
         jmap.call.return_value = [
@@ -218,9 +218,9 @@ class TestPollMixedCleanAndConflicted:
 
         def sender_side_effect(email_ids):
             mapping = {
-                "email-1": "alice@example.com",
-                "email-2": "bob@example.com",
-                "email-3": "bob@example.com",
+                "email-1": ("alice@example.com", "Alice"),
+                "email-2": ("bob@example.com", "Bob"),
+                "email-3": ("bob@example.com", "Bob"),
             }
             return {eid: mapping[eid] for eid in email_ids if eid in mapping}
 
@@ -283,7 +283,7 @@ class TestAlreadyErroredEmailFiltered:
             return []
 
         jmap.query_emails.side_effect = query_side_effect
-        jmap.get_email_senders.return_value = {"email-1": "alice@example.com"}
+        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice")}
         # email-1 already has the error label
         jmap.call.return_value = [
             [
@@ -327,7 +327,7 @@ class TestSenderMissingFromHeader:
 
         jmap.query_emails.side_effect = query_side_effect
         # email-1 has no sender, email-2 has a sender
-        jmap.get_email_senders.return_value = {"email-2": "alice@example.com"}
+        jmap.get_email_senders.return_value = {"email-2": ("alice@example.com", "Alice")}
         # Neither has error label
         jmap.call.return_value = [
             [
@@ -363,7 +363,7 @@ class TestApplyErrorLabelTransientFailure:
         jmap.query_emails.side_effect = query_side_effect
 
         def sender_side_effect(email_ids):
-            return {eid: "bob@example.com" for eid in email_ids}
+            return {eid: ("bob@example.com", "Bob") for eid in email_ids}
 
         jmap.get_email_senders.side_effect = sender_side_effect
 
@@ -407,7 +407,7 @@ class TestProcessSenderException:
             return []
 
         jmap.query_emails.side_effect = query_side_effect
-        jmap.get_email_senders.return_value = {"email-1": "alice@example.com"}
+        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice")}
         jmap.call.return_value = [
             [
                 "Email/get",
@@ -483,8 +483,8 @@ class TestCollectTriagedFilterErrorLabel:
 
         jmap.query_emails.side_effect = query_side_effect
         jmap.get_email_senders.return_value = {
-            "email-1": "alice@example.com",
-            "email-2": "bob@example.com",
+            "email-1": ("alice@example.com", "Alice"),
+            "email-2": ("bob@example.com", "Bob"),
         }
         # email-1 has error label, email-2 does not
         jmap.call.return_value = [
@@ -507,11 +507,11 @@ class TestCollectTriagedFilterErrorLabel:
         ]
 
     def test_only_non_errored_collected(self, workflow):
-        result = workflow._collect_triaged()
+        triaged, sender_names = workflow._collect_triaged()
         # alice's email-1 should be filtered out (has error label)
         # bob's email-2 should remain
-        assert "bob@example.com" in result
-        assert "alice@example.com" not in result
+        assert "bob@example.com" in triaged
+        assert "alice@example.com" not in triaged
 
 
 # =============================================================================
@@ -567,12 +567,14 @@ class TestProcessSenderNewContact:
         jmap.query_emails.side_effect = query_side_effect
 
     def test_upsert_contact_called(self, workflow, carddav):
-        """upsert_contact called with sender, None display name, group name."""
+        """upsert_contact called with sender, display name from sender_names, group name."""
         workflow._process_sender(
-            "alice@example.com", [("email-1", "@ToImbox")]
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice Smith"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", None, "Imbox"
+            "alice@example.com", "Alice Smith", "Imbox"
         )
 
     def test_sweep_queries_screener(self, workflow, jmap):
@@ -1131,7 +1133,7 @@ class TestProcessSenderIntegrationWithPoll:
             return []
 
         jmap.query_emails.side_effect = poll_query_side_effect
-        jmap.get_email_senders.return_value = {"email-1": "alice@example.com"}
+        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
         # Email/get for error filtering
         jmap.call.return_value = [
             ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
@@ -1156,6 +1158,107 @@ class TestProcessSenderIntegrationWithPoll:
     def test_poll_calls_sweep(self, workflow, jmap):
         workflow.poll()
         jmap.batch_move_emails.assert_called_once()
+
+    def test_poll_passes_display_name_to_upsert(self, workflow, carddav):
+        """poll() propagates sender display name from JMAP to upsert_contact."""
+        workflow.poll()
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", "Alice Smith", "Imbox"
+        )
+
+
+class TestDisplayNamePropagation:
+    """Display name flows from JMAP From header through _collect_triaged to upsert_contact."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "dn-uid",
+            "group": "Imbox",
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_display_name_passed_to_upsert(self, workflow, carddav):
+        """_process_sender passes the sender's display name from sender_names to upsert_contact."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice Smith"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", "Alice Smith", "Imbox"
+        )
+
+    def test_display_name_none_when_missing(self, workflow, carddav):
+        """None is passed when no name available in sender_names."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": None},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", None, "Imbox"
+        )
+
+    def test_display_name_none_when_sender_not_in_names(self, workflow, carddav):
+        """None passed when sender_names is empty dict (backward compatible)."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", None, "Imbox"
+        )
+
+
+class TestCollectTriagedReturnsSenderNames:
+    """_collect_triaged returns sender_names dict alongside triaged emails."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap):
+        def query_side_effect(mailbox_id, **kwargs):
+            if mailbox_id == "mb-toimbox":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
+        jmap.call.return_value = [
+            ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
+        ]
+
+    def test_returns_tuple(self, workflow):
+        """_collect_triaged returns a tuple of (triaged, sender_names)."""
+        result = workflow._collect_triaged()
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_sender_names_populated(self, workflow):
+        """sender_names contains the display name for each sender."""
+        triaged, sender_names = workflow._collect_triaged()
+        assert sender_names["alice@example.com"] == "Alice Smith"
+
+    def test_triaged_dict_still_correct(self, workflow):
+        """Triaged dict still maps sender email to list of (email_id, label) tuples."""
+        triaged, sender_names = workflow._collect_triaged()
+        assert "alice@example.com" in triaged
+        assert triaged["alice@example.com"] == [("email-1", "@ToImbox")]
+
+    def test_empty_returns_empty_tuple(self, workflow, jmap):
+        """When no emails found, returns ({}, {})."""
+        jmap.query_emails.side_effect = lambda *a, **kw: []
+        result = workflow._collect_triaged()
+        assert result == ({}, {})
 
 
 # =============================================================================

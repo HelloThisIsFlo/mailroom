@@ -488,7 +488,7 @@ class TestGetEmailSenders:
     def test_get_senders_single_email(
         self, client: JMAPClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Extract sender email address from a single email."""
+        """Extract sender email address and name from a single email."""
         self._setup_connected_client(client, httpx_mock)
         httpx_mock.add_response(
             url="https://api.fastmail.com/jmap/api/",
@@ -518,12 +518,12 @@ class TestGetEmailSenders:
 
         result = client.get_email_senders(["e1"])
 
-        assert result == {"e1": "alice@example.com"}
+        assert result == {"e1": ("alice@example.com", "Alice Smith")}
 
     def test_get_senders_multiple_emails(
         self, client: JMAPClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Extract sender addresses from multiple emails, same sender."""
+        """Extract sender addresses and names from multiple emails, same sender."""
         self._setup_connected_client(client, httpx_mock)
         httpx_mock.add_response(
             url="https://api.fastmail.com/jmap/api/",
@@ -562,7 +562,10 @@ class TestGetEmailSenders:
 
         result = client.get_email_senders(["e1", "e2"])
 
-        assert result == {"e1": "alice@example.com", "e2": "alice@example.com"}
+        assert result == {
+            "e1": ("alice@example.com", "Alice"),
+            "e2": ("alice@example.com", "Alice"),
+        }
 
     def test_get_senders_extracts_email_from_display_name(
         self, client: JMAPClient, httpx_mock: HTTPXMock
@@ -597,7 +600,148 @@ class TestGetEmailSenders:
 
         result = client.get_email_senders(["e1"])
 
-        assert result == {"e1": "alice@example.com"}
+        assert result == {"e1": ("alice@example.com", "Alice <alice@example.com>")}
+
+    def test_get_senders_returns_name(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Verifies name is extracted from JMAP From header alongside email."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": "u1234",
+                            "list": [
+                                {
+                                    "id": "e1",
+                                    "from": [
+                                        {
+                                            "name": "Bob Jones",
+                                            "email": "bob@example.com",
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.get_email_senders(["e1"])
+
+        email, name = result["e1"]
+        assert email == "bob@example.com"
+        assert name == "Bob Jones"
+
+    def test_get_senders_empty_name_returns_none(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Empty string name in From header is normalized to None."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": "u1234",
+                            "list": [
+                                {
+                                    "id": "e1",
+                                    "from": [
+                                        {
+                                            "name": "",
+                                            "email": "hello@domain.com",
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.get_email_senders(["e1"])
+
+        assert result == {"e1": ("hello@domain.com", None)}
+
+    def test_get_senders_missing_name_returns_none(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """From header with no name key returns None for name."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": "u1234",
+                            "list": [
+                                {
+                                    "id": "e1",
+                                    "from": [
+                                        {
+                                            "email": "hello@domain.com",
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.get_email_senders(["e1"])
+
+        assert result == {"e1": ("hello@domain.com", None)}
+
+    def test_get_senders_whitespace_name_returns_none(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Whitespace-only name in From header is normalized to None."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": "u1234",
+                            "list": [
+                                {
+                                    "id": "e1",
+                                    "from": [
+                                        {
+                                            "name": "   ",
+                                            "email": "hello@domain.com",
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.get_email_senders(["e1"])
+
+        assert result == {"e1": ("hello@domain.com", None)}
 
 
 # --- Remove Label Tests ---
