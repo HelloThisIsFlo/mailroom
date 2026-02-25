@@ -58,12 +58,12 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 1 | Commit human tests, gitignore, and dependency changes from phase verification | 2026-02-24 | 118cfc1 | [1-commit-human-tests-gitignore-and-depende](./quick/1-commit-human-tests-gitignore-and-depende/) |
-| 2 | Fix failing GitHub Actions workflow and broken Mermaid chart | 2026-02-25 | a231918, 470ed52 | [2-fix-failing-github-actions-workflow-and-](./quick/2-fix-failing-github-actions-workflow-and-/) |
-| 3 | Consolidate .env.example and add .research directory | 2026-02-25 | 73cbdb8, 6751a56 | [3-consolidate-env-example-and-add-research](./quick/3-consolidate-env-example-and-add-research/) |
-| 4 | Create JMAP EventSource discovery script | 2026-02-25 | cf04231, c761cf2 | [4-create-jmap-eventsource-discovery-script](./quick/4-create-jmap-eventsource-discovery-script/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 1 | Commit human tests, gitignore, and dependency changes from phase verification | 2026-02-24 | 118cfc1 | | [1-commit-human-tests-gitignore-and-depende](./quick/1-commit-human-tests-gitignore-and-depende/) |
+| 2 | Fix failing GitHub Actions workflow and broken Mermaid chart | 2026-02-25 | a231918, 470ed52 | | [2-fix-failing-github-actions-workflow-and-](./quick/2-fix-failing-github-actions-workflow-and-/) |
+| 3 | Consolidate .env.example and add .research directory | 2026-02-25 | 73cbdb8, 6751a56 | | [3-consolidate-env-example-and-add-research](./quick/3-consolidate-env-example-and-add-research/) |
+| 4 | Create JMAP EventSource discovery script | 2026-02-25 | cf04231, c761cf2 | Verified | [4-create-jmap-eventsource-discovery-script](./quick/4-create-jmap-eventsource-discovery-script/) |
 
 ## Session Continuity
 
