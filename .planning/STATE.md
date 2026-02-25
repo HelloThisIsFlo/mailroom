@@ -11,7 +11,7 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 
 Phase: v1.0 complete (6 phases, 18 plans)
 Status: Milestone shipped
-Last activity: 2026-02-25 - Completed quick task 3: Consolidate .env.example and add .research directory
+Last activity: 2026-02-25 - Completed quick task 4: Create JMAP EventSource discovery script
 
 ## Performance Metrics
 
@@ -41,7 +41,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 
 1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) — `.planning/todos/pending/2026-02-25-make-screener-label-contact-group-inbox-label-mapping-configurable.md`
 2. Replace polling with JMAP EventSource push and debouncer (area: api) — `.planning/todos/pending/2026-02-25-replace-polling-with-jmap-eventsource-push-and-debouncer.md`
-3. Create JMAP EventSource discovery script (area: tooling) — `.planning/todos/pending/2026-02-25-create-jmap-eventsource-discovery-script.md`
+3. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
 4. Create label and group setup script for Fastmail (area: tooling) — `.planning/todos/pending/2026-02-25-create-label-and-group-setup-script-for-fastmail.md`
 5. Scan for action labels beyond screener mailbox (area: api) — `.planning/todos/pending/2026-02-25-scan-for-action-labels-beyond-screener-mailbox.md`
 6. ~~Create .research folder for non-planning research and discovery~~ (done: quick-3)
@@ -63,9 +63,10 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 | 1 | Commit human tests, gitignore, and dependency changes from phase verification | 2026-02-24 | 118cfc1 | [1-commit-human-tests-gitignore-and-depende](./quick/1-commit-human-tests-gitignore-and-depende/) |
 | 2 | Fix failing GitHub Actions workflow and broken Mermaid chart | 2026-02-25 | a231918, 470ed52 | [2-fix-failing-github-actions-workflow-and-](./quick/2-fix-failing-github-actions-workflow-and-/) |
 | 3 | Consolidate .env.example and add .research directory | 2026-02-25 | 73cbdb8, 6751a56 | [3-consolidate-env-example-and-add-research](./quick/3-consolidate-env-example-and-add-research/) |
+| 4 | Create JMAP EventSource discovery script | 2026-02-25 | cf04231, c761cf2 | [4-create-jmap-eventsource-discovery-script](./quick/4-create-jmap-eventsource-discovery-script/) |
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed quick-3 (consolidate .env.example + .research directory)
+Stopped at: Completed quick-4 (JMAP EventSource discovery script + research document)
 Resume file: None
