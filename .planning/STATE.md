@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 3.1 of 4 (Person Contact Type with @ToPerson Label)
-Plan: 1 of 3 in current phase
-Status: Plan 03.1-01 complete -- config extensions and company/person contact creation
-Last activity: 2026-02-25 - Plan 03.1-01 complete: config + CardDAV company/person vCard dispatch
+Plan: 2 of 3 in current phase
+Status: Plan 03.1-02 complete -- workflow contact_type routing and @MailroomWarning
+Last activity: 2026-02-25 - Plan 03.1-02 complete: contact_type passthrough + warning label application
 
-Progress: [█████████░] 92%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 3.5 min
-- Total execution time: 0.63 hours
+- Total plans completed: 12
+- Average duration: 3.6 min
+- Total execution time: 0.73 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [█████████░] 92%
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
 | 02-carddav-client-validation-gate | 3/3 | 10 min | 3.3 min |
 | 03-triage-pipeline | 3/3 | 13 min | 4.3 min |
-| 03.1-person-contact-type-with-toperson-label | 1/3 | 6 min | 6 min |
+| 03.1-person-contact-type-with-toperson-label | 2/3 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (4 min), 03-02 (4 min), 03-03 (5 min), 03.1-01 (6 min)
+- Last 5 plans: 03-01 (4 min), 03-02 (4 min), 03-03 (5 min), 03.1-01 (6 min), 03.1-02 (6 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -85,6 +85,9 @@ Recent decisions affecting current work:
 - [03.1-01]: NOTE append: existing contacts get "\n\nUpdated by Mailroom on {date}" appended, never overwrite
 - [03.1-01]: name_mismatch: case-insensitive stripped FN comparison, False for new contacts or None display_name
 - [03.1-01]: required_mailboxes property centralizes startup mailbox validation with conditional @MailroomWarning
+- [03.1-02]: _apply_warning_label follows same pattern as _apply_error_label (per-email Email/set, non-blocking try/except)
+- [03.1-02]: Warning applied only to triggering email_ids, not swept sender emails
+- [03.1-02]: name_mismatch check uses result.get("name_mismatch", False) for backward safety
 
 ### Pending Todos
 
@@ -107,5 +110,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 03.1-01-PLAN.md
+Stopped at: Completed 03.1-02-PLAN.md
 Resume file: None
