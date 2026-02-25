@@ -23,7 +23,7 @@ from urllib.request import urlopen
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 CONTAINER_NAME = "mailroom-human-test"
 IMAGE_TAG = "mailroom:human-test"

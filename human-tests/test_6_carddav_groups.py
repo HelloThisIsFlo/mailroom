@@ -11,7 +11,7 @@ from pathlib import Path
 import vobject
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from mailroom.clients.carddav import CardDAVClient
 from mailroom.core.config import MailroomSettings

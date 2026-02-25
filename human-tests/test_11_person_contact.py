@@ -23,7 +23,7 @@ import structlog
 import vobject
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from mailroom.clients.carddav import CardDAVClient
 from mailroom.clients.jmap import JMAPClient
