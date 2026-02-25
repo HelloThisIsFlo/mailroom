@@ -96,11 +96,12 @@ Plans:
   2. `kubectl apply -f k8s/` deploys the service with ConfigMap-driven label/group names and Secret-managed credentials -- no credentials in the git repository
   3. The service runs continuously in the cluster, polling every 5 minutes, and correctly triages a test email applied from the Fastmail iOS app
   4. After a pod restart (simulated kill), the service resumes polling and processes any triage labels that accumulated during downtime
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Entry point (__main__.py) with polling loop, health endpoint, signal handling + Dockerfile
+- [ ] 04-02-PLAN.md -- Kubernetes manifests (namespace, configmap, secret template, deployment) + GitHub Actions CI
+- [ ] 04-03-PLAN.md -- Human integration test for Docker container end-to-end verification (checkpoint)
 
 ## Progress
 
@@ -113,4 +114,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
 | 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
 | 3.1. Person Contact Type with @ToPerson Label | 3/3 | Complete    | 2026-02-25 |
-| 4. Packaging and Deployment | 0/2 | Not started | - |
+| 4. Packaging and Deployment | 0/3 | Not started | - |
