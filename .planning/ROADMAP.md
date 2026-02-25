@@ -80,10 +80,12 @@ Plans:
   3. @ToPerson conflicts with @ToImbox and other triage labels (flagged as @MailroomError)
   4. When @ToPerson encounters an existing contact with a different name, processing continues but @MailroomWarning is applied
   5. @MailroomWarning label is validated at startup (fail fast if missing and warnings enabled)
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 03.1 to break down)
+- [ ] 03.1-01-PLAN.md -- Config extensions + CardDAV company/person contact creation with nameparser (TDD)
+- [ ] 03.1-02-PLAN.md -- Workflow contact_type routing, @MailroomWarning application, name mismatch handling (TDD)
+- [ ] 03.1-03-PLAN.md -- Human integration tests for person and company contact types (checkpoint)
 
 ### Phase 4: Packaging and Deployment
 **Goal**: Mailroom runs as a long-lived polling service in a Docker container on the home Kubernetes cluster, with all configuration externalized and credentials securely managed
