@@ -124,6 +124,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Root project files (README.md, .env.example, LICENSE, CONTRIBUTING.md)
+- [x] 05-01-PLAN.md — Root project files (README.md, .env.example, LICENSE, CONTRIBUTING.md)
 - [x] 05-02-PLAN.md — Documentation folder (docs/deploy.md, config.md, architecture.md, FUTURE.md)
 - [ ] 05-03-PLAN.md — Showcase page with animated workflow demo (docs/index.html) + human verification
