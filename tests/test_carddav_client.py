@@ -1,6 +1,7 @@
 """Tests for CardDAV client: discovery, connection, groups, and contact ops."""
 
 import uuid
+from datetime import date
 
 import httpx
 import pytest
@@ -984,3 +985,455 @@ class TestUpsertContact:
         emails = [e.value for e in card.contents.get("email", [])]
         assert "jane.personal@example.com" in emails
         assert "jane.work@example.com" in emails
+
+
+# --- Company Contact Creation Tests ---
+
+
+class TestCreateContactCompany:
+    """Tests for company-type vCard creation via create_contact."""
+
+    def test_company_vcard_has_org_and_empty_n(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Company contact has ORG set to display_name, N empty (N:;;;;), FN = display_name."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("acme@example.com", "Acme Corp", contact_type="company")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        assert card.fn.value == "Acme Corp"
+        # ORG should be set
+        org_list = card.contents.get("org", [])
+        assert len(org_list) == 1
+        assert org_list[0].value == ["Acme Corp"]
+        # N should be empty (N:;;;;)
+        n_value = card.n.value
+        assert n_value.given == ""
+        assert n_value.family == ""
+
+    def test_company_vcard_no_display_name_uses_email_prefix(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Company contact with None display_name uses email prefix for FN and ORG."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("support@acme.com", None, contact_type="company")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        assert card.fn.value == "support"
+        org_list = card.contents.get("org", [])
+        assert len(org_list) == 1
+        assert org_list[0].value == ["support"]
+
+    def test_company_vcard_includes_note(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Company vCard includes NOTE 'Added by Mailroom on {date}'."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("acme@example.com", "Acme Corp", contact_type="company")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        expected_note = f"Added by Mailroom on {date.today().isoformat()}"
+        assert card.note.value == expected_note
+
+
+# --- Person Contact Creation Tests ---
+
+
+class TestCreateContactPerson:
+    """Tests for person-type vCard creation via create_contact."""
+
+    def test_person_vcard_has_n_with_first_last(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Person contact 'Jane Smith' produces N:Smith;Jane;;; and FN, no ORG."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane Smith", contact_type="person")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        assert card.fn.value == "Jane Smith"
+        assert card.n.value.given == "Jane"
+        assert card.n.value.family == "Smith"
+        # No ORG field
+        assert "org" not in card.contents
+
+    def test_person_single_word_name(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Single-word display name produces N:;Jane;;; (given name only, family empty)."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane", contact_type="person")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        assert card.n.value.given == "Jane"
+        assert card.n.value.family == ""
+
+    def test_person_no_display_name_uses_email_prefix(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """No display_name: email prefix used as given name, family empty."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jsmith@example.com", None, contact_type="person")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        assert card.fn.value == "jsmith"
+        assert card.n.value.given == "jsmith"
+        assert card.n.value.family == ""
+
+    def test_person_vcard_includes_note(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Person vCard includes NOTE 'Added by Mailroom on {date}'."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane Smith", contact_type="person")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        expected_note = f"Added by Mailroom on {date.today().isoformat()}"
+        assert card.note.value == expected_note
+
+    def test_person_vcard_no_org(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Person vCard has NO org field in card.contents."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane Smith", contact_type="person")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        assert "org" not in card.contents
+
+
+# --- NOTE Field Behavior in Upsert Tests ---
+
+
+class TestUpsertNoteField:
+    """Tests for NOTE append behavior in upsert_contact."""
+
+    def test_upsert_existing_no_note_adds_note(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact with no note: adds 'Added by Mailroom on {date}'."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        # Existing contact without a note
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com"
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock the contact update PUT
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        # Find the contact update PUT
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        expected_note = f"Added by Mailroom on {date.today().isoformat()}"
+        assert card.note.value == expected_note
+
+    def test_upsert_existing_with_note_appends(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact with note: appends 'Updated by Mailroom on {date}'."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock the contact update PUT
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        # Find the contact update PUT
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        expected_suffix = f"\n\nUpdated by Mailroom on {date.today().isoformat()}"
+        assert card.note.value == f"Personal contact{expected_suffix}"
+
+    def test_upsert_existing_with_note_preserves_original(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact note content is preserved when Mailroom appends."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        original_note = "Important: VIP customer since 2020"
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note=original_note,
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock the contact update PUT
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        # Original note text must still be there
+        assert original_note in card.note.value
+
+
+# --- Name Mismatch Signal Tests ---
+
+
+class TestUpsertNameMismatch:
+    """Tests for name_mismatch signal in upsert_contact result dict."""
+
+    def test_name_mismatch_true_when_different(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """upsert_contact returns name_mismatch=True when FN differs from display_name."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing = _contact_vcard(
+            "J. Smith", "existing-uid", "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["name_mismatch"] is True
+
+    def test_name_mismatch_false_when_same(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """upsert_contact returns name_mismatch=False when names match."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["name_mismatch"] is False
+
+    def test_name_mismatch_false_when_new_contact(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """upsert_contact returns name_mismatch=False when contact is new."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        # Search returns empty
+        search_body = _build_report_response([])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock create_contact PUT
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-contact-etag"'},
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox"
+        )
+
+        assert result["name_mismatch"] is False

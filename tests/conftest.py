@@ -28,4 +28,6 @@ def mock_mailbox_ids():
         "@ToPaperTrail": "mb-topapertrl",
         "@ToJail": "mb-tojail",
         "@MailroomError": "mb-error",
+        "@ToPerson": "mb-toperson",
+        "@MailroomWarning": "mb-warning",
     }

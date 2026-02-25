@@ -150,3 +150,118 @@ def test_destination_mailbox_in_mapping(monkeypatch):
     assert mapping["@ToFeed"]["destination_mailbox"] == "Feed"
     assert mapping["@ToPaperTrail"]["destination_mailbox"] == "Paper Trail"
     assert mapping["@ToJail"]["destination_mailbox"] == "Jail"
+
+
+# --- Phase 3.1 Config Extension Tests ---
+
+
+def test_label_to_person_default(monkeypatch):
+    """label_to_person field defaults to '@ToPerson'."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+
+    assert settings.label_to_person == "@ToPerson"
+
+
+def test_label_mailroom_warning_default(monkeypatch):
+    """label_mailroom_warning field defaults to '@MailroomWarning'."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+
+    assert settings.label_mailroom_warning == "@MailroomWarning"
+
+
+def test_warnings_enabled_default(monkeypatch):
+    """warnings_enabled field defaults to True."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+
+    assert settings.warnings_enabled is True
+
+
+def test_triage_labels_includes_toperson(monkeypatch):
+    """triage_labels property includes @ToPerson (5 labels total)."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+
+    labels = settings.triage_labels
+    assert "@ToPerson" in labels
+    assert len(labels) == 5
+
+
+def test_toperson_mapping_entry(monkeypatch):
+    """label_to_group_mapping has @ToPerson entry with contact_type='person'."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    mapping = settings.label_to_group_mapping
+
+    assert "@ToPerson" in mapping
+    entry = mapping["@ToPerson"]
+    assert entry["contact_type"] == "person"
+    assert entry["group"] == "Imbox"
+    assert entry["destination_mailbox"] == "Inbox"
+
+
+def test_existing_mapping_entries_have_company_contact_type(monkeypatch):
+    """All existing mapping entries have contact_type='company'."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    mapping = settings.label_to_group_mapping
+
+    for label in ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail"]:
+        assert mapping[label]["contact_type"] == "company", (
+            f"{label} should have contact_type='company'"
+        )
+
+
+def test_toperson_routes_same_as_toimbox(monkeypatch):
+    """@ToPerson routes to same group/destination as @ToImbox."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    mapping = settings.label_to_group_mapping
+
+    imbox_entry = mapping["@ToImbox"]
+    person_entry = mapping["@ToPerson"]
+
+    assert person_entry["group"] == imbox_entry["group"]
+    assert person_entry["destination_mailbox"] == imbox_entry["destination_mailbox"]
+
+
+def test_startup_validates_warning_label_when_enabled(monkeypatch):
+    """required_mailboxes includes @MailroomWarning when warnings_enabled=True."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    assert settings.warnings_enabled is True
+
+    required = settings.required_mailboxes
+    assert "@MailroomWarning" in required
+
+
+def test_startup_succeeds_without_warning_label_when_disabled(monkeypatch):
+    """required_mailboxes does NOT include @MailroomWarning when warnings_enabled=False."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+    monkeypatch.setenv("MAILROOM_WARNINGS_ENABLED", "false")
+
+    settings = MailroomSettings()
+    assert settings.warnings_enabled is False
+
+    required = settings.required_mailboxes
+    assert "@MailroomWarning" not in required
+
+
+def test_mapping_has_five_entries_with_toperson(monkeypatch):
+    """label_to_group_mapping has 5 entries (4 original + @ToPerson)."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    mapping = settings.label_to_group_mapping
+
+    assert len(mapping) == 5
