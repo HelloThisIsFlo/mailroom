@@ -576,7 +576,7 @@ class TestProcessSenderNewContact:
             {"alice@example.com": "Alice Smith"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Smith", "Imbox"
+            "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
         )
 
     def test_sweep_queries_screener(self, workflow, jmap):
@@ -1176,7 +1176,7 @@ class TestProcessSenderIntegrationWithPoll:
         """poll() propagates sender display name from JMAP to upsert_contact."""
         workflow.poll()
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Smith", "Imbox"
+            "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
         )
 
 
@@ -1209,7 +1209,7 @@ class TestDisplayNamePropagation:
             {"alice@example.com": "Alice Smith"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Smith", "Imbox"
+            "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
         )
 
     def test_display_name_none_when_missing(self, workflow, carddav):
@@ -1220,7 +1220,7 @@ class TestDisplayNamePropagation:
             {"alice@example.com": None},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", None, "Imbox"
+            "alice@example.com", None, "Imbox", contact_type="company"
         )
 
     def test_display_name_none_when_sender_not_in_names(self, workflow, carddav):
@@ -1231,7 +1231,7 @@ class TestDisplayNamePropagation:
             {},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", None, "Imbox"
+            "alice@example.com", None, "Imbox", contact_type="company"
         )
 
 

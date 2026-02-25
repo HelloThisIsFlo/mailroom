@@ -233,6 +233,52 @@ class ScreenerWorkflow:
             )
             # Transient failure -- do not crash the poll cycle
 
+    def _apply_warning_label(
+        self,
+        sender: str,
+        email_ids: list[str],
+    ) -> None:
+        """Apply @MailroomWarning to triggering emails for a name-mismatched sender.
+
+        Non-blocking: exceptions are caught and logged. Processing continues
+        even if warning label application fails.
+
+        Args:
+            sender: Sender email address (for logging).
+            email_ids: List of triggering email IDs to apply the warning to.
+        """
+        warning_id = self._mailbox_ids[self._settings.label_mailroom_warning]
+
+        try:
+            for email_id in email_ids:
+                self._jmap.call(
+                    [
+                        [
+                            "Email/set",
+                            {
+                                "accountId": self._jmap.account_id,
+                                "update": {
+                                    email_id: {f"mailboxIds/{warning_id}": True}
+                                },
+                            },
+                            "warn0",
+                        ]
+                    ]
+                )
+
+            self._log.warning(
+                "name_mismatch_warning",
+                sender=sender,
+                affected_emails=len(email_ids),
+            )
+        except Exception:
+            self._log.warning(
+                "warning_label_failed",
+                sender=sender,
+                exc_info=True,
+            )
+            # Non-blocking -- processing continues
+
     def _process_sender(
         self,
         sender: str,
@@ -254,7 +300,9 @@ class ScreenerWorkflow:
         """
         label_name = emails[0][1]  # All emails have the same label (conflict-free)
         email_ids = [eid for eid, _ in emails]
-        group_name = self._settings.label_to_group_mapping[label_name]["group"]
+        mapping = self._settings.label_to_group_mapping[label_name]
+        group_name = mapping["group"]
+        contact_type = mapping["contact_type"]
 
         log = self._log.bind(sender=sender, label=label_name, group=group_name)
 
@@ -272,8 +320,14 @@ class ScreenerWorkflow:
 
         # Step 2: Upsert contact into group (CardDAV)
         display_name = (sender_names or {}).get(sender)
-        result = self._carddav.upsert_contact(sender, display_name, group_name)
+        result = self._carddav.upsert_contact(
+            sender, display_name, group_name, contact_type=contact_type
+        )
         log.info("contact_upserted", action=result["action"], uid=result["uid"])
+
+        # Step 2b: Apply warning label if name mismatch detected
+        if result.get("name_mismatch", False) and self._settings.warnings_enabled:
+            self._apply_warning_label(sender, email_ids)
 
         # Step 3: Sweep all Screener emails from this sender (JMAP)
         screener_id = self._mailbox_ids[self._settings.screener_mailbox]
