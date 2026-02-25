@@ -1,0 +1,94 @@
+# Requirements: Mailroom
+
+**Defined:** 2026-02-25
+**Core Value:** One label tap on a phone triages an entire sender — all their backlogged emails move to the right place, and all future emails are auto-routed.
+
+## v1.1 Requirements
+
+Requirements for v1.1 Push & Config milestone. Each maps to roadmap phases.
+
+### Configurable Categories
+
+- [ ] **CONFIG-01**: Triage categories defined as a structured list (label, contact group, destination mailbox, add-inbox flag per category)
+- [ ] **CONFIG-02**: Categories configurable via `MAILROOM_TRIAGE_CATEGORIES` JSON environment variable
+- [ ] **CONFIG-03**: Default categories match v1.0 behavior (Imbox, Feed, PaperTrail, Jail, Person) so zero-config deployments work
+- [ ] **CONFIG-04**: All derived properties (triage labels, contact groups, required mailboxes) computed from category mapping
+- [ ] **CONFIG-05**: User can add custom triage categories beyond the 5 defaults
+- [ ] **CONFIG-06**: Startup validation rejects invalid category configurations (missing fields, duplicate labels)
+
+### Setup Script
+
+- [ ] **SETUP-01**: Setup script creates missing triage label mailboxes on Fastmail via JMAP `Mailbox/set`
+- [ ] **SETUP-02**: Setup script creates missing contact groups on Fastmail via CardDAV
+- [ ] **SETUP-03**: Setup script is idempotent — reports "already exists" for items that are already present
+- [ ] **SETUP-04**: Setup script outputs human-readable sieve rule instructions for email routing (cannot be automated)
+- [ ] **SETUP-05**: Setup script requires `--apply` flag to make changes (dry-run by default)
+- [ ] **SETUP-06**: Setup script reads categories from the same config as the main service
+
+### EventSource Push
+
+- [ ] **PUSH-01**: SSE listener connects to Fastmail EventSource endpoint with Bearer auth
+- [ ] **PUSH-02**: State change events trigger triage pass with configurable debounce window (default 3s)
+- [ ] **PUSH-03**: Liveness detection via ping-based timeout (read timeout > 2x ping interval)
+- [ ] **PUSH-04**: Auto-reconnect with exponential backoff on disconnect (1s -> 2s -> 4s -> max 60s)
+- [ ] **PUSH-05**: Health endpoint reports EventSource connection status and thread liveness
+- [ ] **PUSH-06**: Triage latency reduced from up to 5 minutes to under 10 seconds for push-triggered events
+
+## Future Requirements
+
+### v1.2 Re-triage & Expanded Scanning
+
+- **RETRI-01**: User can move a sender from one contact group to another (re-triage)
+- **RETRI-02**: Service scans for action labels beyond screener mailbox
+- **RETRI-03**: Broader action label support across mailboxes
+
+### v1.3 Observability
+
+- **OBS-01**: Dry-run mode that logs intended actions without making changes
+- **OBS-02**: Log-based metrics/counters (triaged senders, swept emails, errors)
+- **OBS-03**: Prometheus metrics endpoint
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Backward compatibility with v1.0 flat env vars | Clean break — v1.0 just shipped, no established user base |
+| Sieve rule creation via API | Fastmail has no API for filter rules; setup script outputs human instructions instead |
+| Nested mailbox hierarchy | Flat namespace only in v1.1; defer to v1.2 if needed |
+| Per-event-type processing | Premature optimization; `workflow.poll()` is fast and idempotent |
+| YAML/TOML config file | JSON env var sufficient for k8s ConfigMap; file-based config is v1.2+ |
+| Async runtime (asyncio) | Synchronous-by-design; single-user service gains nothing from async |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CONFIG-01 | — | Pending |
+| CONFIG-02 | — | Pending |
+| CONFIG-03 | — | Pending |
+| CONFIG-04 | — | Pending |
+| CONFIG-05 | — | Pending |
+| CONFIG-06 | — | Pending |
+| SETUP-01 | — | Pending |
+| SETUP-02 | — | Pending |
+| SETUP-03 | — | Pending |
+| SETUP-04 | — | Pending |
+| SETUP-05 | — | Pending |
+| SETUP-06 | — | Pending |
+| PUSH-01 | — | Pending |
+| PUSH-02 | — | Pending |
+| PUSH-03 | — | Pending |
+| PUSH-04 | — | Pending |
+| PUSH-05 | — | Pending |
+| PUSH-06 | — | Pending |
+
+**Coverage:**
+- v1.1 requirements: 18 total
+- Mapped to phases: 0
+- Unmapped: 18
+
+---
+*Requirements defined: 2026-02-25*
+*Last updated: 2026-02-25 after initial definition*
