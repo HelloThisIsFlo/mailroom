@@ -113,6 +113,7 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 03.1 inserted after Phase 03: Person Contact Type with @ToPerson Label (URGENT)
+- Phase 5 added: Add documentation, deployment guide, and project showcase page
 
 ### Blockers/Concerns
 
