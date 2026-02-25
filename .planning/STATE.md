@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 3.1 complete -- person contact type with @ToPerson label. Ready for Phase 4.
+**Current focus:** Phase 4 in progress -- packaging and deployment (Dockerfile, k8s manifests, CI, main loop).
 
 ## Current Position
 
-Phase: 3.1 of 4 (Person Contact Type with @ToPerson Label)
-Plan: 3 of 3 in current phase (PHASE COMPLETE)
-Status: Phase 03.1 complete -- all plans executed, person/company contact types validated against live Fastmail
-Last activity: 2026-02-25 - Plan 03.1-03 complete: human integration tests for person and company contact types
+Phase: 4 of 4 (Packaging and Deployment)
+Plan: 2 of 3 in current phase
+Status: Plan 04-02 complete -- k8s manifests and GitHub Actions CI created
+Last activity: 2026-02-25 - Plan 04-02 complete: k8s manifests and GitHub Actions CI
 
-Progress: [██████████] 100% (Phase 3.1 done, Phase 4 not started)
+Progress: [█████████░] 93% (Phase 4: 2/3 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 3.6 min
-- Total execution time: 0.82 hours
+- Total plans completed: 14
+- Average duration: 3.5 min
+- Total execution time: 0.85 hours
 
 **By Phase:**
 
@@ -33,10 +33,11 @@ Progress: [██████████] 100% (Phase 3.1 done, Phase 4 not sta
 | 03.1-person-contact-type-with-toperson-label | 3/3 | 17 min | 5.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (4 min), 03-03 (5 min), 03.1-01 (6 min), 03.1-02 (6 min), 03.1-03 (5 min)
+- Last 5 plans: 03-03 (5 min), 03.1-01 (6 min), 03.1-02 (6 min), 03.1-03 (5 min), 04-02 (2 min)
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 04 P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,10 @@ Recent decisions affecting current work:
 - [03.1-02]: name_mismatch check uses result.get("name_mismatch", False) for backward safety
 - [03.1-03]: Human tests follow existing standalone pattern (own connections, dotenv, step-level PASS/FAIL)
 - [03.1-03]: Visual verification pauses included for Fastmail UI contact rendering confirmation
+- [04-02]: ConfigMap keys use exact MAILROOM_ prefixed names matching pydantic-settings env var loading (envFrom injects verbatim)
+- [04-02]: Secret template uses stringData for human-readable placeholders with copy-fill-apply workflow
+- [04-02]: SHA + latest image tagging (no semver for personal service)
+- [04-02]: GHA layer caching (type=gha, mode=max) for faster builds
 
 ### Pending Todos
 
@@ -112,5 +117,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 03.1-03-PLAN.md (Phase 3.1 complete)
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
