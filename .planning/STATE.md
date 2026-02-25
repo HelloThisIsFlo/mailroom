@@ -45,6 +45,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 4. Create label and group setup script for Fastmail (area: tooling) — `.planning/todos/pending/2026-02-25-create-label-and-group-setup-script-for-fastmail.md`
 5. Scan for action labels beyond screener mailbox (area: api) — `.planning/todos/pending/2026-02-25-scan-for-action-labels-beyond-screener-mailbox.md`
 6. Create .research folder for non-planning research and discovery (area: tooling) — `.planning/todos/pending/2026-02-25-create-research-folder-for-non-planning-research-and-discovery.md`
+7. Consolidate .env.example and load from root in human tests (area: testing) — `.planning/todos/pending/2026-02-25-consolidate-env-example-and-load-from-root-in-human-tests.md`
 
 ### Roadmap Evolution
 
