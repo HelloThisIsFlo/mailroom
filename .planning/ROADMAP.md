@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation and JMAP Client** - Config, logging, and a working JMAP client that can query, extract, move, and relabel emails (completed 2026-02-24)
 - [x] **Phase 2: CardDAV Client (Validation Gate)** - A verified CardDAV client that can manage contacts and group membership, validated against live Fastmail (completed 2026-02-24)
 - [x] **Phase 3: Triage Pipeline** - End-to-end screener workflow wiring both clients into the poll-triage-sweep sequence (completed 2026-02-24)
-- [ ] **Phase 3.1: Person Contact Type with @ToPerson Label** - Default contacts to company (ORG field); @ToPerson sublabel of @ToImbox populates first/last name for real people (INSERTED)
+- [x] **Phase 3.1: Person Contact Type with @ToPerson Label** - Default contacts to company (ORG field); @ToPerson sublabel of @ToImbox populates first/last name for real people (INSERTED) (completed 2026-02-25)
 - [ ] **Phase 4: Packaging and Deployment** - Main polling loop, Docker image, k8s manifests, running service in the home cluster
 
 ## Phase Details
@@ -80,12 +80,12 @@ Plans:
   3. @ToPerson conflicts with @ToImbox and other triage labels (flagged as @MailroomError)
   4. When @ToPerson encounters an existing contact with a different name, processing continues but @MailroomWarning is applied
   5. @MailroomWarning label is validated at startup (fail fast if missing and warnings enabled)
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 03.1-01-PLAN.md -- Config extensions + CardDAV company/person contact creation with nameparser (TDD)
 - [x] 03.1-02-PLAN.md -- Workflow contact_type routing, @MailroomWarning application, name mismatch handling (TDD)
-- [ ] 03.1-03-PLAN.md -- Human integration tests for person and company contact types (checkpoint)
+- [x] 03.1-03-PLAN.md -- Human integration tests for person and company contact types (checkpoint)
 
 ### Phase 4: Packaging and Deployment
 **Goal**: Mailroom runs as a long-lived polling service in a Docker container on the home Kubernetes cluster, with all configuration externalized and credentials securely managed
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
 | 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
-| 3.1. Person Contact Type with @ToPerson Label | 2/3 | In progress | - |
+| 3.1. Person Contact Type with @ToPerson Label | 3/3 | Complete    | 2026-02-25 |
 | 4. Packaging and Deployment | 0/2 | Not started | - |

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 3.1 in progress -- person contact type with @ToPerson label.
+**Current focus:** Phase 3.1 complete -- person contact type with @ToPerson label. Ready for Phase 4.
 
 ## Current Position
 
 Phase: 3.1 of 4 (Person Contact Type with @ToPerson Label)
-Plan: 2 of 3 in current phase
-Status: Plan 03.1-02 complete -- workflow contact_type routing and @MailroomWarning
-Last activity: 2026-02-25 - Plan 03.1-02 complete: contact_type passthrough + warning label application
+Plan: 3 of 3 in current phase (PHASE COMPLETE)
+Status: Phase 03.1 complete -- all plans executed, person/company contact types validated against live Fastmail
+Last activity: 2026-02-25 - Plan 03.1-03 complete: human integration tests for person and company contact types
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100% (Phase 3.1 done, Phase 4 not started)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 3.6 min
-- Total execution time: 0.73 hours
+- Total execution time: 0.82 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [█████████░] 93%
 | 01-foundation-and-jmap-client | 3/3 | 8 min | 2.7 min |
 | 02-carddav-client-validation-gate | 3/3 | 10 min | 3.3 min |
 | 03-triage-pipeline | 3/3 | 13 min | 4.3 min |
-| 03.1-person-contact-type-with-toperson-label | 2/3 | 12 min | 6 min |
+| 03.1-person-contact-type-with-toperson-label | 3/3 | 17 min | 5.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (4 min), 03-02 (4 min), 03-03 (5 min), 03.1-01 (6 min), 03.1-02 (6 min)
+- Last 5 plans: 03-02 (4 min), 03-03 (5 min), 03.1-01 (6 min), 03.1-02 (6 min), 03.1-03 (5 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -88,6 +88,8 @@ Recent decisions affecting current work:
 - [03.1-02]: _apply_warning_label follows same pattern as _apply_error_label (per-email Email/set, non-blocking try/except)
 - [03.1-02]: Warning applied only to triggering email_ids, not swept sender emails
 - [03.1-02]: name_mismatch check uses result.get("name_mismatch", False) for backward safety
+- [03.1-03]: Human tests follow existing standalone pattern (own connections, dotenv, step-level PASS/FAIL)
+- [03.1-03]: Visual verification pauses included for Fastmail UI contact rendering confirmation
 
 ### Pending Todos
 
@@ -110,5 +112,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 03.1-02-PLAN.md
+Stopped at: Completed 03.1-03-PLAN.md (Phase 3.1 complete)
 Resume file: None
