@@ -95,6 +95,10 @@ Recent decisions affecting current work:
 - [04-02]: Secret template uses stringData for human-readable placeholders with copy-fill-apply workflow
 - [04-02]: SHA + latest image tagging (no semver for personal service)
 - [04-02]: GHA layer caching (type=gha, mode=max) for faster builds
+- [Phase 04-01]: stdlib http.server on daemon thread for /healthz (zero external deps)
+- [Phase 04-01]: threading.Event.wait() instead of time.sleep() for immediate SIGTERM wake
+- [Phase 04-01]: 10 consecutive failures threshold for persistent crash
+- [Phase 04-01]: Health returns 200 before first poll (just-started grace period)
 
 ### Pending Todos
 
@@ -117,5 +121,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 04-02-PLAN.md
+Stopped at: Completed 04-01-PLAN.md (entry point and Docker image)
 Resume file: None

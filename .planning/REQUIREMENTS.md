@@ -45,7 +45,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: Dockerfile builds a slim Python image with all dependencies
+- [x] **DEPLOY-01**: Dockerfile builds a slim Python image with all dependencies
 - [x] **DEPLOY-02**: k8s Deployment manifest with 1 replica and resource limits
 - [x] **DEPLOY-03**: k8s Secret manifest template for Fastmail credentials (actual values not committed)
 - [x] **DEPLOY-04**: k8s ConfigMap manifest with all configurable values
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-03 | Phase 1 | Complete |
 | LOG-01 | Phase 1 | Complete |
 | LOG-02 | Phase 1 | Complete |
-| DEPLOY-01 | Phase 4 | Pending |
+| DEPLOY-01 | Phase 4 | Complete |
 | DEPLOY-02 | Phase 4 | Complete |
 | DEPLOY-03 | Phase 4 | Complete |
 | DEPLOY-04 | Phase 4 | Complete |
