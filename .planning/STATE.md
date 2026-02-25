@@ -84,6 +84,10 @@ Recent decisions affecting current work:
 
 None yet.
 
+### Roadmap Evolution
+
+- Phase 03.1 inserted after Phase 03: Person Contact Type with @ToPerson Label (URGENT)
+
 ### Blockers/Concerns
 
 - ~~[Phase 2]: CardDAV KIND:group contact model is from training data, not live-verified.~~ RESOLVED: Validated against live Fastmail on 2026-02-24. All operations confirmed working.
