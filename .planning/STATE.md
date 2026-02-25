@@ -41,6 +41,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 
 1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) — `.planning/todos/pending/2026-02-25-make-screener-label-contact-group-inbox-label-mapping-configurable.md`
 2. Fix broken Mermaid chart in architecture docs (area: docs) — `.planning/todos/pending/2026-02-25-fix-broken-mermaid-chart-in-architecture-docs.md`
+3. Fix failing GitHub Actions workflow (area: tooling) — `.planning/todos/pending/2026-02-25-fix-failing-github-actions-workflow.md`
 
 ### Roadmap Evolution
 
