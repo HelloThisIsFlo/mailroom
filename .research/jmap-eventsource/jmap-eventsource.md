@@ -104,7 +104,7 @@ On initial connection, Fastmail reports state for these types:
 > **Instructions:** Run the discovery script while performing actions in Fastmail to populate this section with real observations.
 >
 > ```bash
-> python human-tests/test_14_eventsource.py --duration 120
+> python .research/jmap-eventsource/eventsource_discovery.py --duration 120
 > ```
 >
 > While the script is running, perform these actions and note which events fire:
@@ -196,4 +196,4 @@ This provides the best of both worlds: low latency when SSE is working, and reli
 - [W3C Server-Sent Events Specification](https://html.spec.whatwg.org/multipage/server-sent-events.html)
 - [Fastmail JMAP Documentation](https://www.fastmail.com/dev/jmap)
 - Related todo: `.planning/todos/pending/2026-02-25-replace-polling-with-jmap-eventsource-push-and-debouncer.md`
-- Discovery script: `human-tests/test_14_eventsource.py`
+- Discovery script: `.research/jmap-eventsource/eventsource_discovery.py`

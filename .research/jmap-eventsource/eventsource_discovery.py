@@ -1,12 +1,12 @@
-"""Human test 14: JMAP EventSource Discovery (read-only, safe).
+"""JMAP EventSource Discovery (read-only, safe).
 
 Connects to Fastmail's JMAP EventSource (SSE) endpoint and logs
 real-time state change events. Use this to discover event patterns,
 frequency, and payload shape for future push-based architecture.
 
 Usage:
-    python human-tests/test_14_eventsource.py              # listen for 60s
-    python human-tests/test_14_eventsource.py --duration 120  # listen for 2 min
+    python .research/jmap-eventsource/eventsource_discovery.py              # listen for 60s
+    python .research/jmap-eventsource/eventsource_discovery.py --duration 120  # listen for 2 min
 """
 
 import argparse
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 import httpx
 

@@ -16,3 +16,5 @@ __pycache__/
 
 # Kubernetes secrets (never commit real credentials)
 k8s/secret.yaml
+
+.DS_Store
