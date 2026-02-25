@@ -5,14 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.1 Push & Config — push notifications, configurable categories, setup script
+**Current focus:** v1.1 Push & Config -- Phase 6: Configurable Categories
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-25 — Milestone v1.1 started
+Phase: 6 of 8 (Configurable Categories)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-25 -- Roadmap created for v1.1
+
+Progress: [██████████░░░░░░░░░░] 55% (18/? plans -- v1.0 complete, v1.1 starting)
 
 ## Performance Metrics
 
@@ -38,36 +40,24 @@ Last activity: 2026-02-25 — Milestone v1.1 started
 
 Full decision log with outcomes in PROJECT.md Key Decisions table.
 
+- v1.1: No backward compatibility with v1.0 flat env vars -- clean break, design config as if from scratch
+- v1.1: Polling fallback is implicit in SSE+debounce main loop (trigger.wait with timeout), not a separate feature
+- v1.1: Build order: Config first, Setup Script second, EventSource Push last
+
 ### Pending Todos
 
-1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) — `.planning/todos/pending/2026-02-25-make-screener-label-contact-group-inbox-label-mapping-configurable.md`
-2. Replace polling with JMAP EventSource push and debouncer (area: api) — `.planning/todos/pending/2026-02-25-replace-polling-with-jmap-eventsource-push-and-debouncer.md`
-3. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
-4. Create label and group setup script for Fastmail (area: tooling) — `.planning/todos/pending/2026-02-25-create-label-and-group-setup-script-for-fastmail.md`
-5. Scan for action labels beyond screener mailbox (area: api) — `.planning/todos/pending/2026-02-25-scan-for-action-labels-beyond-screener-mailbox.md`
-6. ~~Create .research folder for non-planning research and discovery~~ (done: quick-3)
-7. ~~Consolidate .env.example and load from root in human tests~~ (done: quick-3)
-
-### Roadmap Evolution
-
-- Phase 03.1 inserted after Phase 03: Person Contact Type with @ToPerson Label (URGENT)
-- Phase 5 added: Add documentation, deployment guide, and project showcase page
+1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) -- covered by Phase 6
+2. Replace polling with JMAP EventSource push and debouncer (area: api) -- covered by Phase 8
+3. Create label and group setup script for Fastmail (area: tooling) -- covered by Phase 7
+4. Scan for action labels beyond screener mailbox (area: api) -- deferred to v1.2
+5. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
 
 ### Blockers/Concerns
 
-(None — v1.0 shipped)
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Status | Directory |
-|---|-------------|------|--------|--------|-----------|
-| 1 | Commit human tests, gitignore, and dependency changes from phase verification | 2026-02-24 | 118cfc1 | | [1-commit-human-tests-gitignore-and-depende](./quick/1-commit-human-tests-gitignore-and-depende/) |
-| 2 | Fix failing GitHub Actions workflow and broken Mermaid chart | 2026-02-25 | a231918, 470ed52 | | [2-fix-failing-github-actions-workflow-and-](./quick/2-fix-failing-github-actions-workflow-and-/) |
-| 3 | Consolidate .env.example and add .research directory | 2026-02-25 | 73cbdb8, 6751a56 | | [3-consolidate-env-example-and-add-research](./quick/3-consolidate-env-example-and-add-research/) |
-| 4 | Create JMAP EventSource discovery script | 2026-02-25 | cf04231, c761cf2 | Verified | [4-create-jmap-eventsource-discovery-script](./quick/4-create-jmap-eventsource-discovery-script/) |
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed quick-4 (JMAP EventSource discovery script + research document)
+Stopped at: Created v1.1 roadmap (3 phases: Config, Setup Script, EventSource Push)
 Resume file: None

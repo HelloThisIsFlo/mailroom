@@ -65,30 +65,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONFIG-01 | — | Pending |
-| CONFIG-02 | — | Pending |
-| CONFIG-03 | — | Pending |
-| CONFIG-04 | — | Pending |
-| CONFIG-05 | — | Pending |
-| CONFIG-06 | — | Pending |
-| SETUP-01 | — | Pending |
-| SETUP-02 | — | Pending |
-| SETUP-03 | — | Pending |
-| SETUP-04 | — | Pending |
-| SETUP-05 | — | Pending |
-| SETUP-06 | — | Pending |
-| PUSH-01 | — | Pending |
-| PUSH-02 | — | Pending |
-| PUSH-03 | — | Pending |
-| PUSH-04 | — | Pending |
-| PUSH-05 | — | Pending |
-| PUSH-06 | — | Pending |
+| CONFIG-01 | Phase 6 | Pending |
+| CONFIG-02 | Phase 6 | Pending |
+| CONFIG-03 | Phase 6 | Pending |
+| CONFIG-04 | Phase 6 | Pending |
+| CONFIG-05 | Phase 6 | Pending |
+| CONFIG-06 | Phase 6 | Pending |
+| SETUP-01 | Phase 7 | Pending |
+| SETUP-02 | Phase 7 | Pending |
+| SETUP-03 | Phase 7 | Pending |
+| SETUP-04 | Phase 7 | Pending |
+| SETUP-05 | Phase 7 | Pending |
+| SETUP-06 | Phase 7 | Pending |
+| PUSH-01 | Phase 8 | Pending |
+| PUSH-02 | Phase 8 | Pending |
+| PUSH-03 | Phase 8 | Pending |
+| PUSH-04 | Phase 8 | Pending |
+| PUSH-05 | Phase 8 | Pending |
+| PUSH-06 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after initial definition*
+*Last updated: 2026-02-25 after roadmap creation*
