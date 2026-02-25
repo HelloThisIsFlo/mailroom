@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: CardDAV Client (Validation Gate)** - A verified CardDAV client that can manage contacts and group membership, validated against live Fastmail (completed 2026-02-24)
 - [x] **Phase 3: Triage Pipeline** - End-to-end screener workflow wiring both clients into the poll-triage-sweep sequence (completed 2026-02-24)
 - [x] **Phase 3.1: Person Contact Type with @ToPerson Label** - Default contacts to company (ORG field); @ToPerson sublabel of @ToImbox populates first/last name for real people (INSERTED) (completed 2026-02-25)
-- [ ] **Phase 4: Packaging and Deployment** - Main polling loop, Docker image, k8s manifests, running service in the home cluster
+- [x] **Phase 4: Packaging and Deployment** - Main polling loop, Docker image, k8s manifests, running service in the home cluster (completed 2026-02-25)
 
 ## Phase Details
 
@@ -96,12 +96,12 @@ Plans:
   2. `kubectl apply -f k8s/` deploys the service with ConfigMap-driven label/group names and Secret-managed credentials -- no credentials in the git repository
   3. The service runs continuously in the cluster, polling every 5 minutes, and correctly triages a test email applied from the Fastmail iOS app
   4. After a pod restart (simulated kill), the service resumes polling and processes any triage labels that accumulated during downtime
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 04-01-PLAN.md -- Entry point (__main__.py) with polling loop, health endpoint, signal handling + Dockerfile
-- [ ] 04-02-PLAN.md -- Kubernetes manifests (namespace, configmap, secret template, deployment) + GitHub Actions CI
-- [ ] 04-03-PLAN.md -- Human integration test for Docker container end-to-end verification (checkpoint)
+- [x] 04-01-PLAN.md -- Entry point (__main__.py) with polling loop, health endpoint, signal handling + Dockerfile
+- [x] 04-02-PLAN.md -- Kubernetes manifests (namespace, configmap, secret template, deployment) + GitHub Actions CI
+- [x] 04-03-PLAN.md -- Human integration test for Docker container end-to-end verification (checkpoint)
 
 ## Progress
 
@@ -114,4 +114,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
 | 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
 | 3.1. Person Contact Type with @ToPerson Label | 3/3 | Complete    | 2026-02-25 |
-| 4. Packaging and Deployment | 0/3 | Not started | - |
+| 4. Packaging and Deployment | 3/3 | Complete   | 2026-02-25 |
