@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mailroom - One-label email triage for Fastmail</title>
+  <meta name="description" content="Mailroom brings HEY-style email triage to Fastmail. One label tap routes an entire sender — all backlogged emails move, future emails auto-route.">
+  <meta property="og:title" content="Mailroom - One-label email triage for Fastmail">
+  <meta property="og:description" content="Bring HEY-style email triage to Fastmail. One label tap routes an entire sender.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://hellothisisflo.github.io/mailroom/">
+  <style>
+    :root {
+      --bg: #FAFAFA;
+      --surface: #FFFFFF;
+      --text-primary: #1A1A2E;
+      --text-secondary: #6B7280;
+      --accent: #FF6B35;
+      --accent-light: #FFF0EB;
+      --secondary: #4F7DF2;
+      --secondary-light: #EEF2FF;
+      --success: #10B981;
+      --border: #E5E7EB;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text-primary);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      text-align: center;
+      padding: 80px 0 64px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+      letter-spacing: 0.02em;
+    }
+
+    .hero h1 {
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      letter-spacing: -0.03em;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent), #e85d2a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-tagline {
+      font-size: 1.35rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto 12px;
+      font-weight: 500;
+    }
+
+    .hero-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 0 auto 36px;
+    }
+
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      font-size: 1.05rem;
+      font-weight: 600;
+      padding: 14px 32px;
+      border-radius: 12px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(255, 107, 53, 0.35);
+    }
+
+    .cta-button svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* ===== WORKFLOW DEMO ===== */
+    .demo-section {
+      padding: 48px 0 80px;
+    }
+
+    .demo-section h2 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .demo-section .section-subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 48px;
+      font-size: 1.05rem;
+    }
+
+    .demo-container {
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: var(--shadow-lg);
+      padding: 40px 32px;
+      max-width: 820px;
+      margin: 0 auto;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .demo-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+    }
+
+    .demo-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      opacity: 0;
+      transform: translateY(16px);
+    }
+
+    .demo-step.visible {
+      animation: step-appear 0.5s ease-out forwards;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .step-1 .step-number { background: var(--secondary-light); color: var(--secondary); }
+    .step-2 .step-number { background: var(--accent-light); color: var(--accent); }
+    .step-3 .step-number { background: #ECFDF5; color: var(--success); }
+    .step-4 .step-number { background: #F0FDF4; color: #059669; }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    /* Mini inbox UI */
+    .inbox-mock {
+      background: var(--bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .inbox-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .email-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .email-row:last-child { border-bottom: none; }
+
+    .email-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .email-dot.unread { background: var(--secondary); }
+    .email-dot.read { background: var(--border); }
+
+    .email-sender {
+      font-weight: 600;
+      min-width: 120px;
+    }
+
+    .email-subject {
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .triage-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 10px;
+      white-space: nowrap;
+      opacity: 0;
+      transform: scale(0.5);
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .triage-label.show {
+      animation: label-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .triage-label.toimbox {
+      background: var(--secondary-light);
+      color: var(--secondary);
+    }
+
+    /* Contact card */
+    .contact-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 0.88rem;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .contact-card.show {
+      animation: step-appear 0.4s ease-out forwards;
+    }
+
+    .contact-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--secondary-light);
+      color: var(--secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    .contact-info .contact-name {
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .contact-info .contact-group {
+      font-size: 0.75rem;
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    /* Swept result */
+    .swept-result {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--success);
+      font-weight: 600;
+      opacity: 0;
+    }
+
+    .swept-result.show {
+      animation: step-appear 0.4s ease-out forwards;
+    }
+
+    .swept-result svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--success);
+      flex-shrink: 0;
+    }
+
+    /* Auto-route illustration */
+    .auto-route {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+    }
+
+    .auto-route.show {
+      animation: step-appear 0.5s ease-out forwards;
+    }
+
+    .route-arrow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+    }
+
+    .route-arrow .arrow {
+      color: var(--success);
+      font-size: 1.1rem;
+    }
+
+    .route-dest {
+      background: #ECFDF5;
+      color: #059669;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 8px;
+    }
+
+    /* ===== FEATURES ===== */
+    .features-section {
+      padding: 80px 0;
+    }
+
+    .features-section h2 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .features-section .section-subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 48px;
+      font-size: 1.05rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 1.3rem;
+    }
+
+    .feature-icon.triage { background: var(--accent-light); }
+    .feature-icon.contacts { background: var(--secondary-light); }
+    .feature-icon.retry { background: #ECFDF5; }
+    .feature-icon.config { background: #FEF3C7; }
+
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* ===== TEASER ===== */
+    .teaser-section {
+      padding: 64px 0;
+      text-align: center;
+    }
+
+    .teaser-inner {
+      background: linear-gradient(135deg, var(--secondary-light), var(--accent-light));
+      border-radius: 20px;
+      padding: 56px 32px;
+    }
+
+    .teaser-inner h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .teaser-inner p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      max-width: 520px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+
+    .teaser-items {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .teaser-item {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .teaser-item .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ===== FOOTER ===== */
+    .site-footer {
+      padding: 40px 0;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+
+    .site-footer p {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+    }
+
+    /* ===== KEYFRAMES ===== */
+    @keyframes step-appear {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes label-pop {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===== REDUCED MOTION ===== */
+    @media (prefers-reduced-motion: reduce) {
+      .demo-step,
+      .triage-label,
+      .contact-card,
+      .swept-result,
+      .auto-route {
+        opacity: 1;
+        transform: none;
+        animation: none !important;
+      }
+
+      .triage-label {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .feature-card:hover {
+        transform: none;
+      }
+
+      .cta-button:hover {
+        transform: none;
+      }
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .hero { padding: 56px 0 48px; }
+      .hero h1 { font-size: 2.2rem; }
+      .hero-tagline { font-size: 1.15rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .demo-container { padding: 28px 20px; }
+      .email-subject { display: none; }
+      .teaser-items { flex-direction: column; align-items: center; gap: 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 1.9rem; }
+      .container { padding: 0 16px; }
+      .demo-step { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="container">
+      <div class="hero-badge">For Fastmail</div>
+      <h1><span>Mailroom</span></h1>
+      <p class="hero-tagline">One-label email triage for Fastmail</p>
+      <p class="hero-subtitle">Bring the power of HEY and Google Inbox triage workflows to Fastmail. One label tap routes an entire sender — forever.</p>
+      <a href="https://github.com/HelloThisIsFlo/mailroom" class="cta-button">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ANIMATED WORKFLOW DEMO -->
+    <section class="demo-section">
+      <div class="container">
+        <h2>How it works</h2>
+        <p class="section-subtitle">From unknown sender to auto-routed — in one tap</p>
+
+        <div class="demo-container" id="workflow-demo">
+          <div class="demo-steps">
+
+            <!-- Step 1: Email in Screener -->
+            <div class="demo-step step-1" data-delay="0">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h3>Email lands in Screener</h3>
+                <p>An unknown sender's email arrives. Fastmail routes it to your Screener inbox.</p>
+                <div class="inbox-mock">
+                  <div class="inbox-header">Screener</div>
+                  <div class="email-row">
+                    <div class="email-dot unread"></div>
+                    <span class="email-sender">Alice Chen</span>
+                    <span class="email-subject">Quick question about the project</span>
+                    <span class="triage-label toimbox" id="label-alice">@ToImbox</span>
+                  </div>
+                  <div class="email-row">
+                    <div class="email-dot unread"></div>
+                    <span class="email-sender">Acme Newsletter</span>
+                    <span class="email-subject">Your weekly digest is here</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: User applies label -->
+            <div class="demo-step step-2" data-delay="1500">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h3>You apply a label</h3>
+                <p>One tap on your phone — apply <strong>@ToImbox</strong> to Alice's email. That's it. You're done.</p>
+              </div>
+            </div>
+
+            <!-- Step 3: Mailroom processes -->
+            <div class="demo-step step-3" data-delay="3500">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h3>Mailroom takes over</h3>
+                <p>Mailroom picks it up on the next poll. Creates a contact for Alice, adds her to the Imbox group, and sweeps all her emails out of Screener.</p>
+                <div class="contact-card" id="contact-card" data-delay="4200">
+                  <div class="contact-avatar">AC</div>
+                  <div class="contact-info">
+                    <div class="contact-name">Alice Chen</div>
+                    <div class="contact-group">Imbox group</div>
+                  </div>
+                </div>
+                <div style="height: 10px;"></div>
+                <div class="swept-result" id="swept-result" data-delay="5000">
+                  <svg viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                  3 emails swept to Imbox
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4: Future auto-route -->
+            <div class="demo-step step-4" data-delay="6000">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h3>Future emails auto-route</h3>
+                <p>Alice is now a known contact. Every future email from her skips the Screener entirely and lands in your Imbox.</p>
+                <div class="auto-route" id="auto-route" data-delay="6800">
+                  <div class="inbox-mock" style="flex: 1;">
+                    <div class="inbox-header">New email from Alice</div>
+                    <div class="email-row">
+                      <div class="email-dot unread"></div>
+                      <span class="email-sender">Alice Chen</span>
+                      <span class="email-subject">Following up on our chat</span>
+                    </div>
+                  </div>
+                  <div class="route-arrow">
+                    <span class="arrow">&rarr;</span>
+                  </div>
+                  <div class="route-dest">Imbox</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURE HIGHLIGHTS -->
+    <section class="features-section">
+      <div class="container">
+        <h2>Built for peace of mind</h2>
+        <p class="section-subtitle">Everything you need for effortless email triage</p>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon triage">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 003 3h14a3 3 0 003-3zm0-2V5a2 2 0 00-2-2H4a2 2 0 00-2 2v10"/><path d="M6 9l6 4 6-4"/></svg>
+            </div>
+            <h3>Smart Triage</h3>
+            <p>One label routes an entire sender. All their backlogged emails move to the right destination, and every future email auto-routes — no repeat work.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon contacts">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4F7DF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <h3>Contact Intelligence</h3>
+            <p>Automatically creates contacts — person or company — and assigns them to the right group. Display names are extracted and preserved.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon retry">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            </div>
+            <h3>Retry Safety</h3>
+            <p>If something fails, the triage label stays put. The next poll picks it up and tries again automatically. Nothing slips through the cracks.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon config">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            </div>
+            <h3>Fully Configurable</h3>
+            <p>Labels, contact groups, polling interval, destinations — all customizable via environment variables. Fits your Fastmail setup, not the other way around.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEASER -->
+    <section class="teaser-section">
+      <div class="container">
+        <div class="teaser-inner">
+          <h2>Built to grow</h2>
+          <p>Mailroom is just getting started. The engine is open source and designed for extensibility.</p>
+          <div class="teaser-items">
+            <div class="teaser-item"><span class="dot"></span> Hosted service</div>
+            <div class="teaser-item"><span class="dot"></span> Rule builder UI</div>
+            <div class="teaser-item"><span class="dot"></span> Multi-provider support</div>
+            <div class="teaser-item"><span class="dot"></span> And more coming</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>Built by Flo</p>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      // Respect reduced motion preference
+      var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReducedMotion) {
+        // Show everything in final state
+        document.querySelectorAll('.demo-step').forEach(function(el) {
+          el.classList.add('visible');
+        });
+        document.querySelectorAll('.triage-label').forEach(function(el) {
+          el.classList.add('show');
+        });
+        document.querySelectorAll('.contact-card, .swept-result, .auto-route').forEach(function(el) {
+          el.classList.add('show');
+        });
+        return;
+      }
+
+      var demo = document.getElementById('workflow-demo');
+      var hasPlayed = false;
+      var timeouts = [];
+
+      function runAnimation() {
+        // Clear any pending timeouts
+        timeouts.forEach(clearTimeout);
+        timeouts = [];
+
+        // Reset all elements
+        document.querySelectorAll('.demo-step').forEach(function(el) {
+          el.classList.remove('visible');
+        });
+        document.querySelectorAll('.triage-label, .contact-card, .swept-result, .auto-route').forEach(function(el) {
+          el.classList.remove('show');
+        });
+
+        // Animate each step
+        var steps = document.querySelectorAll('.demo-step');
+        steps.forEach(function(step) {
+          var delay = parseInt(step.getAttribute('data-delay')) || 0;
+          timeouts.push(setTimeout(function() {
+            step.classList.add('visible');
+          }, delay));
+        });
+
+        // Label appears during step 2
+        timeouts.push(setTimeout(function() {
+          document.getElementById('label-alice').classList.add('show');
+        }, 2200));
+
+        // Contact card during step 3
+        timeouts.push(setTimeout(function() {
+          document.getElementById('contact-card').classList.add('show');
+        }, 4200));
+
+        // Swept result
+        timeouts.push(setTimeout(function() {
+          document.getElementById('swept-result').classList.add('show');
+        }, 5000));
+
+        // Auto-route during step 4
+        timeouts.push(setTimeout(function() {
+          document.getElementById('auto-route').classList.add('show');
+        }, 6800));
+
+        // Loop: reset and replay after pause
+        timeouts.push(setTimeout(function() {
+          runAnimation();
+        }, 13000));
+      }
+
+      // Start animation when scrolled into view
+      if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting && !hasPlayed) {
+              hasPlayed = true;
+              runAnimation();
+            }
+          });
+        }, { threshold: 0.2 });
+        observer.observe(demo);
+      } else {
+        // Fallback: just run it
+        runAnimation();
+      }
+    })();
+  </script>
+
+</body>
+</html>
