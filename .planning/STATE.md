@@ -40,8 +40,6 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 ### Pending Todos
 
 1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) — `.planning/todos/pending/2026-02-25-make-screener-label-contact-group-inbox-label-mapping-configurable.md`
-2. Fix broken Mermaid chart in architecture docs (area: docs) — `.planning/todos/pending/2026-02-25-fix-broken-mermaid-chart-in-architecture-docs.md`
-3. Fix failing GitHub Actions workflow (area: tooling) — `.planning/todos/pending/2026-02-25-fix-failing-github-actions-workflow.md`
 
 ### Roadmap Evolution
 
@@ -57,9 +55,10 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Commit human tests, gitignore, and dependency changes from phase verification | 2026-02-24 | 118cfc1 | [1-commit-human-tests-gitignore-and-depende](./quick/1-commit-human-tests-gitignore-and-depende/) |
+| 2 | Fix failing GitHub Actions workflow and broken Mermaid chart | 2026-02-25 | a231918, 470ed52 | [2-fix-failing-github-actions-workflow-and-](./quick/2-fix-failing-github-actions-workflow-and-/) |
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: v1.0 MVP milestone completed
+Stopped at: Completed quick-2 (fix GHA workflow + Mermaid chart)
 Resume file: None
