@@ -5,13 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.0 shipped. Planning next milestone.
+**Current focus:** v1.1 Push & Config — push notifications, configurable categories, setup script
 
 ## Current Position
 
-Phase: v1.0 complete (6 phases, 18 plans)
-Status: Milestone shipped
-Last activity: 2026-02-25 - Completed quick task 4: Create JMAP EventSource discovery script
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-25 — Milestone v1.1 started
 
 ## Performance Metrics
 

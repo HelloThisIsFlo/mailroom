@@ -8,6 +8,15 @@ A background Python service that replicates HEY Mail's Screener workflow on Fast
 
 One label tap on a phone triages an entire sender — all their backlogged emails move to the right place, and all future emails are auto-routed.
 
+## Current Milestone: v1.1 Push & Config
+
+**Goal:** Replace polling with push notifications, make triage categories user-configurable, and add automated Fastmail setup.
+
+**Target features:**
+- Replace polling with JMAP EventSource push notifications (SSE with debounce, polling fallback)
+- Make triage label/group/inbox mappings user-configurable (not hardcoded in config defaults)
+- Setup script that provisions required labels and contact groups on Fastmail automatically
+
 ## Requirements
 
 ### Validated
@@ -30,22 +39,33 @@ One label tap on a phone triages an entire sender — all their backlogged email
 
 ### Active
 
-- [ ] Make screener-label/contact-group/inbox-label mapping configurable (currently hardcoded in config defaults)
-- [ ] Re-triage support — moving a sender from one group to another
-- [ ] Dry-run mode that logs intended actions without making changes
-- [ ] Log-based metrics/counters (triaged senders, swept emails, errors)
+- [ ] Replace polling with JMAP EventSource push (SSE listener, debounce, polling fallback)
+- [ ] Make triage label/group/inbox mappings user-configurable
+- [ ] Setup script that provisions required labels and contact groups on Fastmail
+
+### Future Milestones
+
+**v1.2 Re-triage & Expanded Scanning:**
+- Re-triage support — moving a sender from one group to another
+- Scan for action labels beyond screener mailbox
+- Broader action label support
+
+**v1.3 Observability:**
+- Dry-run mode that logs intended actions without making changes
+- Log-based metrics/counters (triaged senders, swept emails, errors)
+- Prometheus metrics endpoint
 
 ### Out of Scope
 
 - AI/ML auto-classification — product philosophy is human-decides, not algorithm
-- Webhook/push triggers — Fastmail does not support webhooks; polling is the only option
+- Webhooks — Fastmail does not support inbound webhooks (EventSource/SSE is used instead for push)
 - Web UI / dashboard — single-user tool; Fastmail IS the UI
 - Multi-account support — single user; deploy separate instances if needed
 - CI/CD pipeline — manual build-and-push is sufficient for a personal tool
 - `List-Unsubscribe` header auto-classification — future idea, complexity not justified yet
 - Pluggable workflow engine — v1 code is cleanly separated; plugin system is premature
 - noreply address cleanup — known gotcha, can be addressed later
-- IMAP IDLE — over-engineering; 5-minute polling is fast enough
+- IMAP IDLE — over-engineering; EventSource is the correct JMAP push mechanism
 
 ## Context
 
@@ -74,10 +94,10 @@ Phase 3.1 was an inserted phase adding person/company contact type support beyon
 ## Constraints
 
 - **API Protocol**: JMAP for email, CardDAV for contacts — Fastmail does not support JMAP for contacts yet
-- **No Webhooks**: Fastmail has no push/webhook support; must poll (every 5 minutes is sufficient)
+- **No Webhooks**: Fastmail has no inbound webhook support; push via JMAP EventSource (SSE) with polling fallback
 - **Deployment**: Existing home Kubernetes cluster, manual deploy via `kubectl apply`
 - **Language**: Python
 - **Architecture**: Clean separation of concerns — Screener logic in its own module, clear interfaces
 
 ---
-*Last updated: 2026-02-25 after v1.0 milestone*
+*Last updated: 2026-02-25 after v1.1 milestone start*
