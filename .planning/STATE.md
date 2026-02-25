@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** PROJECT COMPLETE -- all 4 phases executed, all 29 v1 requirements fulfilled.
+**Current focus:** Phase 5 documentation -- creating docs, README, and showcase page.
 
 ## Current Position
 
-Phase: 4 of 4 (Packaging and Deployment)
-Plan: 3 of 3 in current phase
-Status: PROJECT COMPLETE -- all phases and plans executed
-Last activity: 2026-02-25 - Plan 04-03 complete: Docker end-to-end human integration test verified
+Phase: 5 of 5 (Documentation, Deployment Guide, and Showcase Page)
+Plan: 2 of 3 in current phase
+Status: Executing Phase 5 plans
+Last activity: 2026-02-25 - Plan 05-02 complete: docs/ folder with deploy, config, architecture, and future vision
 
-Progress: [██████████] 100% (Phase 4: 3/3 plans complete -- all phases done)
+Progress: [██████░░░░] 67% (Phase 5: 2/3 plans complete)
 
 ## Performance Metrics
 
@@ -34,13 +34,14 @@ Progress: [██████████] 100% (Phase 4: 3/3 plans complete -- 
 | 04-packaging-and-deployment | 3/3 | 7 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03.1-01 (6 min), 03.1-02 (6 min), 03.1-03 (5 min), 04-02 (2 min), 04-03 (3 min)
+- Last 5 plans: 03.1-02 (6 min), 03.1-03 (5 min), 04-02 (2 min), 04-03 (3 min), 05-02 (2 min)
 - Trend: stable
 
 *Updated after each plan completion*
 | Phase 04 P01 | 2 min | 2 tasks | 3 files |
 | Phase 04 P02 | 2 min | 2 tasks | 6 files |
 | Phase 04 P03 | 3 min | 2 tasks | 1 file |
+| Phase 05 P02 | 2 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,10 @@ Recent decisions affecting current work:
 - [04-03]: Human test numbered test_13 following existing sequence in human-tests/ directory
 - [04-03]: Poll interval set to 30s via MAILROOM_POLL_INTERVAL for faster test cycles
 - [04-03]: subprocess.run for Docker commands, urllib.request for health checks (no extra deps)
+- [05-02]: stringData emphasis in deploy.md: plaintext credentials, no base64 encoding needed
+- [05-02]: config.md grouped by function (credentials, polling, logging, triage, system, screener, contact groups)
+- [05-02]: architecture.md links to source files for each component
+- [05-02]: FUTURE.md references Plausible/Cal.com/Supabase as open-core model inspirations
 
 ### Pending Todos
 
@@ -128,5 +133,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: PROJECT COMPLETE -- all phases executed, all v1 requirements fulfilled
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

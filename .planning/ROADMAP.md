@@ -115,6 +115,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
 | 3.1. Person Contact Type with @ToPerson Label | 3/3 | Complete    | 2026-02-25 |
 | 4. Packaging and Deployment | 3/3 | Complete    | 2026-02-25 |
+| 5. Documentation and Showcase | 1/3 | In Progress | - |
 
 ### Phase 5: Add documentation, deployment guide, and project showcase page
 
@@ -124,5 +125,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 
 Plans:
 - [ ] 05-01-PLAN.md — Root project files (README.md, .env.example, LICENSE, CONTRIBUTING.md)
-- [ ] 05-02-PLAN.md — Documentation folder (docs/deploy.md, config.md, architecture.md, FUTURE.md)
+- [x] 05-02-PLAN.md — Documentation folder (docs/deploy.md, config.md, architecture.md, FUTURE.md)
 - [ ] 05-03-PLAN.md — Showcase page with animated workflow demo (docs/index.html) + human verification
