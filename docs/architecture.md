@@ -6,13 +6,16 @@ Mailroom is a polling service that triages incoming email in Fastmail. It connec
 
 ```mermaid
 flowchart LR
-    A[Fastmail\nScreener] -->|JMAP poll| B[Mailroom\nService]
-    B -->|Extract sender| C{Triage\nLabel?}
-    C -->|@ToImbox| D[CardDAV:\nAdd to Imbox group]
-    C -->|@ToFeed| E[CardDAV:\nAdd to Feed group]
-    C -->|@ToPaperTrail| F[CardDAV:\nAdd to Paper Trail group]
-    C -->|@ToJail| G[CardDAV:\nAdd to Jail group]
-    D & E & F & G -->|JMAP sweep| H[Move emails\nto destination]
+    A["Fastmail<br/>Screener"] -->|JMAP poll| B["Mailroom<br/>Service"]
+    B -->|Extract sender| C{"Triage<br/>Label?"}
+    C -->|"@ToImbox"| D["CardDAV:<br/>Add to Imbox group"]
+    C -->|"@ToFeed"| E["CardDAV:<br/>Add to Feed group"]
+    C -->|"@ToPaperTrail"| F["CardDAV:<br/>Add to Paper Trail group"]
+    C -->|"@ToJail"| G["CardDAV:<br/>Add to Jail group"]
+    D -->|JMAP sweep| H["Move emails<br/>to destination"]
+    E -->|JMAP sweep| H
+    F -->|JMAP sweep| H
+    G -->|JMAP sweep| H
 ```
 
 **How it works:** The user applies a triage label (e.g., `@ToImbox`) to an email in the Screener. On the next poll, Mailroom picks it up, creates or updates the sender's contact in the corresponding CardDAV group, sweeps all of that sender's Screener emails to the destination mailbox, and removes the triage label. Future emails from that sender are auto-routed by Fastmail's contact group rules.
