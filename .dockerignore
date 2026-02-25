@@ -1,0 +1,17 @@
+.git/
+.github/
+.planning/
+.agents/
+.claude/
+.env
+.env.*
+.venv/
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+tests/
+human-tests/
+k8s/
+*.md
+!README.md
