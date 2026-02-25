@@ -108,7 +108,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) — `.planning/todos/pending/2026-02-25-make-screener-label-contact-group-inbox-label-mapping-configurable.md`
 
 ### Roadmap Evolution
 
