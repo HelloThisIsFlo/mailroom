@@ -40,6 +40,10 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 ### Pending Todos
 
 1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) — `.planning/todos/pending/2026-02-25-make-screener-label-contact-group-inbox-label-mapping-configurable.md`
+2. Replace polling with JMAP EventSource push and debouncer (area: api) — `.planning/todos/pending/2026-02-25-replace-polling-with-jmap-eventsource-push-and-debouncer.md`
+3. Create JMAP EventSource discovery script (area: tooling) — `.planning/todos/pending/2026-02-25-create-jmap-eventsource-discovery-script.md`
+4. Create label and group setup script for Fastmail (area: tooling) — `.planning/todos/pending/2026-02-25-create-label-and-group-setup-script-for-fastmail.md`
+5. Scan for action labels beyond screener mailbox (area: api) — `.planning/todos/pending/2026-02-25-scan-for-action-labels-beyond-screener-mailbox.md`
 
 ### Roadmap Evolution
 
