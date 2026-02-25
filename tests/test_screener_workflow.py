@@ -554,6 +554,7 @@ class TestProcessSenderNewContact:
             "action": "created",
             "uid": "new-uid-123",
             "group": "Imbox",
+            "name_mismatch": False,
         }
         # CardDAV: search returns empty (new sender)
         carddav.search_by_email.return_value = []
@@ -622,6 +623,7 @@ class TestProcessSenderExistingContact:
             "action": "existing",
             "uid": "existing-uid-456",
             "group": "Feed",
+            "name_mismatch": False,
         }
         carddav.search_by_email.return_value = []
 
@@ -661,6 +663,7 @@ class TestProcessSenderPaperTrail:
             "action": "created",
             "uid": "pt-uid",
             "group": "Paper Trail",
+            "name_mismatch": False,
         }
         carddav.search_by_email.return_value = []
 
@@ -692,6 +695,7 @@ class TestProcessSenderJail:
             "action": "created",
             "uid": "jail-uid",
             "group": "Jail",
+            "name_mismatch": False,
         }
         carddav.search_by_email.return_value = []
 
@@ -723,6 +727,7 @@ class TestProcessSenderMultipleTriggering:
             "action": "created",
             "uid": "multi-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
         carddav.search_by_email.return_value = []
 
@@ -764,6 +769,7 @@ class TestProcessSenderStepOrder:
             "action": "created",
             "uid": "order-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -779,7 +785,7 @@ class TestProcessSenderStepOrder:
         call_order = []
         carddav.upsert_contact.side_effect = lambda *a, **kw: (
             call_order.append("upsert"),
-            {"action": "created", "uid": "order-uid", "group": "Imbox"},
+            {"action": "created", "uid": "order-uid", "group": "Imbox", "name_mismatch": False},
         )[1]
 
         orig_query = jmap.query_emails.side_effect
@@ -808,7 +814,7 @@ class TestProcessSenderStepOrder:
         call_order = []
         carddav.upsert_contact.side_effect = lambda *a, **kw: (
             call_order.append("upsert"),
-            {"action": "created", "uid": "order-uid", "group": "Imbox"},
+            {"action": "created", "uid": "order-uid", "group": "Imbox", "name_mismatch": False},
         )[1]
         jmap.batch_move_emails.side_effect = lambda *a, **kw: call_order.append(
             "batch_move"
@@ -903,6 +909,7 @@ class TestAlreadyGroupedSameGroup:
             "action": "existing",
             "uid": "contact-uid-789",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -946,6 +953,7 @@ class TestAlreadyGroupedNewSender:
             "action": "created",
             "uid": "brand-new-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -1013,6 +1021,7 @@ class TestJMAPFailureDuringSweep:
             "action": "created",
             "uid": "sweep-fail-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -1048,6 +1057,7 @@ class TestJMAPFailureDuringRemoveLabel:
             "action": "created",
             "uid": "remove-fail-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -1092,6 +1102,7 @@ class TestProcessSenderEmptySweep:
             "action": "existing",
             "uid": "empty-sweep-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -1145,6 +1156,7 @@ class TestProcessSenderIntegrationWithPoll:
             "action": "created",
             "uid": "poll-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
     def test_poll_returns_one_processed(self, workflow):
@@ -1178,6 +1190,7 @@ class TestDisplayNamePropagation:
             "action": "created",
             "uid": "dn-uid",
             "group": "Imbox",
+            "name_mismatch": False,
         }
 
         def query_side_effect(mailbox_id, **kwargs):
@@ -1260,6 +1273,583 @@ class TestCollectTriagedReturnsSenderNames:
         jmap.query_emails.side_effect = lambda *a, **kw: []
         result = workflow._collect_triaged()
         assert result == ({}, {})
+
+
+# =============================================================================
+# Plan 03.1-02: Contact type passthrough, @ToPerson routing, @MailroomWarning
+# =============================================================================
+
+
+class TestContactTypePassthroughToImbox:
+    """_process_sender with @ToImbox passes contact_type='company' to upsert_contact."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "ct-imbox-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_contact_type_company(self, workflow, carddav):
+        """upsert_contact called with contact_type='company' for @ToImbox."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", "Alice", "Imbox", contact_type="company"
+        )
+
+
+class TestContactTypePassthroughToPerson:
+    """_process_sender with @ToPerson passes contact_type='person' to upsert_contact."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "ct-person-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_contact_type_person(self, workflow, carddav):
+        """upsert_contact called with contact_type='person' for @ToPerson."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToPerson")],
+            {"alice@example.com": "Alice Person"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", "Alice Person", "Imbox", contact_type="person"
+        )
+
+
+class TestContactTypePassthroughToFeed:
+    """_process_sender with @ToFeed passes contact_type='company' to upsert_contact."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "ct-feed-uid",
+            "group": "Feed",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "feed@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_contact_type_company(self, workflow, carddav):
+        """upsert_contact called with contact_type='company' for @ToFeed."""
+        workflow._process_sender(
+            "feed@example.com",
+            [("email-1", "@ToFeed")],
+            {"feed@example.com": "Feed Sender"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "feed@example.com", "Feed Sender", "Feed", contact_type="company"
+        )
+
+
+class TestContactTypePassthroughToJail:
+    """_process_sender with @ToJail passes contact_type='company' to upsert_contact."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "ct-jail-uid",
+            "group": "Jail",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "spam@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_contact_type_company(self, workflow, carddav):
+        """upsert_contact called with contact_type='company' for @ToJail."""
+        workflow._process_sender(
+            "spam@example.com",
+            [("email-1", "@ToJail")],
+            {"spam@example.com": "Spammer"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "spam@example.com", "Spammer", "Jail", contact_type="company"
+        )
+
+
+class TestToPersonRoutingPoll:
+    """poll() with @ToPerson label processes sender, sweeps to Inbox, removes label."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        # Poll: one sender with one email in @ToPerson
+        def poll_query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if sender is not None:
+                if mailbox_id == "mb-screener" and sender == "person@example.com":
+                    return ["email-1"]
+                return []
+            if mailbox_id == "mb-toperson":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = poll_query_side_effect
+        jmap.get_email_senders.return_value = {
+            "email-1": ("person@example.com", "Jane Doe")
+        }
+        jmap.call.return_value = [
+            [
+                "Email/get",
+                {"list": [{"id": "email-1", "mailboxIds": {"mb-toperson": True}}]},
+                "g0",
+            ]
+        ]
+
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "person-poll-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+    def test_poll_returns_one_processed(self, workflow):
+        """poll() returns 1 for @ToPerson sender."""
+        result = workflow.poll()
+        assert result == 1
+
+    def test_upsert_called_with_person_type(self, workflow, carddav):
+        """upsert_contact called with contact_type='person' for @ToPerson."""
+        workflow.poll()
+        carddav.upsert_contact.assert_called_once_with(
+            "person@example.com", "Jane Doe", "Imbox", contact_type="person"
+        )
+
+    def test_sweep_to_inbox(self, workflow, jmap):
+        """Sweep moves emails to Inbox (same as @ToImbox destination)."""
+        workflow.poll()
+        jmap.batch_move_emails.assert_called_once_with(
+            ["email-1"],
+            "mb-screener",
+            ["mb-inbox"],
+        )
+
+    def test_triage_label_removed(self, workflow, jmap):
+        """@ToPerson label removed from triggering email."""
+        workflow.poll()
+        jmap.remove_label.assert_called_once_with("email-1", "mb-toperson")
+
+
+class TestToPersonRoutesImboxGroup:
+    """@ToPerson routes to Imbox contact group (same as @ToImbox)."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "person-group-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "person@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_routes_to_imbox_group(self, workflow, carddav):
+        """@ToPerson upsert_contact uses 'Imbox' group."""
+        workflow._process_sender(
+            "person@example.com",
+            [("email-1", "@ToPerson")],
+            {"person@example.com": "Jane Doe"},
+        )
+        # The group argument (3rd positional) is "Imbox"
+        args, kwargs = carddav.upsert_contact.call_args
+        assert args[2] == "Imbox"
+
+
+class TestToPersonConflictWithToImbox:
+    """@ToPerson + @ToImbox on same sender produces conflict."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap):
+        def query_side_effect(mailbox_id, **kwargs):
+            if mailbox_id == "mb-toperson":
+                return ["email-1"]
+            if mailbox_id == "mb-toimbox":
+                return ["email-2"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+        def sender_side_effect(email_ids):
+            return {eid: ("both@example.com", "Both Labels") for eid in email_ids}
+
+        jmap.get_email_senders.side_effect = sender_side_effect
+
+        def call_side_effect(method_calls):
+            method = method_calls[0][0]
+            if method == "Email/get":
+                ids = method_calls[0][1].get("ids", [])
+                return [
+                    [
+                        "Email/get",
+                        {
+                            "list": [
+                                {"id": eid, "mailboxIds": {"mb-toperson": True}}
+                                for eid in ids
+                            ]
+                        },
+                        "g0",
+                    ]
+                ]
+            return [["Email/set", {"updated": {}}, "err0"]]
+
+        jmap.call.side_effect = call_side_effect
+
+    def test_conflict_detected(self, workflow):
+        """@ToPerson + @ToImbox = conflict, returns 0 processed."""
+        result = workflow.poll()
+        assert result == 0
+
+    def test_error_label_applied(self, workflow, jmap):
+        """Both emails get @MailroomError."""
+        workflow.poll()
+        email_set_calls = [
+            c
+            for c in jmap.call.call_args_list
+            if any("Email/set" in mc[0] for mc in c.args[0])
+        ]
+        patched_ids = set()
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid in mc[1].get("update", {}):
+                        patched_ids.add(eid)
+        assert "email-1" in patched_ids
+        assert "email-2" in patched_ids
+
+
+class TestToPersonConflictWithToFeed:
+    """@ToPerson + @ToFeed on same sender produces conflict."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap):
+        def query_side_effect(mailbox_id, **kwargs):
+            if mailbox_id == "mb-toperson":
+                return ["email-1"]
+            if mailbox_id == "mb-tofeed":
+                return ["email-2"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+        def sender_side_effect(email_ids):
+            return {eid: ("both@example.com", "Both Labels") for eid in email_ids}
+
+        jmap.get_email_senders.side_effect = sender_side_effect
+
+        def call_side_effect(method_calls):
+            method = method_calls[0][0]
+            if method == "Email/get":
+                ids = method_calls[0][1].get("ids", [])
+                return [
+                    [
+                        "Email/get",
+                        {
+                            "list": [
+                                {"id": eid, "mailboxIds": {"mb-toperson": True}}
+                                for eid in ids
+                            ]
+                        },
+                        "g0",
+                    ]
+                ]
+            return [["Email/set", {"updated": {}}, "err0"]]
+
+        jmap.call.side_effect = call_side_effect
+
+    def test_conflict_detected(self, workflow):
+        """@ToPerson + @ToFeed = conflict, returns 0 processed."""
+        result = workflow.poll()
+        assert result == 0
+
+    def test_error_label_applied_to_both(self, workflow, jmap):
+        """Both emails get @MailroomError."""
+        workflow.poll()
+        email_set_calls = [
+            c
+            for c in jmap.call.call_args_list
+            if any("Email/set" in mc[0] for mc in c.args[0])
+        ]
+        patched_ids = set()
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid in mc[1].get("update", {}):
+                        patched_ids.add(eid)
+        assert "email-1" in patched_ids
+        assert "email-2" in patched_ids
+
+
+class TestWarningLabelOnNameMismatchEnabled:
+    """upsert returns name_mismatch=True, warnings_enabled=True: _apply_warning_label called."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "mismatch-uid",
+            "group": "Imbox",
+            "name_mismatch": True,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_warning_label_applied(self, workflow, jmap):
+        """_apply_warning_label is called when name_mismatch=True and warnings_enabled=True."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToPerson")],
+            {"alice@example.com": "Alice New Name"},
+        )
+        # Warning label should be applied via JMAP Email/set with warning mailbox ID
+        email_set_calls = [
+            c
+            for c in jmap.call.call_args_list
+            if any("Email/set" in mc[0] for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        # Check that the warning mailbox ID is used
+        found_warning = False
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid, update in mc[1].get("update", {}).items():
+                        if "mailboxIds/mb-warning" in update:
+                            found_warning = True
+        assert found_warning, "Warning label (mb-warning) not applied to email"
+
+
+class TestWarningLabelOnNameMismatchDisabled:
+    """upsert returns name_mismatch=True, warnings_enabled=False: NO warning label."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav, mock_settings):
+        mock_settings.warnings_enabled = False
+
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "mismatch-uid-disabled",
+            "group": "Imbox",
+            "name_mismatch": True,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_no_warning_label(self, workflow, jmap):
+        """No warning label applied when warnings_enabled=False."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToPerson")],
+            {"alice@example.com": "Alice New Name"},
+        )
+        # Only calls should NOT include any Email/set with warning mailbox
+        email_set_calls = [
+            c
+            for c in jmap.call.call_args_list
+            if any("Email/set" in mc[0] for mc in c.args[0])
+        ]
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid, update in mc[1].get("update", {}).items():
+                        assert "mailboxIds/mb-warning" not in update
+
+
+class TestNoWarningWhenNoNameMismatch:
+    """upsert returns name_mismatch=False: NO warning regardless of warnings_enabled."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "nomismatch-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_no_warning_label(self, workflow, jmap):
+        """No warning label applied when name_mismatch=False."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToPerson")],
+            {"alice@example.com": "Alice"},
+        )
+        # No Email/set calls for warning
+        email_set_calls = [
+            c
+            for c in jmap.call.call_args_list
+            if any("Email/set" in mc[0] for mc in c.args[0])
+        ]
+        assert len(email_set_calls) == 0
+
+
+class TestWarningLabelFailureNonBlocking:
+    """_apply_warning_label failure is caught -- processing continues, only logs."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "warn-fail-uid",
+            "group": "Imbox",
+            "name_mismatch": True,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+        # Make the warning Email/set call fail
+        original_call = jmap.call.return_value
+
+        def call_side_effect(method_calls):
+            method = method_calls[0][0]
+            if method == "Email/set":
+                raise ConnectionError("JMAP warning label failed")
+            return original_call
+
+        jmap.call.side_effect = call_side_effect
+
+    def test_processing_continues_after_warning_failure(self, workflow, jmap):
+        """Sweep and label removal still happen even when warning label fails."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToPerson")],
+            {"alice@example.com": "Alice New"},
+        )
+        # Triage label should still be removed (processing continued)
+        jmap.remove_label.assert_called_once_with("email-1", "mb-toperson")
+
+
+class TestWarningAppliedToTriggeringEmailsOnly:
+    """@MailroomWarning is applied to the triggering email(s), not all emails."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "warn-target-uid",
+            "group": "Imbox",
+            "name_mismatch": True,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                # Sweep finds 5 emails from this sender
+                return [f"email-{i}" for i in range(1, 6)]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_warning_applied_to_triggering_only(self, workflow, jmap):
+        """Warning label applied only to triggering emails (email-1, email-2), not swept ones."""
+        triggering = [("email-1", "@ToPerson"), ("email-2", "@ToPerson")]
+        workflow._process_sender(
+            "alice@example.com",
+            triggering,
+            {"alice@example.com": "Alice Mismatch"},
+        )
+        # Collect all emails that received warning label
+        warned_ids = set()
+        for c in jmap.call.call_args_list:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid, update in mc[1].get("update", {}).items():
+                        if "mailboxIds/mb-warning" in update:
+                            warned_ids.add(eid)
+        # Only triggering emails should get warning
+        assert warned_ids == {"email-1", "email-2"}
+
+
+class TestToPersonDestinationMailbox:
+    """@ToPerson maps to Inbox destination (same as @ToImbox)."""
+
+    def test_toperson_maps_to_inbox(self, workflow):
+        """@ToPerson -> [inbox_id]: same destination as @ToImbox."""
+        result = workflow._get_destination_mailbox_ids("@ToPerson")
+        assert result == ["mb-inbox"]
 
 
 # =============================================================================
