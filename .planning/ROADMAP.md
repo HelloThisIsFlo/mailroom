@@ -83,7 +83,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03.1-01-PLAN.md -- Config extensions + CardDAV company/person contact creation with nameparser (TDD)
+- [x] 03.1-01-PLAN.md -- Config extensions + CardDAV company/person contact creation with nameparser (TDD)
 - [ ] 03.1-02-PLAN.md -- Workflow contact_type routing, @MailroomWarning application, name mismatch handling (TDD)
 - [ ] 03.1-03-PLAN.md -- Human integration tests for person and company contact types (checkpoint)
 
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
 | 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
-| 3.1. Person Contact Type with @ToPerson Label | 0/? | Not started | - |
+| 3.1. Person Contact Type with @ToPerson Label | 1/3 | In progress | - |
 | 4. Packaging and Deployment | 0/2 | Not started | - |
