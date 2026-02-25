@@ -15,6 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation and JMAP Client** - Config, logging, and a working JMAP client that can query, extract, move, and relabel emails (completed 2026-02-24)
 - [x] **Phase 2: CardDAV Client (Validation Gate)** - A verified CardDAV client that can manage contacts and group membership, validated against live Fastmail (completed 2026-02-24)
 - [x] **Phase 3: Triage Pipeline** - End-to-end screener workflow wiring both clients into the poll-triage-sweep sequence (completed 2026-02-24)
+- [ ] **Phase 3.1: Person Contact Type with @ToPerson Label** - Default contacts to company (ORG field); @ToPerson sublabel of @ToImbox populates first/last name for real people (INSERTED)
 - [ ] **Phase 4: Packaging and Deployment** - Main polling loop, Docker image, k8s manifests, running service in the home cluster
 
 ## Phase Details
@@ -68,6 +69,22 @@ Plans:
 - [x] 03-02-PLAN.md -- Per-sender triage processing: upsert, sweep, relabel, already-grouped check (TDD)
 - [x] 03-03-PLAN.md -- Gap closure: sender display name propagation from JMAP From header to contact creation (TDD)
 
+### Phase 3.1: Person Contact Type with @ToPerson Label (INSERTED)
+
+**Goal:** Default new contacts to company type (ORG field, empty N). Add @ToPerson triage label that creates person-type contacts (FN + N with first/last name) routed to Imbox group. Introduce @MailroomWarning label for non-blocking alerts (name mismatch on existing contacts).
+**Depends on:** Phase 3
+**Requirements:** CDAV-03 (extended), TRIAGE-02 (extended)
+**Success Criteria** (what must be TRUE):
+  1. Triaging with @ToImbox creates a company-type contact (FN + ORG, empty N) — not a person-type contact
+  2. Triaging with @ToPerson creates a person-type contact (FN + N with first/last name, no ORG) routed to Imbox group
+  3. @ToPerson conflicts with @ToImbox and other triage labels (flagged as @MailroomError)
+  4. When @ToPerson encounters an existing contact with a different name, processing continues but @MailroomWarning is applied
+  5. @MailroomWarning label is validated at startup (fail fast if missing and warnings enabled)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 03.1 to break down)
+
 ### Phase 4: Packaging and Deployment
 **Goal**: Mailroom runs as a long-lived polling service in a Docker container on the home Kubernetes cluster, with all configuration externalized and credentials securely managed
 **Depends on**: Phase 3
@@ -86,11 +103,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and JMAP Client | 3/3 | Complete    | 2026-02-24 |
 | 2. CardDAV Client (Validation Gate) | 3/3 | Complete    | 2026-02-24 |
 | 3. Triage Pipeline | 3/3 | Complete    | 2026-02-24 |
+| 3.1. Person Contact Type with @ToPerson Label | 0/? | Not started | - |
 | 4. Packaging and Deployment | 0/2 | Not started | - |
