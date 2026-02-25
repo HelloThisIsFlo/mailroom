@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A background Python service that replicates HEY Mail's Screener workflow on Fastmail. Users triage unknown senders by applying a label on their phone (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`), and Mailroom automatically adds the sender to the right Fastmail contact group, sweeps all their emails out of the Screener, and ensures future emails are routed correctly by existing Fastmail rules. Built for one user migrating from HEY to Fastmail.
+A background Python service that replicates HEY Mail's Screener workflow on Fastmail. Users triage unknown senders by applying a label on their phone (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`, `@ToPerson`), and Mailroom automatically adds the sender to the right Fastmail contact group, sweeps all their emails out of the Screener, and ensures future emails are routed correctly by existing Fastmail rules. Supports both company and person contact types. Built for one user migrating from HEY to Fastmail.
 
 ## Core Value
 
@@ -12,39 +12,64 @@ One label tap on a phone triages an entire sender — all their backlogged email
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Poll Fastmail for emails with triage labels (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`, `@ToPerson`) — v1.0
+- ✓ Extract sender email address from triaged emails — v1.0
+- ✓ Add sender to contacts and assign to correct contact group via CardDAV — v1.0
+- ✓ Handle existing contacts — add to group without creating duplicates — v1.0
+- ✓ Remove triage label from processed email — v1.0
+- ✓ Sweep all Screener emails from same sender to correct destination — v1.0
+- ✓ For Imbox triage: re-add Inbox label to swept emails so they appear immediately — v1.0
+- ✓ Retry on failure — leave triage label in place if CardDAV fails, retry next poll cycle — v1.0
+- ✓ Structured JSON logging (action, sender, timestamp) — v1.0
+- ✓ Containerized with Docker, deployable to Kubernetes — v1.0
+- ✓ ConfigMap-driven configuration (polling interval, label names, contact group names) — v1.0
+- ✓ Secrets managed via Kubernetes Secret (API token, CardDAV password) — v1.0
+- ✓ Person/company contact types via @ToPerson label — v1.0 (bonus)
+- ✓ Sender display name preservation when creating contacts — v1.0 (bonus, originally v2)
+- ✓ Health/liveness probe for k8s restart on hang — v1.0 (bonus, originally v2)
 
 ### Active
 
-- [ ] Poll Fastmail for emails with triage labels (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`)
-- [ ] Extract sender email address from triaged emails
-- [ ] Add sender to contacts and assign to correct contact group via CardDAV
-- [ ] Handle existing contacts — add to group without creating duplicates
-- [ ] Remove triage label from processed email
-- [ ] Sweep all Screener emails from same sender to correct destination
-- [ ] For Imbox triage: re-add Inbox label to swept emails so they appear immediately
-- [ ] Retry on failure — leave triage label in place if CardDAV fails, retry next poll cycle
-- [ ] Structured JSON logging (action, sender, timestamp)
-- [ ] Containerized with Docker, deployable to Kubernetes
-- [ ] ConfigMap-driven configuration (polling interval, label names, contact group names)
-- [ ] Secrets managed via Kubernetes Secret (API token, CardDAV password)
+- [ ] Make screener-label/contact-group/inbox-label mapping configurable (currently hardcoded in config defaults)
+- [ ] Re-triage support — moving a sender from one group to another
+- [ ] Dry-run mode that logs intended actions without making changes
+- [ ] Log-based metrics/counters (triaged senders, swept emails, errors)
 
 ### Out of Scope
 
-- `List-Unsubscribe` header auto-classification — future idea, not part of v1
-- Pluggable workflow engine / plugin system — v1 is Screener-only, but code will be cleanly separated for future extensibility
-- CI/CD pipeline — manual build-and-push is sufficient
+- AI/ML auto-classification — product philosophy is human-decides, not algorithm
+- Webhook/push triggers — Fastmail does not support webhooks; polling is the only option
+- Web UI / dashboard — single-user tool; Fastmail IS the UI
+- Multi-account support — single user; deploy separate instances if needed
+- CI/CD pipeline — manual build-and-push is sufficient for a personal tool
+- `List-Unsubscribe` header auto-classification — future idea, complexity not justified yet
+- Pluggable workflow engine — v1 code is cleanly separated; plugin system is premature
 - noreply address cleanup — known gotcha, can be addressed later
-- Fastmail webhooks — not supported by Fastmail, polling is the only option
+- IMAP IDLE — over-engineering; 5-minute polling is fast enough
 
 ## Context
 
-- Migrating from HEY Mail to Fastmail. HEY's Screener was the killer feature; this project brings it to Fastmail.
-- Fastmail rules and labels are already configured: unknown senders → `Screener` label; contact group members → their respective labels.
-- The UX gap: assigning a contact to a group on iOS Fastmail is tedious (many taps). Applying a label is one tap. This service bridges that gap.
-- Fastmail uses JMAP for email operations and CardDAV for contacts (JMAP contacts spec not finalized).
-- Jail ≠ Block. Jail is a soft-reject with periodic review (~every 3 weeks). Never use Fastmail's block feature.
-- Every screened sender ends up in exactly one of four contact groups (Imbox, Feed, Paper Trail, Jail), making future cleanup possible via group membership.
+Shipped v1.0 with 8,666 LOC Python across 122 files.
+Tech stack: Python, JMAP (httpx), CardDAV (httpx + vobject), pydantic-settings, structlog, Docker, Kubernetes.
+180 unit tests + 13 human integration tests against live Fastmail.
+Deployed as a single-replica k8s Deployment polling every 5 minutes.
+Phase 3.1 was an inserted phase adding person/company contact type support beyond original scope.
+
+## Key Decisions
+
+| Decision | Rationale | Outcome |
+|----------|-----------|---------|
+| Polling over webhooks | Fastmail doesn't support webhooks | ✓ Good — 5-min poll is fast enough for triage UX |
+| JMAP + CardDAV (not pure JMAP) | JMAP contacts spec not finalized | ✓ Good — CardDAV proven reliable against live Fastmail |
+| Retry on failure (leave triage label) | Safer than silently dropping; next poll retries | ✓ Good — zero lost triages in testing |
+| Re-add Inbox label on Imbox sweep | Swept emails should appear in Inbox immediately | ✓ Good — emails appear immediately after triage |
+| Structured JSON logs | Running headless on k8s, need queryable logs | ✓ Good — structlog JSON mode works well |
+| Clean module separation (not plugin system) | Extensibility prep without over-engineering v1 | ✓ Good — JMAPClient, CardDAVClient, ScreenerWorkflow are clean boundaries |
+| ghcr.io for container registry | Free, works with GitHub repos, no extra infra | ✓ Good — GitHub Actions CI pushes automatically |
+| CardDAV as validation gate (Phase 2) | KIND:group model from training data, unverified | ✓ Good — live validation prevented building on assumptions |
+| Company-default contacts with @ToPerson override | Most senders are companies; person-type is opt-in | ✓ Good — clean separation, users choose explicitly |
+| Batch chunking at 100 emails per JMAP call | Conservative under 500 minimum maxObjectsInSet | ✓ Good — no batch size errors observed |
+| Individual env vars (not structured config) | Maps cleanly to k8s ConfigMap entries | ✓ Good — envFrom injects all 18 vars directly |
 
 ## Constraints
 
@@ -52,19 +77,7 @@ One label tap on a phone triages an entire sender — all their backlogged email
 - **No Webhooks**: Fastmail has no push/webhook support; must poll (every 5 minutes is sufficient)
 - **Deployment**: Existing home Kubernetes cluster, manual deploy via `kubectl apply`
 - **Language**: Python
-- **Architecture**: Clean separation of concerns — Screener logic in its own module, clear interfaces — to support future extensibility without building a plugin system now
-
-## Key Decisions
-
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Polling over webhooks | Fastmail doesn't support webhooks | — Pending |
-| JMAP + CardDAV (not pure JMAP) | JMAP contacts spec not finalized | — Pending |
-| Retry on failure (leave triage label) | Safer than silently dropping; next poll retries | — Pending |
-| Re-add Inbox label on Imbox sweep | Swept emails should appear in Inbox immediately, not stay archived | — Pending |
-| Structured JSON logs | Running headless on k8s cluster, need queryable logs | — Pending |
-| Clean module separation (not plugin system) | Extensibility prep without over-engineering v1 | — Pending |
-| ghcr.io for container registry | Free, works with GitHub repos, no extra infra | — Pending |
+- **Architecture**: Clean separation of concerns — Screener logic in its own module, clear interfaces
 
 ---
-*Last updated: 2026-02-23 after initialization*
+*Last updated: 2026-02-25 after v1.0 milestone*
