@@ -72,4 +72,4 @@ python human-tests/test_2_query.py
 
 ---
 
-<sub>Built with [GSD](https://github.com/HelloThisIsFlo/gsd)</sub>
+<sub>Built with [GSD](https://github.com/gsd-build/get-shit-done)</sub>
