@@ -8,6 +8,7 @@ from datetime import date
 
 import httpx
 import vobject
+from nameparser import HumanName
 
 # XML namespace constants (Clark notation for ElementTree)
 DAV = "{DAV:}"
@@ -305,16 +306,21 @@ class CardDAVClient:
         return self._parse_multistatus(resp.content)
 
     def create_contact(
-        self, email: str, display_name: str | None = None
+        self,
+        email: str,
+        display_name: str | None = None,
+        contact_type: str = "company",
     ) -> dict:
         """Create a new contact vCard in the addressbook.
 
-        Builds a vCard 3.0 with FN, N, EMAIL, NOTE, UID and PUTs it
-        using If-None-Match: * to prevent overwriting existing contacts.
+        Builds a vCard 3.0 with FN, EMAIL, NOTE, UID and type-specific
+        fields. Company contacts get ORG + empty N. Person contacts get
+        N with first/last parsed via nameparser and no ORG.
 
         Args:
             email: Contact email address.
             display_name: Display name (falls back to email prefix if None).
+            contact_type: "company" (default) or "person".
 
         Returns:
             Dict with 'href', 'etag', and 'uid' keys.
@@ -331,7 +337,18 @@ class CardDAVClient:
         card = vobject.vCard()
         card.add("uid").value = contact_uid
         card.add("fn").value = name
-        card.add("n").value = vobject.vcard.Name(given=name)
+
+        if contact_type == "person":
+            # Person: parse name into first/last, no ORG
+            parsed = HumanName(name)
+            card.add("n").value = vobject.vcard.Name(
+                given=parsed.first, family=parsed.last
+            )
+        else:
+            # Company (default): empty N + ORG
+            card.add("n").value = vobject.vcard.Name()
+            card.add("org").value = [name]
+
         email_prop = card.add("email")
         email_prop.value = email
         email_prop.type_param = "INTERNET"
@@ -482,40 +499,56 @@ class CardDAVClient:
         email: str,
         display_name: str | None,
         group_name: str,
+        contact_type: str = "company",
     ) -> dict:
         """Search-or-create a contact and add it to a group.
 
         Orchestrates the full contact management flow:
         1. Search for existing contact by email
-        2. If not found: create new contact
-        3. If found: merge-cautious update (fill empty fields only)
+        2. If not found: create new contact with appropriate type
+        3. If found: merge-cautious update (fill empty fields only),
+           update NOTE, detect name mismatch
         4. Add contact to the specified group
 
         Args:
             email: Sender email address.
             display_name: Sender display name (may be None).
             group_name: Target group name (must exist in self._groups).
+            contact_type: "company" (default) or "person" for new contacts.
 
         Returns:
             Dict with 'action' ("created" or "existing"),
-            'uid', and 'group' keys.
+            'uid', 'group', and 'name_mismatch' keys.
         """
         results = self.search_by_email(email)
 
         if not results:
             # New contact
-            new_contact = self.create_contact(email, display_name)
+            new_contact = self.create_contact(
+                email, display_name, contact_type=contact_type
+            )
             self.add_to_group(group_name, new_contact["uid"])
             return {
                 "action": "created",
                 "uid": new_contact["uid"],
                 "group": group_name,
+                "name_mismatch": False,
             }
 
         # Existing contact -- use first match
         result = results[0]
         card = vobject.readOne(result["vcard_data"])
         contact_uid = card.uid.value
+
+        # Detect name mismatch (case-insensitive, stripped comparison)
+        name_mismatch = False
+        if display_name and display_name.strip():
+            existing_fn = getattr(card, "fn", None)
+            if existing_fn and existing_fn.value.strip():
+                name_mismatch = (
+                    display_name.strip().lower()
+                    != existing_fn.value.strip().lower()
+                )
 
         # Merge-cautious update: fill empty fields, never overwrite
         changed = False
@@ -543,12 +576,26 @@ class CardDAVClient:
                 card.fn.value = display_name
             changed = True
 
-        # Only add NOTE if none exists
-        note_value = card.contents.get("note", [])
-        if not note_value:
-            card.add("note").value = (
-                f"Added by Mailroom on {date.today().isoformat()}"
+        # NOTE handling: always set/update on existing contacts
+        note_entries = card.contents.get("note", [])
+        if note_entries and note_entries[0].value.strip():
+            # Existing note: append update marker below original
+            existing_note = note_entries[0].value
+            note_entries[0].value = (
+                f"{existing_note}\n\n"
+                f"Updated by Mailroom on {date.today().isoformat()}"
             )
+            changed = True
+        else:
+            # No note or empty note: add fresh
+            if note_entries:
+                note_entries[0].value = (
+                    f"Added by Mailroom on {date.today().isoformat()}"
+                )
+            else:
+                card.add("note").value = (
+                    f"Added by Mailroom on {date.today().isoformat()}"
+                )
             changed = True
 
         # PUT updated vCard if anything changed
@@ -569,4 +616,5 @@ class CardDAVClient:
             "action": "existing",
             "uid": contact_uid,
             "group": group_name,
+            "name_mismatch": name_mismatch,
         }

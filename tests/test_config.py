@@ -76,13 +76,13 @@ def test_env_override(monkeypatch):
 
 
 def test_triage_labels_property(monkeypatch):
-    """triage_labels returns all four label names."""
+    """triage_labels returns all five label names including @ToPerson."""
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
 
     labels = settings.triage_labels
-    assert labels == ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail"]
+    assert labels == ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"]
 
 
 def test_label_group_mapping(monkeypatch):
@@ -97,25 +97,29 @@ def test_label_group_mapping(monkeypatch):
         "group": "Imbox",
         "destination": "Imbox",
         "destination_mailbox": "Inbox",
+        "contact_type": "company",
     }
     assert mapping["@ToFeed"] == {
         "group": "Feed",
         "destination": "Feed",
         "destination_mailbox": "Feed",
+        "contact_type": "company",
     }
     assert mapping["@ToPaperTrail"] == {
         "group": "Paper Trail",
         "destination": "Paper Trail",
         "destination_mailbox": "Paper Trail",
+        "contact_type": "company",
     }
     assert mapping["@ToJail"] == {
         "group": "Jail",
         "destination": "Jail",
         "destination_mailbox": "Jail",
+        "contact_type": "company",
     }
 
-    # Exactly 4 entries
-    assert len(mapping) == 4
+    # 5 entries (4 original + @ToPerson)
+    assert len(mapping) == 5
 
 
 def test_screener_mailbox_default(monkeypatch):

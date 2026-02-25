@@ -50,13 +50,14 @@ class TestPollNoEmails:
 
     def test_queries_all_triage_labels(self, workflow, jmap):
         workflow.poll()
-        # Should query each of the 4 triage labels
-        assert jmap.query_emails.call_count == 4
+        # Should query each of the 5 triage labels (including @ToPerson)
+        assert jmap.query_emails.call_count == 5
         queried_ids = [c.args[0] for c in jmap.query_emails.call_args_list]
         assert "mb-toimbox" in queried_ids
         assert "mb-tofeed" in queried_ids
         assert "mb-topapertrl" in queried_ids
         assert "mb-tojail" in queried_ids
+        assert "mb-toperson" in queried_ids
 
     def test_no_sender_lookup(self, workflow, jmap):
         workflow.poll()

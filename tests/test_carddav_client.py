@@ -831,6 +831,12 @@ class TestUpsertContact:
             status_code=207,
             content=search_body,
         )
+        # Mock the contact update PUT (NOTE append)
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
         # Mock add_to_group: GET group vCard
         group_body = _group_vcard("Imbox", "uid-imbox")
         httpx_mock.add_response(
@@ -854,21 +860,13 @@ class TestUpsertContact:
         assert result["uid"] == "existing-uid"
         assert result["group"] == "Imbox"
 
-        # create_contact should NOT have been called (no extra PUT)
-        requests = httpx_mock.get_requests()
-        put_requests = [
-            r for r in requests if r.method == "PUT"
-        ]
-        # Only the group PUT, no contact PUT
-        assert len(put_requests) == 1
-
     def test_upsert_existing_contact_no_overwrite(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Existing contact with filled fields: nothing overwritten."""
+        """Existing contact with filled fields: FN not overwritten, NOTE appended."""
         _setup_client_with_groups(client, httpx_mock)
 
-        # Contact already has FN, N, NOTE, EMAIL -- nothing to fill
+        # Contact already has FN, N, NOTE, EMAIL
         existing = _contact_vcard(
             "Jane Smith",
             "existing-uid",
@@ -886,6 +884,12 @@ class TestUpsertContact:
             url=ADDRESSBOOK_URL,
             status_code=207,
             content=search_body,
+        )
+        # Mock the contact update PUT (NOTE append always triggers)
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
         )
         # Mock add_to_group: GET + PUT
         group_body = _group_vcard("Imbox", "uid-imbox")
@@ -906,13 +910,19 @@ class TestUpsertContact:
         )
 
         assert result["action"] == "existing"
-        # No contact update PUT should have been sent
-        # (only the group PUT from add_to_group)
+
+        # Contact update PUT: FN preserved, NOTE appended
         requests = httpx_mock.get_requests()
-        put_requests = [
-            r for r in requests if r.method == "PUT"
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
         ]
-        assert len(put_requests) == 1  # only group PUT
+        assert len(contact_puts) == 1
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+        assert card.fn.value == "Jane Smith"  # Not overwritten
+        assert "Personal contact" in card.note.value  # Original preserved
+        assert "Updated by Mailroom on" in card.note.value  # Appended
 
     def test_upsert_existing_contact_merge_cautious(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
@@ -979,7 +989,8 @@ class TestUpsertContact:
 
         # Original fields preserved
         assert card.fn.value == "Jane Smith"
-        assert card.note.value == "My friend Jane"
+        assert "My friend Jane" in card.note.value  # Original note preserved
+        assert "Updated by Mailroom on" in card.note.value  # Appended
 
         # Both emails present
         emails = [e.value for e in card.contents.get("email", [])]
@@ -1352,6 +1363,12 @@ class TestUpsertNameMismatch:
         httpx_mock.add_response(
             url=ADDRESSBOOK_URL, status_code=207, content=search_body,
         )
+        # Mock the contact update PUT (NOTE append)
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
         # Mock add_to_group: GET + PUT
         group_body = _group_vcard("Imbox", "uid-imbox")
         httpx_mock.add_response(
@@ -1385,6 +1402,12 @@ class TestUpsertNameMismatch:
         ])
         httpx_mock.add_response(
             url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock the contact update PUT (NOTE append)
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
         )
         # Mock add_to_group: GET + PUT
         group_body = _group_vcard("Imbox", "uid-imbox")
