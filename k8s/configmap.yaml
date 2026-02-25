@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mailroom-config
+  namespace: mailroom
+data:
+  MAILROOM_POLL_INTERVAL: "300"
+  MAILROOM_LOG_LEVEL: "info"
+  MAILROOM_LABEL_TO_IMBOX: "@ToImbox"
+  MAILROOM_LABEL_TO_FEED: "@ToFeed"
+  MAILROOM_LABEL_TO_PAPER_TRAIL: "@ToPaperTrail"
+  MAILROOM_LABEL_TO_JAIL: "@ToJail"
+  MAILROOM_LABEL_TO_PERSON: "@ToPerson"
+  MAILROOM_LABEL_MAILROOM_ERROR: "@MailroomError"
+  MAILROOM_LABEL_MAILROOM_WARNING: "@MailroomWarning"
+  MAILROOM_WARNINGS_ENABLED: "true"
+  MAILROOM_SCREENER_MAILBOX: "Screener"
+  MAILROOM_GROUP_IMBOX: "Imbox"
+  MAILROOM_GROUP_FEED: "Feed"
+  MAILROOM_GROUP_PAPER_TRAIL: "Paper Trail"
+  MAILROOM_GROUP_JAIL: "Jail"
