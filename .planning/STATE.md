@@ -23,18 +23,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 7 of 8 (Setup Script)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-02-26 -- Completed 07-01 (CLI framework and client create methods)
+Last activity: 2026-02-26 -- Completed 07-02 (Provisioner and reporting)
 
-Progress: [████████████░░░░░░░░] 65% (21/? plans -- v1.1 phase 7 plan 1 complete)
+Progress: [█████████████░░░░░░░] 68% (22/? plans -- v1.1 phase 7 plan 2 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 12 min
+- Total execution time: ~1 hour 15 min
 
 **By Phase:**
 
@@ -47,7 +47,7 @@ Progress: [████████████░░░░░░░░] 65% (21
 | 04-packaging-and-deployment | 3/3 | 7 min | 2.3 min |
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
-| 07-setup-script | 1/3 | 4 min | 4.0 min |
+| 07-setup-script | 2/3 | 7 min | 3.5 min |
 
 ## Accumulated Context
 
@@ -64,6 +64,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: required_mailboxes and contact_groups return sorted output for deterministic behavior
 - v1.1: invoke_without_command=True preserves python -m mailroom backward compat
 - v1.1: session_capabilities stored as raw dict for flexible downstream inspection
+- v1.1: list_groups() added to CardDAVClient as clean helper for provisioning discovery
+- v1.1: Resources categorized per CONTEXT.md: Mailboxes, Action Labels, Contact Groups
 
 ### Pending Todos
 
@@ -82,5 +84,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 07-01-PLAN.md (CLI framework and client create methods)
+Stopped at: Completed 07-02-PLAN.md (Provisioner and reporting)
 Resume file: None

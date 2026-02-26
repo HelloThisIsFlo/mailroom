@@ -20,9 +20,9 @@ Requirements for v1.1 Push & Config milestone. Each maps to roadmap phases.
 
 - [x] **SETUP-01**: Setup script creates missing triage label mailboxes on Fastmail via JMAP `Mailbox/set`
 - [x] **SETUP-02**: Setup script creates missing contact groups on Fastmail via CardDAV
-- [ ] **SETUP-03**: Setup script is idempotent — reports "already exists" for items that are already present
+- [x] **SETUP-03**: Setup script is idempotent — reports "already exists" for items that are already present
 - [ ] **SETUP-04**: Setup script outputs human-readable sieve rule instructions for email routing (cannot be automated)
-- [ ] **SETUP-05**: Setup script requires `--apply` flag to make changes (dry-run by default)
+- [x] **SETUP-05**: Setup script requires `--apply` flag to make changes (dry-run by default)
 - [x] **SETUP-06**: Setup script reads categories from the same config as the main service
 
 ### EventSource Push
@@ -73,9 +73,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONFIG-06 | Phase 6 | Complete |
 | SETUP-01 | Phase 7 | Complete |
 | SETUP-02 | Phase 7 | Complete |
-| SETUP-03 | Phase 7 | Pending |
+| SETUP-03 | Phase 7 | Complete |
 | SETUP-04 | Phase 7 | Pending |
-| SETUP-05 | Phase 7 | Pending |
+| SETUP-05 | Phase 7 | Complete |
 | SETUP-06 | Phase 7 | Complete |
 | PUSH-01 | Phase 8 | Pending |
 | PUSH-02 | Phase 8 | Pending |
