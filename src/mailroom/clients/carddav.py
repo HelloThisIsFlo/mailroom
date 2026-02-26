@@ -184,6 +184,41 @@ class CardDAVClient:
 
         return results
 
+    def list_groups(self) -> dict[str, dict]:
+        """Fetch all contact groups from the addressbook.
+
+        Returns:
+            Dict mapping group FN to {"href": ..., "etag": ..., "uid": ...}.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+        """
+        addressbook_url = self._require_connection()
+        resp = self._http.request(
+            "REPORT",
+            addressbook_url,
+            content=REPORT_ALL_VCARDS,
+            headers={"Depth": "1"},
+        )
+        resp.raise_for_status()
+        all_items = self._parse_multistatus(resp.content)
+        groups: dict[str, dict] = {}
+        for item in all_items:
+            vcard_data = item.get("vcard_data", "")
+            if not vcard_data:
+                continue
+            card = vobject.readOne(vcard_data)
+            kind_list = card.contents.get("x-addressbookserver-kind", [])
+            if not kind_list or kind_list[0].value.lower() != "group":
+                continue
+            fn = card.fn.value
+            groups[fn] = {
+                "href": item["href"],
+                "etag": item["etag"],
+                "uid": card.uid.value,
+            }
+        return groups
+
     def validate_groups(self, required_groups: list[str]) -> dict[str, dict]:
         """Validate that all required contact groups exist in the addressbook.
 
