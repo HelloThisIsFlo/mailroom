@@ -116,6 +116,33 @@ class TestConnect:
         assert request is not None
         assert request.headers["authorization"] == f"Bearer {token}"
 
+    def test_connect_stores_capabilities(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """connect() stores session capabilities for downstream inspection."""
+        session_with_caps = {
+            **FASTMAIL_SESSION_RESPONSE,
+            "capabilities": {
+                "urn:ietf:params:jmap:core": {"maxSizeUpload": 50000000},
+                "urn:ietf:params:jmap:mail": {},
+            },
+        }
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=session_with_caps,
+        )
+
+        client.connect()
+
+        caps = client.session_capabilities
+        assert "urn:ietf:params:jmap:core" in caps
+        assert "urn:ietf:params:jmap:mail" in caps
+        assert caps["urn:ietf:params:jmap:core"]["maxSizeUpload"] == 50000000
+
+    def test_session_capabilities_empty_before_connect(self, client: JMAPClient) -> None:
+        """session_capabilities returns empty dict before connect()."""
+        assert client.session_capabilities == {}
+
 
 # --- Mailbox Resolution Tests ---
 
@@ -246,6 +273,127 @@ class TestResolveMailboxes:
             client.resolve_mailboxes(["Missing1", "Missing2"])
 
         assert "Missing2" in str(exc_info.value)
+
+
+# --- Create Mailbox Tests ---
+
+
+class TestCreateMailbox:
+    """Tests for JMAPClient.create_mailbox()."""
+
+    def _setup_connected_client(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Helper: connect the client with a mocked session."""
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=FASTMAIL_SESSION_RESPONSE,
+        )
+        client.connect()
+
+    def test_create_mailbox_success(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """create_mailbox returns server-assigned ID on success."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Mailbox/set",
+                        {
+                            "accountId": "u1234",
+                            "created": {"mb0": {"id": "Ma999"}},
+                        },
+                        "c0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.create_mailbox("Feed")
+
+        assert result == "Ma999"
+
+        # Verify request payload
+        import json
+
+        requests = httpx_mock.get_requests()
+        api_request = requests[-1]
+        payload = json.loads(api_request.read())
+        method_call = payload["methodCalls"][0]
+        assert method_call[0] == "Mailbox/set"
+        create_args = method_call[1]["create"]["mb0"]
+        assert create_args["name"] == "Feed"
+        assert create_args["isSubscribed"] is True
+        assert "parentId" not in create_args
+
+    def test_create_mailbox_with_parent(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """create_mailbox with parent_id includes parentId in the JMAP call."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Mailbox/set",
+                        {
+                            "accountId": "u1234",
+                            "created": {"mb0": {"id": "Ma888"}},
+                        },
+                        "c0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.create_mailbox("Sub", parent_id="MaParent")
+
+        assert result == "Ma888"
+
+        # Verify parentId in payload
+        import json
+
+        requests = httpx_mock.get_requests()
+        api_request = requests[-1]
+        payload = json.loads(api_request.read())
+        method_call = payload["methodCalls"][0]
+        create_args = method_call[1]["create"]["mb0"]
+        assert create_args["parentId"] == "MaParent"
+
+    def test_create_mailbox_failure(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """create_mailbox raises RuntimeError on notCreated with error details."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Mailbox/set",
+                        {
+                            "accountId": "u1234",
+                            "notCreated": {
+                                "mb0": {
+                                    "type": "invalidProperties",
+                                    "description": "Name exists",
+                                }
+                            },
+                        },
+                        "c0",
+                    ]
+                ]
+            },
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to create mailbox") as exc_info:
+            client.create_mailbox("Feed")
+
+        assert "invalidProperties" in str(exc_info.value)
 
 
 # --- JMAP call() Tests ---

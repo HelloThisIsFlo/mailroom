@@ -27,6 +27,8 @@ class JMAPClient:
         )
         self._api_url: str | None = None
         self._account_id: str | None = None
+        self._session_capabilities: dict = {}
+        self._download_url: str | None = None
 
     @property
     def account_id(self) -> str:
@@ -34,6 +36,11 @@ class JMAPClient:
         if self._account_id is None:
             raise RuntimeError("JMAPClient is not connected. Call connect() first.")
         return self._account_id
+
+    @property
+    def session_capabilities(self) -> dict:
+        """Return session capabilities dict. Empty if not connected."""
+        return self._session_capabilities
 
     def connect(self) -> None:
         """Discover JMAP session: fetch account ID and API URL from Fastmail.
@@ -47,6 +54,8 @@ class JMAPClient:
         data = resp.json()
         self._account_id = data["primaryAccounts"]["urn:ietf:params:jmap:mail"]
         self._api_url = data["apiUrl"]
+        self._session_capabilities = data.get("capabilities", {})
+        self._download_url = data.get("downloadUrl")
 
     def call(self, method_calls: list) -> list:
         """Execute JMAP method calls against the API endpoint.
@@ -141,6 +150,43 @@ class JMAPClient:
             )
 
         return result
+
+    def create_mailbox(self, name: str, parent_id: str | None = None) -> str:
+        """Create a mailbox and return its server-assigned ID.
+
+        Args:
+            name: Mailbox display name (e.g., "Feed", not "Triage/Feed").
+            parent_id: Parent mailbox ID for nested mailboxes, or None for top-level.
+
+        Returns:
+            Server-assigned mailbox ID string.
+
+        Raises:
+            RuntimeError: If Mailbox/set reports creation failed, with error type and description.
+        """
+        create_args: dict = {
+            "name": name,
+            "isSubscribed": True,
+        }
+        if parent_id is not None:
+            create_args["parentId"] = parent_id
+
+        responses = self.call(
+            [["Mailbox/set", {
+                "accountId": self.account_id,
+                "create": {"mb0": create_args},
+            }, "c0"]]
+        )
+        data = responses[0][1]
+        created = data.get("created", {})
+        if "mb0" in created:
+            return created["mb0"]["id"]
+        not_created = data.get("notCreated", {})
+        error = not_created.get("mb0", {})
+        raise RuntimeError(
+            f"Failed to create mailbox '{name}': "
+            f"{error.get('type', 'unknown')} - {error.get('description', '')}"
+        )
 
     def query_emails(
         self,
