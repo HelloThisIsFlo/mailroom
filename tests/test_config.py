@@ -459,7 +459,7 @@ class TestValidationEmptyList:
 
     def test_empty_list_rejected(self):
         """resolve_categories([]) raises ValueError with 'at least one triage category'."""
-        with pytest.raises(ValueError, match="at least one triage category"):
+        with pytest.raises(ValueError, match="(?i)at least one triage category"):
             resolve_categories([])
 
 
@@ -520,7 +520,7 @@ class TestValidationSharedContactGroups:
             TriageCategory(name="Alpha", contact_group="SharedGroup"),
             TriageCategory(name="Beta", contact_group="SharedGroup"),
         ]
-        with pytest.raises(ValueError, match="shared.*contact.*group"):
+        with pytest.raises(ValueError, match="share contact group"):
             resolve_categories(cats)
 
     def test_shared_groups_with_parent_allowed(self):

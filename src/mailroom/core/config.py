@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Literal
 
@@ -88,16 +89,124 @@ def _default_categories() -> list[TriageCategory]:
 # -- Resolution logic -------------------------------------------------------
 
 
+def _validate_categories(categories: list[TriageCategory]) -> list[str]:
+    """Validate a list of triage categories and return all errors found.
+
+    Checks performed (all errors collected, not fail-fast):
+      - At least one category required
+      - No duplicate names
+      - All parent references point to existing categories
+      - No circular parent chains (including self-reference)
+      - No duplicate labels after derivation
+      - No shared contact groups unless related via parent
+    """
+    errors: list[str] = []
+
+    # 1. Empty list
+    if not categories:
+        errors.append("At least one triage category is required.")
+        return errors  # remaining checks meaningless on empty list
+
+    # 2. Duplicate names
+    seen_names: set[str] = set()
+    for cat in categories:
+        if cat.name in seen_names:
+            errors.append(f"Duplicate category name: '{cat.name}'")
+        seen_names.add(cat.name)
+
+    # 3. Parent references exist
+    name_set = {c.name for c in categories}
+    for cat in categories:
+        if cat.parent and cat.parent not in name_set:
+            errors.append(
+                f"Category '{cat.name}' references non-existent parent '{cat.parent}'"
+            )
+
+    # 4. Circular parent chains
+    parent_map = {c.name: c.parent for c in categories}
+    checked: set[str] = set()
+    for cat in categories:
+        if cat.parent and cat.name not in checked:
+            visited: set[str] = {cat.name}
+            current = cat.parent
+            while current:
+                if current in visited:
+                    errors.append(
+                        f"Circular parent chain involving '{cat.name}'"
+                    )
+                    break
+                if current not in name_set:
+                    break  # already reported as non-existent parent
+                visited.add(current)
+                current = parent_map.get(current)
+            checked.update(visited)
+
+    # 5. Duplicate labels after derivation
+    label_owners: dict[str, str] = {}
+    for cat in categories:
+        label = cat.label if cat.label is not None else derive_label(cat.name)
+        if label in label_owners:
+            errors.append(
+                f"Duplicate triage label '{label}' "
+                f"(from '{label_owners[label]}' and '{cat.name}')"
+            )
+        else:
+            label_owners[label] = cat.name
+
+    # 6. Shared contact groups without parent relationship
+    # Build resolved groups for checking
+    group_owners: dict[str, list[str]] = {}
+    for cat in categories:
+        group = (
+            cat.contact_group
+            if cat.contact_group is not None
+            else derive_contact_group(cat.name)
+        )
+        group_owners.setdefault(group, []).append(cat.name)
+
+    for group, owners in group_owners.items():
+        if len(owners) > 1:
+            # Check if all sharing is via parent relationships
+            for i, a in enumerate(owners):
+                for b in owners[i + 1 :]:
+                    cat_a = next(c for c in categories if c.name == a)
+                    cat_b = next(c for c in categories if c.name == b)
+                    # Allowed if one is parent of the other
+                    if cat_a.parent != b and cat_b.parent != a:
+                        errors.append(
+                            f"Categories '{a}' and '{b}' share contact group "
+                            f"'{group}' without a parent relationship"
+                        )
+
+    return errors
+
+
 def resolve_categories(
     categories: list[TriageCategory],
 ) -> list[ResolvedCategory]:
     """Resolve a list of user-provided categories into fully concrete objects.
 
-    Two-pass resolution:
+    Validates all constraints first (collecting all errors), then performs
+    two-pass resolution:
       1. Derive missing fields from the category name.
       2. Apply parent inheritance (children inherit parent's contact_group
          and destination_mailbox unless explicitly overridden).
+
+    Raises ``ValueError`` with all validation errors if any are found.
     """
+    # Validate first -- collect all errors
+    errors = _validate_categories(categories)
+    if errors:
+        default_json = json.dumps(
+            [c.model_dump(exclude_none=True) for c in _default_categories()],
+            indent=2,
+        )
+        raise ValueError(
+            "Invalid triage category configuration:\n"
+            + "\n".join(f"  - {e}" for e in errors)
+            + f"\n\nDefault configuration for reference:\n{default_json}"
+        )
+
     # First pass: resolve own fields
     first_pass: dict[str, ResolvedCategory] = {}
     for cat in categories:
@@ -119,8 +228,6 @@ def resolve_categories(
         )
 
     # Second pass: apply parent inheritance
-    # Build a lookup from category name -> original TriageCategory for
-    # checking whether an override was explicitly set.
     originals = {cat.name: cat for cat in categories}
     resolved: list[ResolvedCategory] = []
 
