@@ -11,6 +11,7 @@ from mailroom.clients.jmap import JMAPClient
 from mailroom.core.config import MailroomSettings
 from mailroom.core.logging import configure_logging
 from mailroom.setup.reporting import ResourceAction, print_plan
+from mailroom.setup.sieve_guidance import generate_sieve_guidance
 
 
 def plan_resources(
@@ -235,11 +236,15 @@ def run_setup(apply: bool = False, ui_guide: bool = False) -> int:
     if not apply:
         # Dry-run: show plan and exit
         print_plan(resource_plan, apply=False)
+        print()
+        print(generate_sieve_guidance(settings, ui_guide=ui_guide))
         return 0
 
     # Apply: create missing resources
     result = apply_resources(resource_plan, jmap, carddav)
     print_plan(result, apply=True)
+    print()
+    print(generate_sieve_guidance(settings, ui_guide=ui_guide))
 
     # Exit code: 1 if any failures
     has_failures = any(a.status == "failed" for a in result)
