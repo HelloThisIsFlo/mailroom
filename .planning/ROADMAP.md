@@ -61,7 +61,7 @@ Plans:
 Plans:
 - [ ] 07-01-PLAN.md — Click CLI framework, JMAPClient.create_mailbox(), CardDAVClient.create_group()
 - [ ] 07-02-PLAN.md — Provisioner with plan/apply pattern, reporting, and resource categorization
-- [ ] 07-03-PLAN.md — Sieve rule checker with guidance output and human integration tests
+- [ ] 07-03-PLAN.md — Sieve rule guidance (no introspection) and human integration tests
 
 ### Phase 8: EventSource Push
 **Goal**: Triage latency drops from up to 5 minutes to under 10 seconds via JMAP EventSource push, with automatic fallback to polling if the SSE connection fails
