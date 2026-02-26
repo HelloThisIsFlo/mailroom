@@ -9,12 +9,12 @@ Requirements for v1.1 Push & Config milestone. Each maps to roadmap phases.
 
 ### Configurable Categories
 
-- [ ] **CONFIG-01**: Triage categories defined as a structured list (label, contact group, destination mailbox, add-inbox flag per category)
-- [ ] **CONFIG-02**: Categories configurable via `MAILROOM_TRIAGE_CATEGORIES` JSON environment variable
-- [ ] **CONFIG-03**: Default categories match v1.0 behavior (Imbox, Feed, PaperTrail, Jail, Person) so zero-config deployments work
+- [x] **CONFIG-01**: Triage categories defined as a structured list (label, contact group, destination mailbox, add-inbox flag per category)
+- [x] **CONFIG-02**: Categories configurable via `MAILROOM_TRIAGE_CATEGORIES` JSON environment variable
+- [x] **CONFIG-03**: Default categories match v1.0 behavior (Imbox, Feed, PaperTrail, Jail, Person) so zero-config deployments work
 - [ ] **CONFIG-04**: All derived properties (triage labels, contact groups, required mailboxes) computed from category mapping
 - [ ] **CONFIG-05**: User can add custom triage categories beyond the 5 defaults
-- [ ] **CONFIG-06**: Startup validation rejects invalid category configurations (missing fields, duplicate labels)
+- [x] **CONFIG-06**: Startup validation rejects invalid category configurations (missing fields, duplicate labels)
 
 ### Setup Script
 
@@ -65,12 +65,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONFIG-01 | Phase 6 | Pending |
-| CONFIG-02 | Phase 6 | Pending |
-| CONFIG-03 | Phase 6 | Pending |
+| CONFIG-01 | Phase 6 | Complete |
+| CONFIG-02 | Phase 6 | Complete |
+| CONFIG-03 | Phase 6 | Complete |
 | CONFIG-04 | Phase 6 | Pending |
 | CONFIG-05 | Phase 6 | Pending |
-| CONFIG-06 | Phase 6 | Pending |
+| CONFIG-06 | Phase 6 | Complete |
 | SETUP-01 | Phase 7 | Pending |
 | SETUP-02 | Phase 7 | Pending |
 | SETUP-03 | Phase 7 | Pending |
