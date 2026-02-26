@@ -269,3 +269,183 @@ def test_mapping_has_five_entries_with_toperson(monkeypatch):
     mapping = settings.label_to_group_mapping
 
     assert len(mapping) == 5
+
+
+# --- Phase 6: TriageCategory Model, ResolvedCategory, Derivation, Defaults ---
+
+from dataclasses import FrozenInstanceError
+
+from mailroom.core.config import (
+    ResolvedCategory,
+    TriageCategory,
+    _default_categories,
+    resolve_categories,
+)
+
+
+class TestTriageCategoryModel:
+    """Tests for the TriageCategory Pydantic model."""
+
+    def test_name_only_input(self):
+        """TriageCategory(name='Receipts') succeeds with defaults."""
+        cat = TriageCategory(name="Receipts")
+        assert cat.name == "Receipts"
+        assert cat.label is None
+        assert cat.contact_group is None
+        assert cat.destination_mailbox is None
+        assert cat.contact_type == "company"
+        assert cat.parent is None
+
+    def test_empty_name_rejected(self):
+        """TriageCategory(name='') raises ValidationError."""
+        with pytest.raises(ValidationError):
+            TriageCategory(name="")
+
+    def test_whitespace_only_name_rejected(self):
+        """TriageCategory(name='  ') raises ValidationError."""
+        with pytest.raises(ValidationError):
+            TriageCategory(name="  ")
+
+    def test_name_stripped(self):
+        """TriageCategory(name='  Receipts  ') strips to 'Receipts'."""
+        cat = TriageCategory(name="  Receipts  ")
+        assert cat.name == "Receipts"
+
+
+class TestDerivationRules:
+    """Tests for name-to-label/group/mailbox derivation via resolve_categories."""
+
+    def test_simple_name_derivation(self):
+        """Name 'Receipts' derives label '@ToReceipts', group 'Receipts', mailbox 'Receipts'."""
+        cats = [TriageCategory(name="Receipts")]
+        resolved = resolve_categories(cats)
+        assert len(resolved) == 1
+        r = resolved[0]
+        assert r.label == "@ToReceipts"
+        assert r.contact_group == "Receipts"
+        assert r.destination_mailbox == "Receipts"
+
+    def test_multi_word_name_derivation(self):
+        """Name 'Paper Trail' derives label '@ToPaperTrail' (spaces removed)."""
+        cats = [TriageCategory(name="Paper Trail")]
+        resolved = resolve_categories(cats)
+        r = resolved[0]
+        assert r.label == "@ToPaperTrail"
+        assert r.contact_group == "Paper Trail"
+        assert r.destination_mailbox == "Paper Trail"
+
+    def test_explicit_override_preserved(self):
+        """Explicit destination_mailbox='Inbox' overrides derived value."""
+        cats = [TriageCategory(name="Imbox", destination_mailbox="Inbox")]
+        resolved = resolve_categories(cats)
+        r = resolved[0]
+        assert r.destination_mailbox == "Inbox"
+        # Label and group still derived from name
+        assert r.label == "@ToImbox"
+        assert r.contact_group == "Imbox"
+
+
+class TestDefaultFactory:
+    """Tests for _default_categories() factory function."""
+
+    def test_returns_five_categories(self):
+        """_default_categories() returns 5 TriageCategory instances."""
+        defaults = _default_categories()
+        assert len(defaults) == 5
+        assert all(isinstance(c, TriageCategory) for c in defaults)
+
+    def test_default_names(self):
+        """Default category names are Imbox, Feed, Paper Trail, Jail, Person."""
+        defaults = _default_categories()
+        names = [c.name for c in defaults]
+        assert names == ["Imbox", "Feed", "Paper Trail", "Jail", "Person"]
+
+    def test_imbox_destination_override(self):
+        """Imbox has destination_mailbox='Inbox' override."""
+        defaults = _default_categories()
+        imbox = next(c for c in defaults if c.name == "Imbox")
+        assert imbox.destination_mailbox == "Inbox"
+
+    def test_person_parent_and_contact_type(self):
+        """Person has parent='Imbox' and contact_type='person'."""
+        defaults = _default_categories()
+        person = next(c for c in defaults if c.name == "Person")
+        assert person.parent == "Imbox"
+        assert person.contact_type == "person"
+
+
+class TestResolvedCategory:
+    """Tests for the ResolvedCategory frozen dataclass."""
+
+    def test_all_fields_concrete(self):
+        """ResolvedCategory has all concrete fields (no None except parent)."""
+        r = ResolvedCategory(
+            name="Feed",
+            label="@ToFeed",
+            contact_group="Feed",
+            destination_mailbox="Feed",
+            contact_type="company",
+            parent=None,
+        )
+        assert r.name == "Feed"
+        assert r.label == "@ToFeed"
+        assert r.contact_group == "Feed"
+        assert r.destination_mailbox == "Feed"
+        assert r.contact_type == "company"
+        assert r.parent is None
+
+    def test_frozen_immutability(self):
+        """Attempting to mutate a ResolvedCategory raises FrozenInstanceError."""
+        r = ResolvedCategory(
+            name="Feed",
+            label="@ToFeed",
+            contact_group="Feed",
+            destination_mailbox="Feed",
+            contact_type="company",
+            parent=None,
+        )
+        with pytest.raises(FrozenInstanceError):
+            r.name = "Changed"
+
+
+class TestParentInheritance:
+    """Tests for parent-child inheritance in resolve_categories."""
+
+    def test_child_inherits_parent_group_and_mailbox(self):
+        """Person (parent='Imbox') inherits contact_group and destination_mailbox from Imbox."""
+        cats = [
+            TriageCategory(name="Imbox", destination_mailbox="Inbox"),
+            TriageCategory(name="Person", parent="Imbox", contact_type="person"),
+        ]
+        resolved = resolve_categories(cats)
+        person = next(r for r in resolved if r.name == "Person")
+        assert person.contact_group == "Imbox"
+        assert person.destination_mailbox == "Inbox"
+        assert person.contact_type == "person"
+
+    def test_child_explicit_override_not_inherited(self):
+        """Child with explicit contact_group does NOT inherit parent's group."""
+        cats = [
+            TriageCategory(name="Imbox", destination_mailbox="Inbox"),
+            TriageCategory(
+                name="VIP",
+                parent="Imbox",
+                contact_group="VIPGroup",
+            ),
+        ]
+        resolved = resolve_categories(cats)
+        vip = next(r for r in resolved if r.name == "VIP")
+        assert vip.contact_group == "VIPGroup"
+        # But destination_mailbox IS inherited (not explicitly set)
+        assert vip.destination_mailbox == "Inbox"
+
+    def test_parent_after_child_still_resolves(self):
+        """Parent appearing after child in list still resolves correctly (two-pass)."""
+        cats = [
+            TriageCategory(name="Person", parent="Imbox", contact_type="person"),
+            TriageCategory(name="Imbox", destination_mailbox="Inbox"),
+        ]
+        resolved = resolve_categories(cats)
+        person = next(r for r in resolved if r.name == "Person")
+        assert person.contact_group == "Imbox"
+        assert person.destination_mailbox == "Inbox"
