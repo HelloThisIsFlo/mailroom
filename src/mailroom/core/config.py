@@ -1,6 +1,156 @@
 """Mailroom configuration loaded from MAILROOM_-prefixed environment variables."""
 
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Configurable triage category models
+# ---------------------------------------------------------------------------
+
+
+class TriageCategory(BaseModel):
+    """A single triage category as provided by the user.
+
+    Only ``name`` is required. All other fields are optional and will be
+    derived from the name when left unset (see ``resolve_categories``).
+    """
+
+    name: str
+    label: str | None = None
+    contact_group: str | None = None
+    destination_mailbox: str | None = None
+    contact_type: Literal["company", "person"] = "company"
+    parent: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_empty(cls, v: str) -> str:
+        """Strip whitespace and reject empty names."""
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Category name must not be empty")
+        return stripped
+
+
+@dataclass(frozen=True)
+class ResolvedCategory:
+    """A fully resolved triage category -- all fields concrete."""
+
+    name: str
+    label: str
+    contact_group: str
+    destination_mailbox: str
+    contact_type: str
+    parent: str | None
+
+
+# -- Derivation helpers -----------------------------------------------------
+
+
+def derive_label(name: str) -> str:
+    """Derive triage label from category name: 'Paper Trail' -> '@ToPaperTrail'."""
+    return f"@To{''.join(name.split())}"
+
+
+def derive_contact_group(name: str) -> str:
+    """Derive contact group from category name (identity)."""
+    return name
+
+
+def derive_destination_mailbox(name: str) -> str:
+    """Derive destination mailbox from category name (identity)."""
+    return name
+
+
+# -- Default factory --------------------------------------------------------
+
+
+def _default_categories() -> list[TriageCategory]:
+    """Return the v1.0 default categories.
+
+    Used when ``MAILROOM_TRIAGE_CATEGORIES`` is not set.
+    """
+    return [
+        TriageCategory(name="Imbox", destination_mailbox="Inbox"),
+        TriageCategory(name="Feed"),
+        TriageCategory(name="Paper Trail"),
+        TriageCategory(name="Jail"),
+        TriageCategory(name="Person", parent="Imbox", contact_type="person"),
+    ]
+
+
+# -- Resolution logic -------------------------------------------------------
+
+
+def resolve_categories(
+    categories: list[TriageCategory],
+) -> list[ResolvedCategory]:
+    """Resolve a list of user-provided categories into fully concrete objects.
+
+    Two-pass resolution:
+      1. Derive missing fields from the category name.
+      2. Apply parent inheritance (children inherit parent's contact_group
+         and destination_mailbox unless explicitly overridden).
+    """
+    # First pass: resolve own fields
+    first_pass: dict[str, ResolvedCategory] = {}
+    for cat in categories:
+        first_pass[cat.name] = ResolvedCategory(
+            name=cat.name,
+            label=cat.label if cat.label is not None else derive_label(cat.name),
+            contact_group=(
+                cat.contact_group
+                if cat.contact_group is not None
+                else derive_contact_group(cat.name)
+            ),
+            destination_mailbox=(
+                cat.destination_mailbox
+                if cat.destination_mailbox is not None
+                else derive_destination_mailbox(cat.name)
+            ),
+            contact_type=cat.contact_type,
+            parent=cat.parent,
+        )
+
+    # Second pass: apply parent inheritance
+    # Build a lookup from category name -> original TriageCategory for
+    # checking whether an override was explicitly set.
+    originals = {cat.name: cat for cat in categories}
+    resolved: list[ResolvedCategory] = []
+
+    for cat in categories:
+        r = first_pass[cat.name]
+        if cat.parent and cat.parent in first_pass:
+            parent_resolved = first_pass[cat.parent]
+            new_group = r.contact_group
+            new_mailbox = r.destination_mailbox
+
+            # Inherit contact_group if NOT explicitly set by user
+            if originals[cat.name].contact_group is None:
+                new_group = parent_resolved.contact_group
+
+            # Inherit destination_mailbox if NOT explicitly set by user
+            if originals[cat.name].destination_mailbox is None:
+                new_mailbox = parent_resolved.destination_mailbox
+
+            r = ResolvedCategory(
+                name=r.name,
+                label=r.label,
+                contact_group=new_group,
+                destination_mailbox=new_mailbox,
+                contact_type=r.contact_type,
+                parent=r.parent,
+            )
+
+        resolved.append(r)
+
+    return resolved
 
 
 class MailroomSettings(BaseSettings):
