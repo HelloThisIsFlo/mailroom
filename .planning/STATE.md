@@ -18,23 +18,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.1 Push & Config -- Phase 6: Configurable Categories
+**Current focus:** v1.1 Push & Config -- Phase 7: Setup Script
 
 ## Current Position
 
-Phase: 6 of 8 (Configurable Categories) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase Complete
-Last activity: 2026-02-26 -- Completed 06-02 (config integration and consumer update)
+Phase: 7 of 8 (Setup Script)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-26 -- Completed 07-01 (CLI framework and client create methods)
 
-Progress: [████████████░░░░░░░░] 61% (20/? plans -- v1.1 phase 6 complete)
+Progress: [████████████░░░░░░░░] 65% (21/? plans -- v1.1 phase 7 plan 1 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 8 min
+- Total execution time: ~1 hour 12 min
 
 **By Phase:**
 
@@ -47,6 +47,7 @@ Progress: [████████████░░░░░░░░] 61% (20
 | 04-packaging-and-deployment | 3/3 | 7 min | 2.3 min |
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
+| 07-setup-script | 1/3 | 4 min | 4.0 min |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: Two-pass resolution handles any parent/child declaration order without sorting user input
 - v1.1: object.__setattr__ for private attrs on Pydantic model in model_validator
 - v1.1: required_mailboxes and contact_groups return sorted output for deterministic behavior
+- v1.1: invoke_without_command=True preserves python -m mailroom backward compat
+- v1.1: session_capabilities stored as raw dict for flexible downstream inspection
 
 ### Pending Todos
 
@@ -79,5 +82,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 06-02-PLAN.md (config integration and consumer update) -- Phase 6 complete
+Stopped at: Completed 07-01-PLAN.md (CLI framework and client create methods)
 Resume file: None
