@@ -1,9 +1,11 @@
 """Tests for the configuration module."""
 
+import json
+
 import pytest
 from pydantic import ValidationError
 
-from mailroom.core.config import MailroomSettings
+from mailroom.core.config import MailroomSettings, ResolvedCategory
 
 # Env vars that might leak into tests from the host environment
 MAILROOM_ENV_VARS = [
@@ -11,15 +13,8 @@ MAILROOM_ENV_VARS = [
     "MAILROOM_CARDDAV_PASSWORD",
     "MAILROOM_POLL_INTERVAL",
     "MAILROOM_LOG_LEVEL",
-    "MAILROOM_LABEL_TO_IMBOX",
-    "MAILROOM_LABEL_TO_FEED",
-    "MAILROOM_LABEL_TO_PAPER_TRAIL",
-    "MAILROOM_LABEL_TO_JAIL",
-    "MAILROOM_GROUP_IMBOX",
-    "MAILROOM_GROUP_FEED",
-    "MAILROOM_GROUP_PAPER_TRAIL",
-    "MAILROOM_GROUP_JAIL",
     "MAILROOM_SCREENER_MAILBOX",
+    "MAILROOM_TRIAGE_CATEGORIES",
 ]
 
 
@@ -41,17 +36,15 @@ def test_defaults(monkeypatch):
     assert settings.poll_interval == 300
     assert settings.log_level == "info"
 
-    # Label defaults match the user's Fastmail setup
-    assert settings.label_to_imbox == "@ToImbox"
-    assert settings.label_to_feed == "@ToFeed"
-    assert settings.label_to_paper_trail == "@ToPaperTrail"
-    assert settings.label_to_jail == "@ToJail"
+    # Default triage categories: 5 entries with correct names
+    assert len(settings.triage_categories) == 5
+    names = [c.name for c in settings.triage_categories]
+    assert names == ["Imbox", "Feed", "Paper Trail", "Jail", "Person"]
 
-    # Group defaults match the user's Fastmail setup
-    assert settings.group_imbox == "Imbox"
-    assert settings.group_feed == "Feed"
-    assert settings.group_paper_trail == "Paper Trail"
-    assert settings.group_jail == "Jail"
+    # Triage labels match v1.0 defaults
+    assert settings.triage_labels == [
+        "@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"
+    ]
 
 
 def test_required_jmap_token():
@@ -85,38 +78,34 @@ def test_triage_labels_property(monkeypatch):
     assert labels == ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"]
 
 
-def test_label_group_mapping(monkeypatch):
-    """label_to_group_mapping returns correct label-to-group associations."""
+def test_label_category_mapping(monkeypatch):
+    """label_to_category_mapping returns correct label-to-category associations."""
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
 
-    mapping = settings.label_to_group_mapping
+    mapping = settings.label_to_category_mapping
 
-    assert mapping["@ToImbox"] == {
-        "group": "Imbox",
-        "destination": "Imbox",
-        "destination_mailbox": "Inbox",
-        "contact_type": "company",
-    }
-    assert mapping["@ToFeed"] == {
-        "group": "Feed",
-        "destination": "Feed",
-        "destination_mailbox": "Feed",
-        "contact_type": "company",
-    }
-    assert mapping["@ToPaperTrail"] == {
-        "group": "Paper Trail",
-        "destination": "Paper Trail",
-        "destination_mailbox": "Paper Trail",
-        "contact_type": "company",
-    }
-    assert mapping["@ToJail"] == {
-        "group": "Jail",
-        "destination": "Jail",
-        "destination_mailbox": "Jail",
-        "contact_type": "company",
-    }
+    imbox = mapping["@ToImbox"]
+    assert isinstance(imbox, ResolvedCategory)
+    assert imbox.contact_group == "Imbox"
+    assert imbox.destination_mailbox == "Inbox"
+    assert imbox.contact_type == "company"
+
+    feed = mapping["@ToFeed"]
+    assert feed.contact_group == "Feed"
+    assert feed.destination_mailbox == "Feed"
+    assert feed.contact_type == "company"
+
+    pt = mapping["@ToPaperTrail"]
+    assert pt.contact_group == "Paper Trail"
+    assert pt.destination_mailbox == "Paper Trail"
+    assert pt.contact_type == "company"
+
+    jail = mapping["@ToJail"]
+    assert jail.contact_group == "Jail"
+    assert jail.destination_mailbox == "Jail"
+    assert jail.contact_type == "company"
 
     # 5 entries (4 original + @ToPerson)
     assert len(mapping) == 5
@@ -142,30 +131,35 @@ def test_screener_mailbox_override(monkeypatch):
 
 
 def test_destination_mailbox_in_mapping(monkeypatch):
-    """Each label mapping includes destination_mailbox field."""
+    """Each label mapping includes destination_mailbox via ResolvedCategory."""
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
-    mapping = settings.label_to_group_mapping
+    mapping = settings.label_to_category_mapping
 
     # Imbox destination is Inbox (the actual mailbox, not the group name)
-    assert mapping["@ToImbox"]["destination_mailbox"] == "Inbox"
+    assert mapping["@ToImbox"].destination_mailbox == "Inbox"
     # Others match the group/destination name
-    assert mapping["@ToFeed"]["destination_mailbox"] == "Feed"
-    assert mapping["@ToPaperTrail"]["destination_mailbox"] == "Paper Trail"
-    assert mapping["@ToJail"]["destination_mailbox"] == "Jail"
+    assert mapping["@ToFeed"].destination_mailbox == "Feed"
+    assert mapping["@ToPaperTrail"].destination_mailbox == "Paper Trail"
+    assert mapping["@ToJail"].destination_mailbox == "Jail"
 
 
-# --- Phase 3.1 Config Extension Tests ---
+# --- Phase 3.1 Config Extension Tests (updated for category-based config) ---
 
 
-def test_label_to_person_default(monkeypatch):
-    """label_to_person field defaults to '@ToPerson'."""
+def test_toperson_in_default_categories(monkeypatch):
+    """Person category is in default triage_categories with correct label."""
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
 
-    assert settings.label_to_person == "@ToPerson"
+    assert "@ToPerson" in settings.triage_labels
+    mapping = settings.label_to_category_mapping
+    person = mapping["@ToPerson"]
+    assert person.contact_type == "person"
+    assert person.contact_group == "Imbox"
+    assert person.destination_mailbox == "Inbox"
 
 
 def test_label_mailroom_warning_default(monkeypatch):
@@ -198,17 +192,17 @@ def test_triage_labels_includes_toperson(monkeypatch):
 
 
 def test_toperson_mapping_entry(monkeypatch):
-    """label_to_group_mapping has @ToPerson entry with contact_type='person'."""
+    """label_to_category_mapping has @ToPerson entry with contact_type='person'."""
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
-    mapping = settings.label_to_group_mapping
+    mapping = settings.label_to_category_mapping
 
     assert "@ToPerson" in mapping
     entry = mapping["@ToPerson"]
-    assert entry["contact_type"] == "person"
-    assert entry["group"] == "Imbox"
-    assert entry["destination_mailbox"] == "Inbox"
+    assert entry.contact_type == "person"
+    assert entry.contact_group == "Imbox"
+    assert entry.destination_mailbox == "Inbox"
 
 
 def test_existing_mapping_entries_have_company_contact_type(monkeypatch):
@@ -216,10 +210,10 @@ def test_existing_mapping_entries_have_company_contact_type(monkeypatch):
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
-    mapping = settings.label_to_group_mapping
+    mapping = settings.label_to_category_mapping
 
     for label in ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail"]:
-        assert mapping[label]["contact_type"] == "company", (
+        assert mapping[label].contact_type == "company", (
             f"{label} should have contact_type='company'"
         )
 
@@ -229,13 +223,13 @@ def test_toperson_routes_same_as_toimbox(monkeypatch):
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
-    mapping = settings.label_to_group_mapping
+    mapping = settings.label_to_category_mapping
 
     imbox_entry = mapping["@ToImbox"]
     person_entry = mapping["@ToPerson"]
 
-    assert person_entry["group"] == imbox_entry["group"]
-    assert person_entry["destination_mailbox"] == imbox_entry["destination_mailbox"]
+    assert person_entry.contact_group == imbox_entry.contact_group
+    assert person_entry.destination_mailbox == imbox_entry.destination_mailbox
 
 
 def test_startup_validates_warning_label_when_enabled(monkeypatch):
@@ -262,13 +256,64 @@ def test_startup_succeeds_without_warning_label_when_disabled(monkeypatch):
 
 
 def test_mapping_has_five_entries_with_toperson(monkeypatch):
-    """label_to_group_mapping has 5 entries (4 original + @ToPerson)."""
+    """label_to_category_mapping has 5 entries (4 original + @ToPerson)."""
     monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
     settings = MailroomSettings()
-    mapping = settings.label_to_group_mapping
+    mapping = settings.label_to_category_mapping
 
     assert len(mapping) == 5
+
+
+# --- Phase 6: Custom Categories via Env Var ---
+
+
+def test_custom_categories_via_env_var(monkeypatch):
+    """Custom categories via MAILROOM_TRIAGE_CATEGORIES replaces all defaults."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+    monkeypatch.setenv("MAILROOM_TRIAGE_CATEGORIES", json.dumps([
+        {"name": "Receipts"},
+        {"name": "VIP", "destination_mailbox": "Inbox"},
+    ]))
+    settings = MailroomSettings()
+    assert len(settings.triage_categories) == 2
+    assert settings.triage_labels == ["@ToReceipts", "@ToVIP"]
+    mapping = settings.label_to_category_mapping
+    assert mapping["@ToReceipts"].destination_mailbox == "Receipts"
+    assert mapping["@ToVIP"].destination_mailbox == "Inbox"
+
+
+def test_required_mailboxes_includes_all_category_mailboxes(monkeypatch):
+    """required_mailboxes includes triage labels AND destination mailboxes from categories."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    required = settings.required_mailboxes
+
+    # Must include all triage labels
+    for label in settings.triage_labels:
+        assert label in required, f"Missing triage label: {label}"
+
+    # Must include all destination mailboxes
+    for cat in settings.label_to_category_mapping.values():
+        assert cat.destination_mailbox in required, (
+            f"Missing destination mailbox: {cat.destination_mailbox}"
+        )
+
+
+def test_contact_groups_returns_unique_groups(monkeypatch):
+    """contact_groups returns unique groups from resolved categories."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+    settings = MailroomSettings()
+    groups = settings.contact_groups
+
+    # Default: 4 unique groups (Imbox, Feed, Paper Trail, Jail -- Person shares Imbox)
+    assert len(groups) == 4
+    assert "Imbox" in groups
+    assert "Feed" in groups
+    assert "Paper Trail" in groups
+    assert "Jail" in groups
 
 
 # --- Phase 6: TriageCategory Model, ResolvedCategory, Derivation, Defaults ---
