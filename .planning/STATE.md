@@ -68,7 +68,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 2. Replace polling with JMAP EventSource push and debouncer (area: api) -- covered by Phase 8
 3. Create label and group setup script for Fastmail (area: tooling) -- covered by Phase 7
 4. Scan for action labels beyond screener mailbox (area: api) -- deferred to v1.2
-5. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
+5. Sweep workflow: re-label archived emails by contact group membership (area: general) -- far-future idea, pluggable workflow
+6. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
 
 ### Blockers/Concerns
 
