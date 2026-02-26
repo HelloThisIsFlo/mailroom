@@ -449,3 +449,140 @@ class TestParentInheritance:
         person = next(r for r in resolved if r.name == "Person")
         assert person.contact_group == "Imbox"
         assert person.destination_mailbox == "Inbox"
+
+
+# --- Phase 6: Validation Logic ---
+
+
+class TestValidationEmptyList:
+    """Validation rejects empty category lists."""
+
+    def test_empty_list_rejected(self):
+        """resolve_categories([]) raises ValueError with 'at least one triage category'."""
+        with pytest.raises(ValueError, match="at least one triage category"):
+            resolve_categories([])
+
+
+class TestValidationDuplicateNames:
+    """Validation detects duplicate category names."""
+
+    def test_duplicate_names_rejected(self):
+        """Two categories named 'Feed' raises ValueError mentioning 'Feed'."""
+        cats = [TriageCategory(name="Feed"), TriageCategory(name="Feed")]
+        with pytest.raises(ValueError, match="Duplicate category name.*Feed"):
+            resolve_categories(cats)
+
+
+class TestValidationInvalidContactType:
+    """Pydantic Literal rejects invalid contact_type values."""
+
+    def test_invalid_contact_type_rejected(self):
+        """TriageCategory(name='X', contact_type='invalid') raises ValidationError."""
+        with pytest.raises(ValidationError):
+            TriageCategory(name="X", contact_type="invalid")
+
+
+class TestValidationParentReferences:
+    """Validation catches non-existent parent references."""
+
+    def test_nonexistent_parent_rejected(self):
+        """Parent referencing non-existent category raises ValueError."""
+        cats = [TriageCategory(name="Child", parent="Ghost")]
+        with pytest.raises(ValueError, match="non-existent parent 'Ghost'"):
+            resolve_categories(cats)
+
+
+class TestValidationCircularParents:
+    """Validation detects circular parent chains."""
+
+    def test_circular_parent_chain(self):
+        """A -> B -> A raises ValueError with 'Circular parent chain'."""
+        cats = [
+            TriageCategory(name="A", parent="B"),
+            TriageCategory(name="B", parent="A"),
+        ]
+        with pytest.raises(ValueError, match="Circular parent chain"):
+            resolve_categories(cats)
+
+    def test_self_referencing_parent(self):
+        """A has parent='A' raises ValueError with 'Circular parent chain'."""
+        cats = [TriageCategory(name="A", parent="A")]
+        with pytest.raises(ValueError, match="Circular parent chain"):
+            resolve_categories(cats)
+
+
+class TestValidationSharedContactGroups:
+    """Validation flags shared contact groups without parent relationship."""
+
+    def test_shared_groups_without_parent_rejected(self):
+        """Two unrelated categories with same contact_group raises ValueError."""
+        cats = [
+            TriageCategory(name="Alpha", contact_group="SharedGroup"),
+            TriageCategory(name="Beta", contact_group="SharedGroup"),
+        ]
+        with pytest.raises(ValueError, match="shared.*contact.*group"):
+            resolve_categories(cats)
+
+    def test_shared_groups_with_parent_allowed(self):
+        """Parent and child sharing contact_group is allowed."""
+        cats = [
+            TriageCategory(name="Imbox", destination_mailbox="Inbox"),
+            TriageCategory(name="Person", parent="Imbox", contact_type="person"),
+        ]
+        # Should NOT raise -- parent-child sharing is fine
+        resolved = resolve_categories(cats)
+        assert len(resolved) == 2
+
+
+class TestValidationDuplicateLabels:
+    """Validation detects duplicate labels after derivation."""
+
+    def test_duplicate_labels_rejected(self):
+        """Two categories deriving to the same label raises ValueError."""
+        cats = [
+            TriageCategory(name="PaperTrail"),
+            TriageCategory(name="Custom", label="@ToPaperTrail"),
+        ]
+        with pytest.raises(ValueError, match="Duplicate.*label.*@ToPaperTrail"):
+            resolve_categories(cats)
+
+
+class TestValidationAllErrorsAtOnce:
+    """Validation collects ALL errors and reports them together."""
+
+    def test_multiple_errors_reported_together(self):
+        """Categories with BOTH duplicate names AND bad parent -> both errors in message."""
+        cats = [
+            TriageCategory(name="Feed"),
+            TriageCategory(name="Feed"),
+            TriageCategory(name="Orphan", parent="Ghost"),
+        ]
+        with pytest.raises(ValueError) as exc_info:
+            resolve_categories(cats)
+        msg = str(exc_info.value)
+        assert "Duplicate category name" in msg
+        assert "non-existent parent" in msg
+
+
+class TestValidationDefaultConfigInError:
+    """Error messages include default configuration for reference."""
+
+    def test_error_includes_default_config(self):
+        """When validation fails, error message includes default config JSON."""
+        with pytest.raises(ValueError) as exc_info:
+            resolve_categories([])
+        msg = str(exc_info.value)
+        assert "Default configuration for reference" in msg
+        assert '"name": "Imbox"' in msg
+
+
+class TestValidationValidCustomCategory:
+    """Valid custom categories resolve successfully."""
+
+    def test_single_custom_category(self):
+        """[TriageCategory(name='Receipts')] resolves successfully."""
+        cats = [TriageCategory(name="Receipts")]
+        resolved = resolve_categories(cats)
+        assert len(resolved) == 1
+        assert resolved[0].name == "Receipts"
+        assert resolved[0].label == "@ToReceipts"
