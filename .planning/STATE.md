@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 
 ## Current Position
 
-Phase: 6 of 8 (Configurable Categories)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-02-26 -- Completed 06-01 (category models and validation)
+Phase: 6 of 8 (Configurable Categories) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-02-26 -- Completed 06-02 (config integration and consumer update)
 
-Progress: [███████████░░░░░░░░░] 58% (19/? plans -- v1.1 phase 6 in progress)
+Progress: [████████████░░░░░░░░] 61% (20/? plans -- v1.1 phase 6 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 4 min
+- Total execution time: ~1 hour 8 min
 
 **By Phase:**
 
@@ -33,7 +33,7 @@ Progress: [███████████░░░░░░░░░] 58% (19
 | 03.1-person-contact-type-with-toperson-label | 3/3 | 17 min | 5.7 min |
 | 04-packaging-and-deployment | 3/3 | 7 min | 2.3 min |
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
-| 06-configurable-categories | 1/2 | 4 min | 4.0 min |
+| 06-configurable-categories | 2/2 | 8 min | 4.0 min |
 
 ## Accumulated Context
 
@@ -46,6 +46,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: Build order: Config first, Setup Script second, EventSource Push last
 - v1.1: Validation is standalone _validate_categories() for clean wiring into model_validator in Plan 02
 - v1.1: Two-pass resolution handles any parent/child declaration order without sorting user input
+- v1.1: object.__setattr__ for private attrs on Pydantic model in model_validator
+- v1.1: required_mailboxes and contact_groups return sorted output for deterministic behavior
 
 ### Pending Todos
 
@@ -62,5 +64,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 06-01-PLAN.md (category models and validation)
+Stopped at: Completed 06-02-PLAN.md (config integration and consumer update) -- Phase 6 complete
 Resume file: None
