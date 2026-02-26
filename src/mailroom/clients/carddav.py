@@ -247,6 +247,51 @@ class CardDAVClient:
         self._groups = {g: groups[g] for g in required_groups}
         return self._groups
 
+    def create_group(self, name: str) -> dict:
+        """Create an Apple-style contact group vCard in the addressbook.
+
+        Builds a vCard with X-ADDRESSBOOKSERVER-KIND:group marker so that
+        validate_groups() can discover it. Uses If-None-Match: * to prevent
+        overwriting an existing resource.
+
+        Args:
+            name: Group display name (e.g., "Feed", "Paper Trail").
+
+        Returns:
+            Dict with 'href', 'etag', and 'uid' keys.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+            httpx.HTTPStatusError: On HTTP errors from the PUT.
+        """
+        addressbook_url = self._require_connection()
+        group_uid = str(uuid.uuid4())
+
+        card = vobject.vCard()
+        card.add("uid").value = group_uid
+        card.add("fn").value = name
+        card.add("n").value = vobject.vcard.Name()
+        card.add("x-addressbookserver-kind").value = "group"
+
+        href_path = f"{group_uid}.vcf"
+        put_url = f"{addressbook_url}{href_path}"
+
+        resp = self._http.put(
+            put_url,
+            content=card.serialize().encode("utf-8"),
+            headers={
+                "Content-Type": "text/vcard; charset=utf-8",
+                "If-None-Match": "*",
+            },
+        )
+        resp.raise_for_status()
+
+        return {
+            "href": f"/{group_uid}.vcf",
+            "etag": resp.headers.get("etag", ""),
+            "uid": group_uid,
+        }
+
     def search_by_email(self, email: str) -> list[dict]:
         """Search for contacts matching an email address.
 

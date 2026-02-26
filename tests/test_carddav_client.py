@@ -380,6 +380,57 @@ ADDRESSBOOK_URL = (
 )
 
 
+class TestCreateGroup:
+    """Tests for CardDAVClient.create_group()."""
+
+    def test_create_group_success(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """create_group creates an Apple-style group vCard and returns metadata."""
+        _mock_discovery(httpx_mock)
+        client.connect()
+
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"etag-group-1"'},
+        )
+
+        result = client.create_group("Feed")
+
+        assert result["href"].endswith(".vcf")
+        assert result["etag"] == '"etag-group-1"'
+        assert result["uid"]  # non-empty UUID
+
+        # Verify the PUT request body contains group markers
+        requests = httpx_mock.get_requests()
+        put_request = [r for r in requests if r.method == "PUT"][0]
+        body = put_request.content.decode("utf-8")
+        assert "X-ADDRESSBOOKSERVER-KIND:group" in body
+        assert "FN:Feed" in body
+        assert "UID:" in body
+        assert put_request.headers["if-none-match"] == "*"
+        assert put_request.headers["content-type"] == "text/vcard; charset=utf-8"
+
+    def test_create_group_not_connected(self, client: CardDAVClient) -> None:
+        """create_group raises RuntimeError if connect() has not been called."""
+        with pytest.raises(RuntimeError, match="not connected"):
+            client.create_group("Feed")
+
+    def test_create_group_http_error(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """create_group raises HTTPStatusError on HTTP errors."""
+        _mock_discovery(httpx_mock)
+        client.connect()
+
+        httpx_mock.add_response(
+            status_code=403,
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.create_group("Feed")
+
+
 class TestSearchByEmail:
     """Tests for CardDAVClient.search_by_email()."""
 
