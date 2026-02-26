@@ -145,4 +145,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from mailroom.cli import cli
+
+    cli()
