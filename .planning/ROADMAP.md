@@ -40,11 +40,11 @@ Full details: `milestones/v1.0-ROADMAP.md`
   2. User can define a custom triage category (e.g., "Receipts") via `MAILROOM_TRIAGE_CATEGORIES` JSON env var and it works end-to-end: label detected, contact grouped, emails swept to destination
   3. Service rejects invalid category configurations at startup with a clear error message (missing fields, duplicate labels)
   4. All triage labels, contact groups, and required mailboxes are computed from the category list -- no hardcoded references remain in service logic
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md — TDD: TriageCategory model, ResolvedCategory, derivation rules, defaults, and validation
+- [ ] 06-02-PLAN.md — Integrate triage_categories into MailroomSettings, update consumers and tests
 
 ### Phase 7: Setup Script
 **Goal**: Users can run a single command to provision all required Fastmail resources for their configured categories, with clear guidance for the one manual step (sieve rules)
@@ -90,6 +90,6 @@ Phases execute in numeric order: 6 → 7 → 8
 | 3.1. Person Contact Type (@ToPerson) | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 4. Packaging and Deployment | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 5. Documentation and Showcase | v1.0 | 3/3 | Complete | 2026-02-25 |
-| 6. Configurable Categories | v1.1 | 0/? | Not started | - |
+| 6. Configurable Categories | v1.1 | 0/2 | Planned | - |
 | 7. Setup Script | v1.1 | 0/? | Not started | - |
 | 8. EventSource Push | v1.1 | 0/? | Not started | - |
