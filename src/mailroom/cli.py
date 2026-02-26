@@ -32,6 +32,7 @@ def run() -> None:
 )
 def setup(apply: bool, ui_guide: bool) -> None:
     """Provision Fastmail resources for configured triage categories."""
-    # Stub: Plan 02 will implement run_setup
-    click.echo("Setup command not yet implemented.")
-    sys.exit(0)
+    from mailroom.setup.provisioner import run_setup
+
+    exit_code = run_setup(apply=apply, ui_guide=ui_guide)
+    sys.exit(exit_code)
