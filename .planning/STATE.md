@@ -70,6 +70,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 4. Scan for action labels beyond screener mailbox (area: api) -- deferred to v1.2
 5. Sweep workflow: re-label archived emails by contact group membership (area: general) -- far-future idea, pluggable workflow
 6. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
+7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone, research in .research/jmap-contacts/
 
 ### Blockers/Concerns
 
