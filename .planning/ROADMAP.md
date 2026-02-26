@@ -56,11 +56,12 @@ Plans:
   3. User runs `mailroom-setup --apply` a second time and sees "already exists" for every item -- no duplicates, no errors
   4. Setup output includes human-readable sieve rule instructions that the user can follow to complete email routing
   5. Setup script reads the same `MAILROOM_TRIAGE_CATEGORIES` config as the main service -- adding a custom category to config and re-running setup provisions it
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md — Click CLI framework, JMAPClient.create_mailbox(), CardDAVClient.create_group()
+- [ ] 07-02-PLAN.md — Provisioner with plan/apply pattern, reporting, and resource categorization
+- [ ] 07-03-PLAN.md — Sieve rule checker with guidance output and human integration tests
 
 ### Phase 8: EventSource Push
 **Goal**: Triage latency drops from up to 5 minutes to under 10 seconds via JMAP EventSource push, with automatic fallback to polling if the SSE connection fails
@@ -91,5 +92,5 @@ Phases execute in numeric order: 6 → 7 → 8
 | 4. Packaging and Deployment | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 5. Documentation and Showcase | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 6. Configurable Categories | v1.1 | 0/2 | Planned | - |
-| 7. Setup Script | v1.1 | 0/? | Not started | - |
+| 7. Setup Script | v1.1 | 0/3 | Planned | - |
 | 8. EventSource Push | v1.1 | 0/? | Not started | - |
