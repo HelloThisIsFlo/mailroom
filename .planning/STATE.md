@@ -23,18 +23,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 7 of 8 (Setup Script)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-26 -- Completed 07-02 (Provisioner and reporting)
+Plan: 3 of 3 in current phase (PHASE COMPLETE)
+Status: Phase 7 Complete
+Last activity: 2026-02-26 -- Completed 07-03 (Sieve guidance and human tests)
 
-Progress: [█████████████░░░░░░░] 68% (22/? plans -- v1.1 phase 7 plan 2 complete)
+Progress: [██████████████░░░░░░] 72% (23/? plans -- v1.1 phase 7 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
+- Total plans completed: 23
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 15 min
+- Total execution time: ~1 hour 18 min
 
 **By Phase:**
 
@@ -47,7 +47,7 @@ Progress: [█████████████░░░░░░░] 68% (22
 | 04-packaging-and-deployment | 3/3 | 7 min | 2.3 min |
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
-| 07-setup-script | 2/3 | 7 min | 3.5 min |
+| 07-setup-script | 3/3 | 10 min | 3.3 min |
 
 ## Accumulated Context
 
@@ -66,6 +66,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: session_capabilities stored as raw dict for flexible downstream inspection
 - v1.1: list_groups() added to CardDAVClient as clean helper for provisioning discovery
 - v1.1: Resources categorized per CONTEXT.md: Mailboxes, Action Labels, Contact Groups
+- v1.1: Guidance-only sieve module -- no introspection, outputs instructions for all categories unconditionally
+- v1.1: Child categories skipped in sieve guidance (inherit routing from parent)
 
 ### Pending Todos
 
@@ -84,5 +86,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 07-02-PLAN.md (Provisioner and reporting)
+Stopped at: Completed 07-03-PLAN.md (Sieve guidance and human tests) -- Phase 7 complete
 Resume file: None
