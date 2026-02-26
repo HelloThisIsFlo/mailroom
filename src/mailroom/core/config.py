@@ -6,7 +6,9 @@ import json
 from dataclasses import dataclass
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from typing import Self
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -270,6 +272,7 @@ class MailroomSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MAILROOM_",
         case_sensitive=False,
+        arbitrary_types_allowed=True,
     )
 
     # Required credentials -- no defaults, fails if missing
@@ -285,13 +288,6 @@ class MailroomSettings(BaseSettings):
     # Logging
     log_level: str = "info"
 
-    # Triage label names (Fastmail mailbox names)
-    label_to_imbox: str = "@ToImbox"
-    label_to_feed: str = "@ToFeed"
-    label_to_paper_trail: str = "@ToPaperTrail"
-    label_to_jail: str = "@ToJail"
-    label_to_person: str = "@ToPerson"
-
     # Error label (verified at startup alongside other labels)
     label_mailroom_error: str = "@MailroomError"
 
@@ -302,63 +298,35 @@ class MailroomSettings(BaseSettings):
     # Screener mailbox name (configurable for flexibility)
     screener_mailbox: str = "Screener"
 
-    # Contact group names
-    group_imbox: str = "Imbox"
-    group_feed: str = "Feed"
-    group_paper_trail: str = "Paper Trail"
-    group_jail: str = "Jail"
+    # Triage categories -- single source of truth for all category configuration
+    triage_categories: list[TriageCategory] = Field(
+        default_factory=_default_categories,
+    )
+
+    @model_validator(mode="after")
+    def resolve_and_validate_categories(self) -> Self:
+        """Resolve triage categories and build label-to-category lookup."""
+        resolved = resolve_categories(self.triage_categories)
+        object.__setattr__(self, "_resolved_categories", resolved)
+        object.__setattr__(
+            self, "_label_to_category", {r.label: r for r in resolved}
+        )
+        return self
 
     @property
     def triage_labels(self) -> list[str]:
         """Return all triage label names for mailbox validation at startup."""
-        return [
-            self.label_to_imbox,
-            self.label_to_feed,
-            self.label_to_paper_trail,
-            self.label_to_jail,
-            self.label_to_person,
-        ]
+        return [c.label for c in self._resolved_categories]
 
     @property
-    def label_to_group_mapping(self) -> dict[str, dict[str, str]]:
-        """Return a mapping from triage label to destination group info.
+    def label_to_category_mapping(self) -> dict[str, ResolvedCategory]:
+        """Return a mapping from triage label to its resolved category.
 
         Used by the triage workflow to determine where to move emails
-        based on which label the user applied. Each entry includes
-        contact_type ("company" or "person") for vCard construction.
+        based on which label the user applied. Each ResolvedCategory
+        includes contact_group, destination_mailbox, and contact_type.
         """
-        return {
-            self.label_to_imbox: {
-                "group": self.group_imbox,
-                "destination": self.group_imbox,
-                "destination_mailbox": "Inbox",
-                "contact_type": "company",
-            },
-            self.label_to_feed: {
-                "group": self.group_feed,
-                "destination": self.group_feed,
-                "destination_mailbox": "Feed",
-                "contact_type": "company",
-            },
-            self.label_to_paper_trail: {
-                "group": self.group_paper_trail,
-                "destination": self.group_paper_trail,
-                "destination_mailbox": "Paper Trail",
-                "contact_type": "company",
-            },
-            self.label_to_jail: {
-                "group": self.group_jail,
-                "destination": self.group_jail,
-                "destination_mailbox": "Jail",
-                "contact_type": "company",
-            },
-            self.label_to_person: {
-                "group": self.group_imbox,
-                "destination": self.group_imbox,
-                "destination_mailbox": "Inbox",
-                "contact_type": "person",
-            },
-        }
+        return dict(self._label_to_category)
 
     @property
     def required_mailboxes(self) -> list[str]:
@@ -368,31 +336,15 @@ class MailroomSettings(BaseSettings):
         unique destination mailboxes. Conditionally includes the warning
         label when warnings are enabled.
         """
-        # Collect unique destination mailboxes from the mapping
-        destinations = list({
-            entry["destination_mailbox"]
-            for entry in self.label_to_group_mapping.values()
-        })
-
-        mailboxes = [
-            "Inbox",
-            self.screener_mailbox,
-            self.label_mailroom_error,
-            *self.triage_labels,
-            *destinations,
-        ]
-
+        mailboxes: set[str] = {"Inbox", self.screener_mailbox, self.label_mailroom_error}
+        for c in self._resolved_categories:
+            mailboxes.add(c.label)
+            mailboxes.add(c.destination_mailbox)
         if self.warnings_enabled:
-            mailboxes.append(self.label_mailroom_warning)
-
-        return mailboxes
+            mailboxes.add(self.label_mailroom_warning)
+        return sorted(mailboxes)
 
     @property
     def contact_groups(self) -> list[str]:
         """Return all contact group names for startup validation."""
-        return [
-            self.group_imbox,
-            self.group_feed,
-            self.group_paper_trail,
-            self.group_jail,
-        ]
+        return sorted({c.contact_group for c in self._resolved_categories})

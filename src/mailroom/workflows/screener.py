@@ -300,9 +300,9 @@ class ScreenerWorkflow:
         """
         label_name = emails[0][1]  # All emails have the same label (conflict-free)
         email_ids = [eid for eid, _ in emails]
-        mapping = self._settings.label_to_group_mapping[label_name]
-        group_name = mapping["group"]
-        contact_type = mapping["contact_type"]
+        category = self._settings.label_to_category_mapping[label_name]
+        group_name = category.contact_group
+        contact_type = category.contact_type
 
         log = self._log.bind(sender=sender, label=label_name, group=group_name)
 
@@ -359,8 +359,8 @@ class ScreenerWorkflow:
         - Imbox: destination_mailbox is "Inbox", returns [inbox_id]
         - Feed/Paper Trail/Jail: destination_mailbox matches mailbox name
         """
-        mapping = self._settings.label_to_group_mapping[label_name]
-        destination_mailbox = mapping["destination_mailbox"]
+        category = self._settings.label_to_category_mapping[label_name]
+        destination_mailbox = category.destination_mailbox
         return [self._mailbox_ids[destination_mailbox]]
 
     def _check_already_grouped(
