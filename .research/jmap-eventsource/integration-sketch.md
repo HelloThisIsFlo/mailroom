@@ -19,10 +19,12 @@ while not shutdown_event.is_set():
 
 Only two files need meaningful changes:
 
-| File | Change |
-|------|--------|
+
+| File              | Change                                                 |
+| ----------------- | ------------------------------------------------------ |
 | `clients/jmap.py` | Store `eventSourceUrl` from session during `connect()` |
-| `__main__.py` | Replace fixed sleep with SSE listener + debounce |
+| `__main__.py`     | Replace fixed sleep with SSE listener + debounce       |
+
 
 The workflow, config, CardDAV client, and all business logic stay untouched.
 
@@ -118,6 +120,7 @@ def _sse_listener(
 ```
 
 Key points:
+
 - Subscribes to `Email,Mailbox` only (not `*`) — we don't care about ContactCard changes
 - Pushes a simple signal to the queue, not the full event data (we don't need state strings)
 - Reconnects on any error with a delay
@@ -182,14 +185,16 @@ def _drain_queue(q: queue.Queue) -> int:
 
 ### How It Behaves
 
-| Scenario | What happens |
-|----------|-------------|
-| Email arrives | SSE fires within ~1s → debounce 3s → `poll()` runs |
-| 5 emails arrive rapidly | SSE fires 5 times within milliseconds → debounce collapses them → single `poll()` |
-| User applies triage label | SSE fires (Mailbox state change) → debounce → `poll()` picks it up |
-| SSE connection drops | No queue events → fallback triggers `poll()` after 300s (as before) |
-| Nothing happens for 5 min | Queue timeout → fallback `poll()` runs (as before) |
-| Graceful shutdown (SIGTERM) | `shutdown_event` wakes all waits → clean exit |
+
+| Scenario                    | What happens                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| Email arrives               | SSE fires within ~1s → debounce 3s → `poll()` runs                                |
+| 5 emails arrive rapidly     | SSE fires 5 times within milliseconds → debounce collapses them → single `poll()` |
+| User applies triage label   | SSE fires (Mailbox state change) → debounce → `poll()` picks it up                |
+| SSE connection drops        | No queue events → fallback triggers `poll()` after 300s (as before)               |
+| Nothing happens for 5 min   | Queue timeout → fallback `poll()` runs (as before)                                |
+| Graceful shutdown (SIGTERM) | `shutdown_event` wakes all waits → clean exit                                     |
+
 
 ## 3. Caveats
 
