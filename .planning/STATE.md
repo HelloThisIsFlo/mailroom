@@ -23,18 +23,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 7 of 8 (Setup Script)
-Plan: 3 of 3 in current phase (PHASE COMPLETE)
-Status: Phase 7 Complete
-Last activity: 2026-02-26 -- Completed 07-03 (Sieve guidance and human tests)
+Plan: 4 of 4 in current phase (PHASE COMPLETE)
+Status: Phase 7 Complete (gap closure done)
+Last activity: 2026-02-27 -- Completed 07-04 (Gap closure: visual hierarchy and override highlighting)
 
-Progress: [██████████████░░░░░░] 72% (23/? plans -- v1.1 phase 7 complete)
+Progress: [███████████████░░░░░] 75% (24/? plans -- v1.1 phase 7 gap closure complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 18 min
+- Total execution time: ~1 hour 21 min
 
 **By Phase:**
 
@@ -47,7 +47,7 @@ Progress: [██████████████░░░░░░] 72% (23
 | 04-packaging-and-deployment | 3/3 | 7 min | 2.3 min |
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
-| 07-setup-script | 3/3 | 10 min | 3.3 min |
+| 07-setup-script | 4/4 | 13 min | 3.3 min |
 
 ## Accumulated Context
 
@@ -68,6 +68,9 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: Resources categorized per CONTEXT.md: Mailboxes, Action Labels, Contact Groups
 - v1.1: Guidance-only sieve module -- no introspection, outputs instructions for all categories unconditionally
 - v1.1: Child categories skipped in sieve guidance (inherit routing from parent)
+- v1.1: Duplicate color helpers in reporting.py and sieve_guidance.py (minimal code, different output patterns)
+- v1.1: Mailroom kind for @MailroomError/@MailroomWarning keeps them out of Mailboxes section
+- v1.1: TTY detection at call time (not import time) for testability
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 07-03-PLAN.md (Sieve guidance and human tests) -- Phase 7 complete
+Last session: 2026-02-27
+Stopped at: Completed 07-04-PLAN.md (Gap closure: visual hierarchy and override highlighting)
 Resume file: None
