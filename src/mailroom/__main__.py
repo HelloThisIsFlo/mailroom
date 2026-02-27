@@ -34,6 +34,12 @@ class HealthHandler(BaseHTTPRequestHandler):
 
     last_successful_poll: float = 0.0
     poll_interval: int = 300
+    # EventSource status (written by SSE thread, read by health endpoint)
+    sse_status: str = "not_started"
+    sse_connected_since: float | None = None
+    sse_last_event_at: float | None = None
+    sse_reconnect_count: int = 0
+    sse_last_error: str | None = None
 
     def do_GET(self) -> None:
         if self.path == "/healthz":
@@ -44,6 +50,13 @@ class HealthHandler(BaseHTTPRequestHandler):
             body = json.dumps({
                 "status": "ok" if healthy else "unhealthy",
                 "last_poll_age_seconds": round(age, 1),
+                "eventsource": {
+                    "status": self.sse_status,
+                    "connected_since": self.sse_connected_since,
+                    "last_event_at": self.sse_last_event_at,
+                    "reconnect_count": self.sse_reconnect_count,
+                    "last_error": self.sse_last_error,
+                },
             })
             self.send_response(status)
             self.send_header("Content-Type", "application/json")

@@ -33,6 +33,7 @@ def sse_listener(
     event_queue: queue.Queue,
     shutdown_event: threading.Event,
     log: structlog.BoundLogger | None = None,
+    health_cls: type | None = None,
 ) -> None:
     """Listen for JMAP EventSource events, push signals to queue.
 
@@ -50,6 +51,7 @@ def sse_listener(
         event_queue: Queue to push "state_changed" signals to.
         shutdown_event: Event to signal graceful shutdown.
         log: Structured logger instance.
+        health_cls: Class with SSE health attributes (written for health endpoint).
     """
     if log is None:
         log = structlog.get_logger(component="eventsource")
@@ -74,6 +76,9 @@ def sse_listener(
                     response.raise_for_status()
                     attempt = 0  # reset on successful connect
                     server_retry_ms = None
+                    if health_cls is not None:
+                        health_cls.sse_status = "connected"
+                        health_cls.sse_connected_since = time.time()
                     log.info("eventsource_connected")
 
                     for line in response.iter_lines():
@@ -81,6 +86,8 @@ def sse_listener(
                             return
                         if line.startswith("event: state"):
                             event_queue.put("state_changed")
+                            if health_cls is not None:
+                                health_cls.sse_last_event_at = time.time()
                         elif line.startswith("retry:"):
                             # Honor server-suggested reconnection delay (milliseconds)
                             try:
@@ -92,6 +99,10 @@ def sse_listener(
             if shutdown_event.is_set():
                 return
             attempt += 1
+            if health_cls is not None:
+                health_cls.sse_status = "disconnected"
+                health_cls.sse_reconnect_count += 1
+                health_cls.sse_last_error = str(exc)
             # Use server retry if available, otherwise exponential backoff
             if server_retry_ms is not None:
                 delay = server_retry_ms / 1000.0

@@ -51,6 +51,24 @@ _RELAXED = pytest.mark.httpx_mock(
 )
 
 
+class MockHealthHandler:
+    """Mock health handler for SSE health status testing."""
+
+    sse_status: str = "not_started"
+    sse_connected_since: float | None = None
+    sse_last_event_at: float | None = None
+    sse_reconnect_count: int = 0
+    sse_last_error: str | None = None
+
+    @classmethod
+    def reset(cls):
+        cls.sse_status = "not_started"
+        cls.sse_connected_since = None
+        cls.sse_last_event_at = None
+        cls.sse_reconnect_count = 0
+        cls.sse_last_error = None
+
+
 class TestSSEListener:
     """Tests for sse_listener function."""
 
@@ -318,3 +336,126 @@ class TestSSEListener:
         # Verify at least 2 connection attempts (stream ended, reconnected)
         assert len(httpx_mock.get_requests()) >= 2
         assert len(events) >= 2
+
+
+class TestHealthSSE:
+    """Tests for SSE health status reporting via health_cls."""
+
+    def _run_listener(self, event_queue, shutdown, health_cls=None, **kwargs):
+        """Helper: run sse_listener with standard args and health_cls."""
+        sse_listener(
+            token=kwargs.get("token", "test-token"),
+            event_source_url="https://api.fastmail.com/jmap/event/",
+            event_queue=event_queue,
+            shutdown_event=shutdown,
+            log=None,
+            health_cls=health_cls,
+        )
+
+    @_RELAXED
+    def test_sse_updates_health_on_connect(self, httpx_mock: HTTPXMock):
+        """SSE sets health_cls.sse_status='connected' and sse_connected_since on connect."""
+        httpx_mock.add_response(
+            url=SSE_URL,
+            stream=IteratorStream([b"event: state\ndata: {}\n\n"]),
+            headers={"content-type": "text/event-stream"},
+        )
+
+        MockHealthHandler.reset()
+        event_queue = queue.Queue()
+        shutdown = threading.Event()
+
+        t = threading.Thread(
+            target=self._run_listener,
+            args=(event_queue, shutdown),
+            kwargs={"health_cls": MockHealthHandler},
+        )
+        t.start()
+
+        event_queue.get(timeout=5)
+        shutdown.set()
+        t.join(timeout=5)
+
+        assert MockHealthHandler.sse_status == "connected"
+        assert MockHealthHandler.sse_connected_since is not None
+        assert isinstance(MockHealthHandler.sse_connected_since, float)
+
+    @_RELAXED
+    def test_sse_updates_health_on_event(self, httpx_mock: HTTPXMock):
+        """SSE sets health_cls.sse_last_event_at after receiving a state event."""
+        httpx_mock.add_response(
+            url=SSE_URL,
+            stream=IteratorStream([b"event: state\ndata: {}\n\n"]),
+            headers={"content-type": "text/event-stream"},
+        )
+
+        MockHealthHandler.reset()
+        event_queue = queue.Queue()
+        shutdown = threading.Event()
+
+        t = threading.Thread(
+            target=self._run_listener,
+            args=(event_queue, shutdown),
+            kwargs={"health_cls": MockHealthHandler},
+        )
+        t.start()
+
+        event_queue.get(timeout=5)
+        shutdown.set()
+        t.join(timeout=5)
+
+        assert MockHealthHandler.sse_last_event_at is not None
+        assert isinstance(MockHealthHandler.sse_last_event_at, float)
+
+    @_RELAXED
+    def test_sse_updates_health_on_disconnect(self, httpx_mock: HTTPXMock):
+        """SSE sets health_cls.sse_status='disconnected' and increments reconnect_count on error."""
+        # First: 500 error (triggers disconnect health update)
+        httpx_mock.add_response(
+            url=SSE_URL,
+            status_code=500,
+        )
+        # Second: successful stream (so listener can exit cleanly)
+        httpx_mock.add_response(
+            url=SSE_URL,
+            stream=IteratorStream([b"event: state\ndata: {}\n\n"]),
+            headers={"content-type": "text/event-stream"},
+        )
+
+        MockHealthHandler.reset()
+        event_queue = queue.Queue()
+        shutdown = threading.Event()
+
+        t = threading.Thread(
+            target=self._run_listener,
+            args=(event_queue, shutdown),
+            kwargs={"health_cls": MockHealthHandler},
+        )
+        t.start()
+
+        # Wait for the successful reconnect event
+        event_queue.get(timeout=10)
+        shutdown.set()
+        t.join(timeout=5)
+
+        # After the error + reconnect: reconnect_count >= 1 and last_error was set
+        assert MockHealthHandler.sse_reconnect_count >= 1
+        assert MockHealthHandler.sse_last_error is not None
+        # Final status should be "connected" since the second attempt succeeded
+        assert MockHealthHandler.sse_status == "connected"
+
+    def test_sse_works_without_health_cls(self):
+        """SSE listener works with health_cls=None (backward compat)."""
+        event_queue = queue.Queue()
+        shutdown = threading.Event()
+        shutdown.set()  # Exit immediately
+
+        # Should not raise any error
+        t = threading.Thread(
+            target=self._run_listener,
+            args=(event_queue, shutdown),
+            kwargs={"health_cls": None},
+        )
+        t.start()
+        t.join(timeout=2)
+        assert not t.is_alive(), "Listener should exit cleanly with health_cls=None"
