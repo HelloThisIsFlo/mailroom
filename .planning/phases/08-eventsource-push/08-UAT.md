@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 08-eventsource-push
 source: 08-01-SUMMARY.md, 08-02-SUMMARY.md
 started: 2026-02-27T12:00:00Z
-updated: 2026-02-27T12:10:00Z
+updated: 2026-02-27T00:00:00Z
 ---
 
 ## Current Test
@@ -51,7 +51,7 @@ skipped: 0
 ## Gaps
 
 - truth: "Service shuts down promptly when receiving SIGINT/SIGTERM"
-  status: failed
+  status: resolved
   reason: "User reported: shutdown signal takes a bit to be acted upon — queue.get(timeout=poll_interval) blocks up to 60s and shutdown signal doesn't wake it"
   severity: minor
   test: 3
@@ -63,7 +63,7 @@ skipped: 0
     - "Push sentinel (None) into event_queue from signal handler so queue.get() unblocks immediately"
 
 - truth: "Human test 16 effectively detects and reports push-triggered triage events"
-  status: failed
+  status: resolved
   reason: "User reported: test runs but monitoring just shows POLL DETECTED stream without distinguishing push vs fallback or detecting actual triage events"
   severity: major
   test: 6
@@ -79,7 +79,7 @@ skipped: 0
     - "Rewrite test monitoring to detect discrete poll events (timestamp change) and read trigger field"
 
 - truth: "SSE unit tests run without excessive real-time waits slowing the test suite"
-  status: failed
+  status: resolved
   reason: "User reported: some eventsource tests seem to use real wait time, making the whole test suite way slower. Consider simulating time if it doesn't hurt coverage or add too much complexity."
   severity: minor
   test: 0
