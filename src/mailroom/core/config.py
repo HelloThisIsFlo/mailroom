@@ -283,7 +283,8 @@ class MailroomSettings(BaseSettings):
     carddav_password: str = ""
 
     # Polling
-    poll_interval: int = 300  # seconds (5 min)
+    poll_interval: int = 60  # seconds (tighter safety net with SSE push as primary)
+    debounce_seconds: int = 3  # SSE event debounce window
 
     # Logging
     log_level: str = "info"

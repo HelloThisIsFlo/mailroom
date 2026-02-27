@@ -18,6 +18,7 @@ FASTMAIL_SESSION_RESPONSE = {
         "u1234": {"name": "user@fastmail.com"},
     },
     "capabilities": {},
+    "eventSourceUrl": "https://api.fastmail.com/jmap/event/",
 }
 
 MAILBOX_LIST = [
@@ -142,6 +143,39 @@ class TestConnect:
     def test_session_capabilities_empty_before_connect(self, client: JMAPClient) -> None:
         """session_capabilities returns empty dict before connect()."""
         assert client.session_capabilities == {}
+
+    def test_connect_stores_event_source_url(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """connect() stores eventSourceUrl from JMAP session response."""
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=FASTMAIL_SESSION_RESPONSE,
+        )
+
+        client.connect()
+
+        assert client.event_source_url == "https://api.fastmail.com/jmap/event/"
+
+    def test_event_source_url_none_when_missing(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """event_source_url is None when session response lacks eventSourceUrl."""
+        session_without_sse = {
+            k: v for k, v in FASTMAIL_SESSION_RESPONSE.items() if k != "eventSourceUrl"
+        }
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=session_without_sse,
+        )
+
+        client.connect()
+
+        assert client.event_source_url is None
+
+    def test_event_source_url_before_connect(self, client: JMAPClient) -> None:
+        """event_source_url is None before connect() is called."""
+        assert client.event_source_url is None
 
 
 # --- Mailbox Resolution Tests ---

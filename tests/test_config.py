@@ -15,6 +15,7 @@ MAILROOM_ENV_VARS = [
     "MAILROOM_LOG_LEVEL",
     "MAILROOM_SCREENER_MAILBOX",
     "MAILROOM_TRIAGE_CATEGORIES",
+    "MAILROOM_DEBOUNCE_SECONDS",
 ]
 
 
@@ -33,7 +34,7 @@ def test_defaults(monkeypatch):
 
     assert settings.jmap_token == "test-token-abc"
     assert settings.carddav_password == ""
-    assert settings.poll_interval == 300
+    assert settings.poll_interval == 60
     assert settings.log_level == "info"
 
     # Default triage categories: 5 entries with correct names
@@ -45,6 +46,34 @@ def test_defaults(monkeypatch):
     assert settings.triage_labels == [
         "@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"
     ]
+
+
+def test_debounce_seconds_default(monkeypatch):
+    """debounce_seconds defaults to 3."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
+
+    settings = MailroomSettings()
+
+    assert settings.debounce_seconds == 3
+
+
+def test_poll_interval_default_lowered(monkeypatch):
+    """poll_interval default changed from 300 to 60 for tighter SSE safety net."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
+
+    settings = MailroomSettings()
+
+    assert settings.poll_interval == 60
+
+
+def test_debounce_seconds_custom(monkeypatch):
+    """MAILROOM_DEBOUNCE_SECONDS overrides the default."""
+    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
+    monkeypatch.setenv("MAILROOM_DEBOUNCE_SECONDS", "5")
+
+    settings = MailroomSettings()
+
+    assert settings.debounce_seconds == 5
 
 
 def test_required_jmap_token():

@@ -29,6 +29,7 @@ class JMAPClient:
         self._account_id: str | None = None
         self._session_capabilities: dict = {}
         self._download_url: str | None = None
+        self._event_source_url: str | None = None
 
     @property
     def account_id(self) -> str:
@@ -41,6 +42,11 @@ class JMAPClient:
     def session_capabilities(self) -> dict:
         """Return session capabilities dict. Empty if not connected."""
         return self._session_capabilities
+
+    @property
+    def event_source_url(self) -> str | None:
+        """Return the EventSource URL from the JMAP session, or None."""
+        return self._event_source_url
 
     def connect(self) -> None:
         """Discover JMAP session: fetch account ID and API URL from Fastmail.
@@ -56,6 +62,7 @@ class JMAPClient:
         self._api_url = data["apiUrl"]
         self._session_capabilities = data.get("capabilities", {})
         self._download_url = data.get("downloadUrl")
+        self._event_source_url = data.get("eventSourceUrl")
 
     def call(self, method_calls: list) -> list:
         """Execute JMAP method calls against the API endpoint.
