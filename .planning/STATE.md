@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Push & Config
-status: unknown
-last_updated: "2026-02-27T01:31:15.868Z"
+status: complete
+last_updated: "2026-02-27T11:10:47.000Z"
 progress:
   total_phases: 2
   completed_phases: 2
@@ -22,19 +22,19 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 
 ## Current Position
 
-Phase: 8 of 8 (EventSource Push)
-Plan: 1 of 2 in current phase
-Status: Executing Phase 8
-Last activity: 2026-02-27 -- Completed 08-01 (EventSource core components: SSE listener, config, eventSourceUrl)
+Phase: 8 of 8 (EventSource Push) -- COMPLETE
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: v1.1 milestone complete (all phases done)
+Last activity: 2026-02-27 -- Completed 08-02 (Main loop integration: queue-based debounced SSE-triggered polling)
 
-Progress: [████████████████░░░░] 80% (25/? plans -- v1.1 phase 8 plan 01 complete)
+Progress: [████████████████████] 100% (26/26 plans -- v1.1 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 26 min
+- Total execution time: ~1 hour 29 min
 
 **By Phase:**
 
@@ -48,7 +48,7 @@ Progress: [████████████████░░░░] 80% (25
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
 | 07-setup-script | 4/4 | 13 min | 3.3 min |
-| 08-eventsource-push | 1/2 | 5 min | 5.0 min |
+| 08-eventsource-push | 2/2 | 8 min | 4.0 min |
 
 ## Accumulated Context
 
@@ -75,6 +75,9 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: SSE listener uses httpx streaming for consistency with existing JMAP client
 - v1.1: Relaxed pytest-httpx assertions for SSE tests due to reconnection race conditions
 - v1.1: Backoff formula min(2**attempt, 60) -- simple, no jitter for single client
+- v1.1: health_cls parameter passed as class reference to sse_listener (avoids circular import)
+- v1.1: Overall health status NOT degraded when SSE is down (only poll staleness matters for liveness)
+- v1.1: Debounce uses drain-wait-drain pattern to collapse rapid events
 
 ### Pending Todos
 
@@ -93,5 +96,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 08-01-PLAN.md (EventSource core components: SSE listener, config, eventSourceUrl)
+Stopped at: Completed 08-02-PLAN.md (Main loop integration: queue-based debounced SSE-triggered polling) -- v1.1 milestone complete
 Resume file: None

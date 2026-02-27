@@ -31,8 +31,8 @@ Requirements for v1.1 Push & Config milestone. Each maps to roadmap phases.
 - [x] **PUSH-02**: State change events trigger triage pass with configurable debounce window (default 3s)
 - [x] **PUSH-03**: Liveness detection via ping-based timeout (read timeout > 2x ping interval)
 - [x] **PUSH-04**: Auto-reconnect with exponential backoff on disconnect (1s -> 2s -> 4s -> max 60s)
-- [ ] **PUSH-05**: Health endpoint reports EventSource connection status and thread liveness
-- [ ] **PUSH-06**: Triage latency reduced from up to 5 minutes to under 10 seconds for push-triggered events
+- [x] **PUSH-05**: Health endpoint reports EventSource connection status and thread liveness
+- [x] **PUSH-06**: Triage latency reduced from up to 5 minutes to under 10 seconds for push-triggered events
 
 ## Future Requirements
 
@@ -81,8 +81,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PUSH-02 | Phase 8 | Complete |
 | PUSH-03 | Phase 8 | Complete |
 | PUSH-04 | Phase 8 | Complete |
-| PUSH-05 | Phase 8 | Pending |
-| PUSH-06 | Phase 8 | Pending |
+| PUSH-05 | Phase 8 | Complete |
+| PUSH-06 | Phase 8 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 18 total
