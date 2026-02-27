@@ -1,12 +1,16 @@
 """Mailroom polling service entry point.
 
-Runs the screener triage pipeline on a fixed interval with:
+Runs the screener triage pipeline with push-triggered polling via JMAP
+EventSource (SSE) and fallback fixed-interval polling:
+- EventSource push: SSE state events trigger poll within debounce_seconds
+- Fallback polling: queue.get(timeout=poll_interval) ensures triage never stops
 - Graceful shutdown on SIGTERM/SIGINT (finish current cycle, then exit)
-- HTTP health endpoint on /healthz (daemon thread)
+- HTTP health endpoint on /healthz with EventSource status (daemon thread)
 - Tiered error handling: startup crash, transient skip, persistent crash
 """
 
 import json
+import queue
 import signal
 import sys
 import threading
@@ -19,6 +23,7 @@ from mailroom.clients.carddav import CardDAVClient
 from mailroom.clients.jmap import JMAPClient
 from mailroom.core.config import MailroomSettings
 from mailroom.core.logging import configure_logging
+from mailroom.eventsource import drain_queue, sse_listener
 from mailroom.workflows.screener import ScreenerWorkflow
 
 MAX_CONSECUTIVE_FAILURES = 10
@@ -119,7 +124,7 @@ def main() -> None:
     # 7. Start health server on daemon thread
     _start_health_server(HEALTH_PORT, settings.poll_interval)
 
-    # --- Polling loop with graceful shutdown ---
+    # --- Graceful shutdown ---
 
     shutdown_event = threading.Event()
 
@@ -130,19 +135,70 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
-    log.info("service_started", poll_interval=settings.poll_interval, health_port=HEALTH_PORT)
+    # 8. Start EventSource listener thread (if available)
+    event_queue: queue.Queue = queue.Queue()
+
+    if jmap.event_source_url:
+        sse_thread = threading.Thread(
+            target=sse_listener,
+            args=(
+                settings.jmap_token,
+                jmap.event_source_url,
+                event_queue,
+                shutdown_event,
+            ),
+            kwargs={
+                "log": structlog.get_logger(component="eventsource"),
+                "health_cls": HealthHandler,
+            },
+            daemon=True,
+        )
+        sse_thread.start()
+        log.info("eventsource_listener_started", url=jmap.event_source_url)
+    else:
+        log.info("eventsource_not_available", reason="no eventSourceUrl in session")
+
+    # --- Push-triggered polling loop with fallback ---
+
+    log.info(
+        "service_started",
+        poll_interval=settings.poll_interval,
+        debounce_seconds=settings.debounce_seconds,
+        health_port=HEALTH_PORT,
+        push_enabled=jmap.event_source_url is not None,
+    )
     consecutive_failures = 0
 
     while not shutdown_event.is_set():
+        trigger = "fallback"
+        try:
+            event_queue.get(timeout=settings.poll_interval)
+            # Got SSE event -- drain queue and debounce
+            pre_drain = drain_queue(event_queue)
+            shutdown_event.wait(settings.debounce_seconds)
+            post_drain = drain_queue(event_queue)
+            trigger = "push"
+            log.debug(
+                "debounce_collapsed",
+                events_collapsed=1 + pre_drain + post_drain,
+            )
+        except queue.Empty:
+            pass  # Fallback: no SSE event within poll_interval
+
+        if shutdown_event.is_set():
+            break
+
         try:
             workflow.poll()
             consecutive_failures = 0
             HealthHandler.last_successful_poll = time.time()
+            log.info("poll_completed", trigger=trigger)
         except Exception:
             consecutive_failures += 1
             log.error(
                 "poll_failed",
                 consecutive_failures=consecutive_failures,
+                trigger=trigger,
                 exc_info=True,
             )
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
@@ -151,8 +207,6 @@ def main() -> None:
                     threshold=MAX_CONSECUTIVE_FAILURES,
                 )
                 sys.exit(1)
-
-        shutdown_event.wait(settings.poll_interval)
 
     log.info("service_stopped", reason="shutdown_signal")
 
