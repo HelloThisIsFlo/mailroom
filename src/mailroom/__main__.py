@@ -1,9 +1,10 @@
 """Mailroom polling service entry point.
 
 Runs the screener triage pipeline with push-triggered polling via JMAP
-EventSource (SSE) and fallback fixed-interval polling:
-- EventSource push: SSE state events trigger poll within debounce_seconds
-- Fallback polling: queue.get(timeout=poll_interval) ensures triage never stops
+EventSource (SSE) and interval-based safety net:
+- push: SSE state events trigger poll within debounce_seconds
+- scheduled: regular interval poll while SSE is connected but idle
+- fallback: safety-net poll when SSE is disconnected
 - Graceful shutdown on SIGTERM/SIGINT (finish current cycle, then exit)
 - HTTP health endpoint on /healthz with EventSource status (daemon thread)
 - Tiered error handling: startup crash, transient skip, persistent crash
@@ -161,7 +162,7 @@ def main() -> None:
     else:
         log.info("eventsource_not_available", reason="no eventSourceUrl in session")
 
-    # --- Push-triggered polling loop with fallback ---
+    # --- Polling loop: push / scheduled / fallback ---
 
     log.info(
         "service_started",
@@ -173,7 +174,7 @@ def main() -> None:
     consecutive_failures = 0
 
     while not shutdown_event.is_set():
-        trigger = "fallback"
+        trigger = "scheduled"
         try:
             event_queue.get(timeout=settings.poll_interval)
             if shutdown_event.is_set():
@@ -188,7 +189,9 @@ def main() -> None:
                 events_collapsed=1 + pre_drain + post_drain,
             )
         except queue.Empty:
-            pass  # Fallback: no SSE event within poll_interval
+            # SSE connected but idle → scheduled check; SSE down → fallback
+            if HealthHandler.sse_status != "connected":
+                trigger = "fallback"
 
         if shutdown_event.is_set():
             break

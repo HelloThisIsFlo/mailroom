@@ -13,7 +13,7 @@ Steps:
 2. Check the health endpoint for SSE connection status
 3. Provide manual test instructions for latency measurement
 4. Automated monitoring: detects discrete poll events by timestamp change,
-   reports [PUSH] or [FALLBACK] trigger type from /healthz
+   reports [PUSH], [SCHEDULED], or [FALLBACK] trigger type from /healthz
 
 Run: python human-tests/test_16_eventsource_push.py
 """
@@ -81,7 +81,7 @@ def main():
     print("   Expected log output:")
     print('     {"event": "poll_completed", "trigger": "push", ...}')
     print()
-    print("   If you see trigger=fallback, the SSE connection may not be working.")
+    print("   Trigger types: push=SSE event, scheduled=SSE idle, fallback=SSE down")
     print()
 
     # Step 4: Automated monitoring loop
@@ -106,14 +106,14 @@ def main():
                 # Detect a new poll: age decreased (timestamp jumped forward)
                 if prev_age is not None and age < prev_age - 1:
                     poll_count += 1
-                    label = "PUSH" if trigger == "push" else "FALLBACK"
+                    label = trigger.upper()
                     print(
                         f"   [{label}] Poll #{poll_count} detected "
                         f"(age: {age:.1f}s, trigger: {trigger}, "
                         f"SSE: {sse.get('status')})"
                     )
                     if trigger == "push":
-                        print(f"         ^ Push-triggered triage confirmed!")
+                        print("         ^ Push-triggered triage confirmed!")
 
                 prev_age = age
             except Exception:

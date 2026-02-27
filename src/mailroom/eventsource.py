@@ -45,7 +45,8 @@ def sse_listener(
 
     Reconnects with exponential backoff on disconnect (1s->2s->4s->...->60s cap).
     Honors server retry: field when present. Detects dead connections via
-    httpx read timeout (90s > 2x 30s ping interval).
+    httpx read timeout (90s > 2x 30s ping interval). First reconnect is
+    logged at DEBUG (expected timeout); subsequent failures at WARNING.
 
     Args:
         token: Fastmail API token for Bearer auth.
@@ -112,7 +113,8 @@ def sse_listener(
                 delay = server_retry_ms / 1000.0
             else:
                 delay = min(2 ** attempt, 60)
-            log.warning(
+            log_fn = log.debug if attempt <= 1 else log.warning
+            log_fn(
                 "eventsource_disconnected",
                 retry_in=delay,
                 attempt=attempt,
