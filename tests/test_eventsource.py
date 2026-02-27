@@ -80,6 +80,7 @@ class TestSSEListener:
             event_queue=event_queue,
             shutdown_event=shutdown,
             log=None,
+            sleep_fn=kwargs.get("sleep_fn"),
         )
 
     @_RELAXED
@@ -239,7 +240,11 @@ class TestSSEListener:
         event_queue = queue.Queue()
         shutdown = threading.Event()
 
-        t = threading.Thread(target=self._run_listener, args=(event_queue, shutdown))
+        t = threading.Thread(
+            target=self._run_listener,
+            args=(event_queue, shutdown),
+            kwargs={"sleep_fn": lambda t: None},
+        )
         t.start()
 
         # Wait for state_changed to appear from the second (successful) connection
@@ -350,6 +355,7 @@ class TestHealthSSE:
             shutdown_event=shutdown,
             log=None,
             health_cls=health_cls,
+            sleep_fn=kwargs.get("sleep_fn"),
         )
 
     @_RELAXED
@@ -429,7 +435,7 @@ class TestHealthSSE:
         t = threading.Thread(
             target=self._run_listener,
             args=(event_queue, shutdown),
-            kwargs={"health_cls": MockHealthHandler},
+            kwargs={"health_cls": MockHealthHandler, "sleep_fn": lambda t: None},
         )
         t.start()
 

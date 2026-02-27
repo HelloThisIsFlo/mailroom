@@ -38,6 +38,7 @@ class HealthHandler(BaseHTTPRequestHandler):
     """
 
     last_successful_poll: float = 0.0
+    last_poll_trigger: str | None = None
     poll_interval: int = 300
     # EventSource status (written by SSE thread, read by health endpoint)
     sse_status: str = "not_started"
@@ -55,6 +56,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             body = json.dumps({
                 "status": "ok" if healthy else "unhealthy",
                 "last_poll_age_seconds": round(age, 1),
+                "last_poll_trigger": self.last_poll_trigger,
                 "eventsource": {
                     "status": self.sse_status,
                     "connected_since": self.sse_connected_since,
@@ -195,6 +197,7 @@ def main() -> None:
             workflow.poll()
             consecutive_failures = 0
             HealthHandler.last_successful_poll = time.time()
+            HealthHandler.last_poll_trigger = trigger
             log.info("poll_completed", trigger=trigger)
         except Exception:
             consecutive_failures += 1
