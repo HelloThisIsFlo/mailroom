@@ -1,9 +1,9 @@
 ---
-status: complete
+status: resolved
 phase: 07-setup-script
-source: 07-01-SUMMARY.md, 07-02-SUMMARY.md, 07-03-SUMMARY.md
+source: 07-01-SUMMARY.md, 07-02-SUMMARY.md, 07-03-SUMMARY.md, 07-04-SUMMARY.md
 started: 2026-02-26T15:10:00Z
-updated: 2026-02-26T15:25:00Z
+updated: 2026-02-27T12:00:00Z
 ---
 
 ## Current Test
@@ -59,7 +59,7 @@ skipped: 0
 ## Gaps
 
 - truth: "Setup output is easy to scan with clear visual hierarchy"
-  status: failed
+  status: resolved
   reason: "User reported: output too verbose, sieve rules cause scrolling, exists vs create not visually distinct, need 4 categories not 3"
   severity: minor
   test: 4
@@ -72,7 +72,7 @@ skipped: 0
   debug_session: ""
 
 - truth: "UI guide mode highlights overridden names (e.g., Inbox vs Imbox) with distinct color"
-  status: failed
+  status: resolved
   reason: "User reported: override names like Inbox (from Imbox) should be highlighted in a different color to show they differ from the category name"
   severity: cosmetic
   test: 7
