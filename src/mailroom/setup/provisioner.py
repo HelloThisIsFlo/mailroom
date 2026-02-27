@@ -53,13 +53,21 @@ def plan_resources(
 
     # Categorize resources
     triage_label_set = set(settings.triage_labels)
+
+    # Mailroom-specific names (error/warning labels) get their own category
+    mailroom_names = {settings.label_mailroom_error}
+    if settings.warnings_enabled:
+        mailroom_names.add(settings.label_mailroom_warning)
+
     mailbox_names = [
-        name for name in settings.required_mailboxes if name not in triage_label_set
+        name
+        for name in settings.required_mailboxes
+        if name not in triage_label_set and name not in mailroom_names
     ]
 
     actions: list[ResourceAction] = []
 
-    # Mailboxes (destination + system, NOT triage labels)
+    # Mailboxes (destination + system, NOT triage labels or mailroom labels)
     for name in mailbox_names:
         status = "exists" if name in existing_mailboxes else "create"
         actions.append(ResourceAction(kind="mailbox", name=name, status=status))
@@ -75,6 +83,11 @@ def plan_resources(
         actions.append(
             ResourceAction(kind="contact_group", name=name, status=status)
         )
+
+    # Mailroom-specific resources (error/warning labels)
+    for name in sorted(mailroom_names):
+        status = "exists" if name in existing_mailboxes else "create"
+        actions.append(ResourceAction(kind="mailroom", name=name, status=status))
 
     return actions
 
@@ -102,12 +115,13 @@ def apply_resources(
     failed_names: set[str] = set()
     result: list[ResourceAction] = []
 
-    # Process in order: mailboxes, labels (also JMAP mailboxes), contact groups
+    # Process in order: mailboxes, labels (also JMAP mailboxes), mailroom, contact groups
     mailboxes = [a for a in plan if a.kind == "mailbox"]
     labels = [a for a in plan if a.kind == "label"]
+    mailroom = [a for a in plan if a.kind == "mailroom"]
     groups = [a for a in plan if a.kind == "contact_group"]
 
-    for action in mailboxes + labels:
+    for action in mailboxes + labels + mailroom:
         if action.status == "exists":
             result.append(action)
             continue
@@ -234,17 +248,17 @@ def run_setup(apply: bool = False, ui_guide: bool = False) -> int:
     resource_plan = plan_resources(settings, jmap, carddav)
 
     if not apply:
-        # Dry-run: show plan and exit
-        print_plan(resource_plan, apply=False)
-        print()
+        # Dry-run: show sieve guidance first, then resource plan
         print(generate_sieve_guidance(settings, ui_guide=ui_guide))
+        print()
+        print_plan(resource_plan, apply=False)
         return 0
 
     # Apply: create missing resources
     result = apply_resources(resource_plan, jmap, carddav)
-    print_plan(result, apply=True)
-    print()
     print(generate_sieve_guidance(settings, ui_guide=ui_guide))
+    print()
+    print_plan(result, apply=True)
 
     # Exit code: 1 if any failures
     has_failures = any(a.status == "failed" for a in result)

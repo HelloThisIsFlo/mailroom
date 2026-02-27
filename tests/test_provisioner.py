@@ -93,7 +93,7 @@ class TestPlanResources:
         assert inbox.status == "exists"
 
     def test_categorizes_correctly(self, mock_settings) -> None:
-        """Resources are categorized into mailbox, label, contact_group."""
+        """Resources are categorized into mailbox, label, contact_group, mailroom."""
         all_mailboxes = list(mock_settings.required_mailboxes)
         all_groups = list(mock_settings.contact_groups)
 
@@ -110,15 +110,22 @@ class TestPlanResources:
         assert "@ToJail" in label_names
         assert "@ToPerson" in label_names
 
-        # Mailboxes should contain system + destination (NOT triage labels)
+        # Mailboxes should contain system + destination (NOT triage labels or mailroom)
         mailbox_names = {a.name for a in actions if a.kind == "mailbox"}
         assert "Inbox" in mailbox_names
         assert "Screener" in mailbox_names
         assert "Feed" in mailbox_names
-        assert "@MailroomError" in mailbox_names
         # Triage labels should NOT be in mailbox kind
         assert "@ToImbox" not in mailbox_names
         assert "@ToFeed" not in mailbox_names
+        # Mailroom-specific should NOT be in mailbox kind
+        assert "@MailroomError" not in mailbox_names
+        assert "@MailroomWarning" not in mailbox_names
+
+        # Mailroom-specific
+        mailroom_names = {a.name for a in actions if a.kind == "mailroom"}
+        assert "@MailroomError" in mailroom_names
+        assert "@MailroomWarning" in mailroom_names
 
         # Contact Groups
         group_names = {a.name for a in actions if a.kind == "contact_group"}
@@ -236,15 +243,19 @@ class TestReporting:
             ResourceAction(
                 kind="contact_group", name="Feed", status="create"
             ),
+            ResourceAction(
+                kind="mailroom", name="@MailroomError", status="exists"
+            ),
         ]
 
         print_plan(actions, apply=False)
         output = capsys.readouterr().out
 
-        # Section headers
+        # Section headers (4 categories)
         assert "Mailboxes" in output
         assert "Action Labels" in output
         assert "Contact Groups" in output
+        assert "\nMailroom\n" in output
 
         # Status symbols
         assert "\u2713" in output  # checkmark for exists
@@ -252,7 +263,7 @@ class TestReporting:
 
         # Summary line
         assert "3 to create" in output
-        assert "3 existing" in output
+        assert "4 existing" in output
 
     def test_apply_output_with_failures(self, capsys) -> None:
         """Apply output shows created/failed counts in summary."""
@@ -277,6 +288,28 @@ class TestReporting:
         assert "1 existing" in output
         assert "1 failed" in output
         assert "FAILED: 403 Forbidden" in output
+
+    def test_no_color_when_not_tty(self, capsys) -> None:
+        """Output has no ANSI escape codes when stdout is not a TTY."""
+        actions = [
+            ResourceAction(kind="mailbox", name="Inbox", status="exists"),
+            ResourceAction(kind="mailbox", name="Feed", status="create"),
+            ResourceAction(
+                kind="mailbox",
+                name="Jail",
+                status="failed",
+                error="403 Forbidden",
+            ),
+            ResourceAction(
+                kind="mailroom", name="@MailroomError", status="exists"
+            ),
+        ]
+
+        print_plan(actions, apply=False)
+        output = capsys.readouterr().out
+
+        # capsys is not a TTY, so no ANSI escape codes
+        assert "\033[" not in output
 
     def test_skipped_output(self, capsys) -> None:
         """Skipped resources show circle-slash symbol and reason."""
