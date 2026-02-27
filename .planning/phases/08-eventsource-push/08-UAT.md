@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 08-eventsource-push
 source: 08-01-SUMMARY.md, 08-02-SUMMARY.md
 started: 2026-02-27T12:00:00Z
@@ -55,27 +55,39 @@ skipped: 0
   reason: "User reported: shutdown signal takes a bit to be acted upon — queue.get(timeout=poll_interval) blocks up to 60s and shutdown signal doesn't wake it"
   severity: minor
   test: 3
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "queue.Queue.get(timeout=poll_interval) at __main__.py:175 blocks up to 60s. Signal handler sets shutdown_event but nothing wakes the blocking get(). The shutdown check at line 188-189 only runs after get() returns."
+  artifacts:
+    - path: "src/mailroom/__main__.py"
+      issue: "queue.get(timeout=poll_interval) not interruptible by shutdown signal"
+  missing:
+    - "Push sentinel (None) into event_queue from signal handler so queue.get() unblocks immediately"
 
 - truth: "Human test 16 effectively detects and reports push-triggered triage events"
   status: failed
   reason: "User reported: test runs but monitoring just shows POLL DETECTED stream without distinguishing push vs fallback or detecting actual triage events"
   severity: major
   test: 6
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "/healthz does not expose last_poll_trigger field. Main loop tracks trigger=push|fallback but never writes it to HealthHandler. Test monitors last_poll_age_seconds which fires on every check within the age window, not once per discrete poll event."
+  artifacts:
+    - path: "src/mailroom/__main__.py"
+      issue: "trigger variable not written to HealthHandler; no last_poll_trigger in health JSON"
+    - path: "human-tests/test_16_eventsource_push.py"
+      issue: "Monitoring uses age threshold instead of discrete event detection"
+  missing:
+    - "Add HealthHandler.last_poll_trigger class attribute, write it alongside last_successful_poll"
+    - "Expose last_poll_trigger in /healthz JSON response"
+    - "Rewrite test monitoring to detect discrete poll events (timestamp change) and read trigger field"
 
 - truth: "SSE unit tests run without excessive real-time waits slowing the test suite"
   status: failed
   reason: "User reported: some eventsource tests seem to use real wait time, making the whole test suite way slower. Consider simulating time if it doesn't hurt coverage or add too much complexity."
   severity: minor
   test: 0
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Two tests trigger exponential backoff via 500 errors: test_sse_reconnects_on_error (2.02s) and test_sse_updates_health_on_disconnect (2.03s). Both hit shutdown_event.wait(delay) at eventsource.py:117 with delay=2s (min(2^1, 60)). No seam exists to inject a fake clock."
+  artifacts:
+    - path: "tests/test_eventsource.py"
+      issue: "test_sse_reconnects_on_error and test_sse_updates_health_on_disconnect each block 2s on real backoff"
+    - path: "src/mailroom/eventsource.py"
+      issue: "No injectable sleep_fn parameter — delay computed inline and passed to blocking OS call"
+  missing:
+    - "Add sleep_fn parameter to sse_listener (default: shutdown_event.wait), tests pass lambda t: None to skip real waits"
