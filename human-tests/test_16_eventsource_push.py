@@ -12,7 +12,8 @@ Steps:
 1. Connect to JMAP session and verify eventSourceUrl is available
 2. Check the health endpoint for SSE connection status
 3. Provide manual test instructions for latency measurement
-4. Run automated health monitoring loop to detect poll activity
+4. Automated monitoring: detects discrete poll events by timestamp change,
+   reports [PUSH] or [FALLBACK] trigger type from /healthz
 
 Run: python human-tests/test_16_eventsource_push.py
 """
@@ -83,13 +84,15 @@ def main():
     print("   If you see trigger=fallback, the SSE connection may not be working.")
     print()
 
-    # Step 4: Optional automated timing loop
+    # Step 4: Automated monitoring loop
     print("4. Automated monitoring (press Ctrl+C to stop):")
-    print("   Polling health endpoint every 2 seconds to detect triage activity...")
+    print("   Watching for new poll events via /healthz...")
+    print("   Apply a triage label now and watch for PUSH events.")
     print()
 
     try:
-        last_poll_time = None
+        prev_age: float | None = None
+        poll_count = 0
         while True:
             try:
                 health_resp = httpx.get(
@@ -97,20 +100,27 @@ def main():
                 )
                 health = health_resp.json()
                 age = health.get("last_poll_age_seconds", 0)
+                trigger = health.get("last_poll_trigger", "unknown")
                 sse = health.get("eventsource", {})
 
-                # Detect a fresh poll (age resets)
-                if age < 5 and last_poll_time != age:
+                # Detect a new poll: age decreased (timestamp jumped forward)
+                if prev_age is not None and age < prev_age - 1:
+                    poll_count += 1
+                    label = "PUSH" if trigger == "push" else "FALLBACK"
                     print(
-                        f"   POLL DETECTED - age: {age}s, "
-                        f"SSE: {sse.get('status')}"
+                        f"   [{label}] Poll #{poll_count} detected "
+                        f"(age: {age:.1f}s, trigger: {trigger}, "
+                        f"SSE: {sse.get('status')})"
                     )
-                    last_poll_time = age
+                    if trigger == "push":
+                        print(f"         ^ Push-triggered triage confirmed!")
+
+                prev_age = age
             except Exception:
                 pass
-            time.sleep(2)
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n   Monitoring stopped.")
+        print(f"\n   Monitoring stopped. {poll_count} poll(s) detected.")
 
     print("\nDone.")
 
