@@ -73,11 +73,11 @@ Plans:
   2. If the SSE connection drops, the service auto-reconnects with exponential backoff and resumes push-triggered triage without user intervention
   3. If the SSE connection is dead or unavailable, the service falls back to polling at the configured interval -- triage never stops
   4. Health endpoint reports EventSource connection status and SSE thread liveness so the user can monitor push health via k8s
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — TDD: Config additions (debounce_seconds, poll_interval default), JMAPClient eventSourceUrl, SSE listener function with reconnection/backoff, drain_queue helper
+- [ ] 08-02-PLAN.md — Wire SSE into main loop (queue-based debounce), health endpoint SSE status, trigger logging, human integration test
 
 ## Progress
 

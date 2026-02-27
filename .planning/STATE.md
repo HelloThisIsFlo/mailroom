@@ -18,23 +18,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.1 Push & Config -- Phase 7: Setup Script
+**Current focus:** v1.1 Push & Config -- Phase 8: EventSource Push
 
 ## Current Position
 
-Phase: 7 of 8 (Setup Script)
-Plan: 4 of 4 in current phase (PHASE COMPLETE)
-Status: Phase 7 Complete (gap closure done)
-Last activity: 2026-02-27 -- Completed 07-04 (Gap closure: visual hierarchy and override highlighting)
+Phase: 8 of 8 (EventSource Push)
+Plan: 1 of 2 in current phase
+Status: Executing Phase 8
+Last activity: 2026-02-27 -- Completed 08-01 (EventSource core components: SSE listener, config, eventSourceUrl)
 
-Progress: [███████████████░░░░░] 75% (24/? plans -- v1.1 phase 7 gap closure complete)
+Progress: [████████████████░░░░] 80% (25/? plans -- v1.1 phase 8 plan 01 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 3.4 min
-- Total execution time: ~1 hour 21 min
+- Total execution time: ~1 hour 26 min
 
 **By Phase:**
 
@@ -48,6 +48,7 @@ Progress: [███████████████░░░░░] 75% (24
 | 05-documentation-deployment-showcase | 3/3 | 7 min | 2.3 min |
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
 | 07-setup-script | 4/4 | 13 min | 3.3 min |
+| 08-eventsource-push | 1/2 | 5 min | 5.0 min |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: Duplicate color helpers in reporting.py and sieve_guidance.py (minimal code, different output patterns)
 - v1.1: Mailroom kind for @MailroomError/@MailroomWarning keeps them out of Mailboxes section
 - v1.1: TTY detection at call time (not import time) for testability
+- v1.1: SSE listener uses httpx streaming for consistency with existing JMAP client
+- v1.1: Relaxed pytest-httpx assertions for SSE tests due to reconnection race conditions
+- v1.1: Backoff formula min(2**attempt, 60) -- simple, no jitter for single client
 
 ### Pending Todos
 
@@ -89,5 +93,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 07-04-PLAN.md (Gap closure: visual hierarchy and override highlighting)
+Stopped at: Completed 08-01-PLAN.md (EventSource core components: SSE listener, config, eventSourceUrl)
 Resume file: None
