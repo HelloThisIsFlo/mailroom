@@ -45,8 +45,8 @@ def sse_listener(
 
     Reconnects with exponential backoff on disconnect (1s->2s->4s->...->60s cap).
     Honors server retry: field when present. Detects dead connections via
-    httpx read timeout (90s > 2x 30s ping interval). First reconnect is
-    logged at DEBUG (expected timeout); subsequent failures at WARNING.
+    httpx read timeout (30min) as dead-connection detector. First reconnect
+    is logged at DEBUG (expected); subsequent failures at WARNING.
 
     Args:
         token: Fastmail API token for Bearer auth.
@@ -68,7 +68,7 @@ def sse_listener(
     while not shutdown_event.is_set():
         try:
             with httpx.Client(
-                timeout=httpx.Timeout(connect=30.0, read=90.0, write=30.0, pool=30.0)
+                timeout=httpx.Timeout(connect=30.0, read=1800.0, write=30.0, pool=30.0)
             ) as http:
                 with http.stream(
                     "GET",
