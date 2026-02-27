@@ -127,16 +127,17 @@ def main() -> None:
     # --- Graceful shutdown ---
 
     shutdown_event = threading.Event()
+    event_queue: queue.Queue = queue.Queue()
 
     def _handle_signal(signum: int, frame: object) -> None:
         log.info("shutdown_signal_received", signal=signum)
         shutdown_event.set()
+        event_queue.put(None)  # unblock queue.get() immediately
 
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
     # 8. Start EventSource listener thread (if available)
-    event_queue: queue.Queue = queue.Queue()
 
     if jmap.event_source_url:
         sse_thread = threading.Thread(
@@ -173,6 +174,8 @@ def main() -> None:
         trigger = "fallback"
         try:
             event_queue.get(timeout=settings.poll_interval)
+            if shutdown_event.is_set():
+                break  # sentinel from signal handler -- exit immediately
             # Got SSE event -- drain queue and debounce
             pre_drain = drain_queue(event_queue)
             shutdown_event.wait(settings.debounce_seconds)

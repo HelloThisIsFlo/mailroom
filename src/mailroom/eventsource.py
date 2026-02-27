@@ -11,6 +11,7 @@ from __future__ import annotations
 import queue
 import threading
 import time
+from collections.abc import Callable
 
 import httpx
 import structlog
@@ -34,6 +35,7 @@ def sse_listener(
     shutdown_event: threading.Event,
     log: structlog.BoundLogger | None = None,
     health_cls: type | None = None,
+    sleep_fn: Callable[[float], None] | None = None,
 ) -> None:
     """Listen for JMAP EventSource events, push signals to queue.
 
@@ -55,6 +57,8 @@ def sse_listener(
     """
     if log is None:
         log = structlog.get_logger(component="eventsource")
+    if sleep_fn is None:
+        sleep_fn = lambda delay: shutdown_event.wait(delay)
 
     url = f"{event_source_url}?types=Email,Mailbox&closeafter=no&ping=30"
     attempt = 0
@@ -114,6 +118,6 @@ def sse_listener(
                 attempt=attempt,
                 error=str(exc),
             )
-            shutdown_event.wait(delay)
+            sleep_fn(delay)
 
     log.info("eventsource_stopped")
