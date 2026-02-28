@@ -77,7 +77,7 @@ all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     settings.label_mailroom_error,
     settings.label_mailroom_warning,
     *settings.triage_labels,
-    *[m["destination_mailbox"] for m in settings.label_to_group_mapping.values()],
+    *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
 
 print(f"\nResolving {len(all_mailboxes)} mailboxes...")
@@ -242,7 +242,7 @@ print("\n=== Step 4: Verify JMAP state ===\n")
 jmap_failures = []
 
 # Check @ToImbox label removed
-toimbox_id = mailbox_ids[settings.label_to_imbox]
+toimbox_id = mailbox_ids["@ToImbox"]
 toimbox_emails = jmap.query_emails(toimbox_id)
 if toimbox_emails:
     toimbox_senders = jmap.get_email_senders(toimbox_emails)

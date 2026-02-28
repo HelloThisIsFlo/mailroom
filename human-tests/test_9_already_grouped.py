@@ -80,7 +80,7 @@ all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     settings.screener_mailbox,
     settings.label_mailroom_error,
     *settings.triage_labels,
-    *[m["destination_mailbox"] for m in settings.label_to_group_mapping.values()],
+    *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
 
 print(f"\nResolving {len(all_mailboxes)} mailboxes...")
@@ -130,7 +130,7 @@ if not test_sender:
     sys.exit(0)
 
 # Figure out the target group (what the label would route to)
-target_group = settings.label_to_group_mapping[test_label]["group"]
+target_group = settings.label_to_category_mapping[test_label].contact_group
 
 # Pick a DIFFERENT group to put the contact in
 wrong_group = None

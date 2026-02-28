@@ -23,7 +23,7 @@ print("Connecting...")
 client.connect()
 
 # Resolve just the label we're testing
-label = settings.label_to_imbox  # @ToImbox by default
+label = "@ToImbox"
 print(f"\nResolving mailbox for label: {label}")
 
 try:

@@ -81,7 +81,7 @@ all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     settings.screener_mailbox,
     settings.label_mailroom_error,
     *settings.triage_labels,
-    *[m["destination_mailbox"] for m in settings.label_to_group_mapping.values()],
+    *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
 
 print(f"\nResolving {len(all_mailboxes)} mailboxes...")
