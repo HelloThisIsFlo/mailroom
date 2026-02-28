@@ -17,6 +17,7 @@ spec:
       containers:
         - name: mailroom
           image: ghcr.io/hellothisisflo/mailroom:latest
+          imagePullPolicy: Always
           ports:
             - name: health
               containerPort: 8080
