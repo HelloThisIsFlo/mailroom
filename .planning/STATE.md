@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Push & Config
 status: unknown
-last_updated: "2026-02-28T01:01:24.030Z"
+last_updated: "2026-02-28T17:07:09.332Z"
 progress:
   total_phases: 4
   completed_phases: 4
@@ -84,6 +84,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: Age-drop detection for discrete poll event monitoring in human test 16
 - Phase 9: Hardcoded label strings in human tests instead of settings properties -- simpler for standalone scripts
 - Phase 9: Color helpers extracted to mailroom.setup.colors with public API (no leading underscores)
+- [Phase quick-5]: reorder_keys inserted in JSON path only (after dict_tracebacks, before JSONRenderer) -- TTY/console path unchanged
 
 ### Pending Todos
 
@@ -99,7 +100,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 10. Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart
 11. Allow contact group reassignment via triage label (area: api) -- currently errors when contact is already in a different group
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
-13. Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py
+13. ~~Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py~~ (done: quick-5)
 
 ### Blockers/Concerns
 
@@ -108,5 +109,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 09-02-PLAN.md (extract shared color helpers module) -- Phase 9 complete
+Stopped at: Completed quick-5 (reorder JSON log fields for scannability)
 Resume file: None
