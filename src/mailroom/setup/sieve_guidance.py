@@ -8,36 +8,18 @@ migration and programmatic sieve rule creation.
 
 from __future__ import annotations
 
-import os
-import sys
 from typing import TYPE_CHECKING
+
+from mailroom.setup.colors import CYAN, color
 
 if TYPE_CHECKING:
     from mailroom.core.config import MailroomSettings
-
-# ANSI color codes
-_CYAN = "\033[36m"
-_RESET = "\033[0m"
-
-
-def _use_color() -> bool:
-    """Return True if ANSI color should be used."""
-    if os.environ.get("NO_COLOR"):
-        return False
-    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
-
-
-def _color(text: str, code: str) -> str:
-    """Wrap text in ANSI color if color is enabled."""
-    if not _use_color():
-        return text
-    return f"{code}{text}{_RESET}"
 
 
 def _highlight_folder(cat) -> str:
     """Return the folder name, colored cyan if it differs from the category name."""
     if cat.destination_mailbox != cat.name:
-        return _color(cat.destination_mailbox, _CYAN)
+        return color(cat.destination_mailbox, CYAN)
     return cat.destination_mailbox
 
 

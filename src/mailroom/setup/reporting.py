@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from dataclasses import dataclass
+
+from mailroom.setup.colors import GREEN, YELLOW, RED, DIM, RESET, CYAN, use_color, color
 
 
 @dataclass
@@ -18,29 +19,6 @@ class ResourceAction:
     error: str | None = None  # Inline error reason for failures
 
 
-# ANSI color codes
-_GREEN = "\033[32m"
-_YELLOW = "\033[33m"
-_RED = "\033[31m"
-_DIM = "\033[2m"
-_RESET = "\033[0m"
-_CYAN = "\033[36m"
-
-
-def _use_color() -> bool:
-    """Return True if ANSI color should be used."""
-    if os.environ.get("NO_COLOR"):
-        return False
-    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
-
-
-def _color(text: str, code: str) -> str:
-    """Wrap text in ANSI color if color is enabled."""
-    if not _use_color():
-        return text
-    return f"{code}{text}{_RESET}"
-
-
 # Status symbols (plain text, colored separately)
 _SYMBOLS = {
     "exists": "\u2713",  # checkmark
@@ -52,26 +30,26 @@ _SYMBOLS = {
 
 # Symbol color mapping
 _SYMBOL_COLORS = {
-    "exists": _GREEN,
-    "create": _YELLOW,
-    "created": _GREEN,
-    "failed": _RED,
-    "skipped": _DIM,
+    "exists": GREEN,
+    "create": YELLOW,
+    "created": GREEN,
+    "failed": RED,
+    "skipped": DIM,
 }
 
 
 def _format_status(action: ResourceAction) -> str:
     """Format the status column for a resource action with color."""
     if action.status == "failed" and action.error:
-        return _color(f"FAILED: {action.error}", _RED)
+        return color(f"FAILED: {action.error}", RED)
     if action.status == "skipped" and action.error:
-        return _color(f"skipped ({action.error})", _DIM)
+        return color(f"skipped ({action.error})", DIM)
     if action.status == "exists":
-        return _color("exists", _DIM)
+        return color("exists", DIM)
     if action.status == "create":
-        return _color("create", _YELLOW)
+        return color("create", YELLOW)
     if action.status == "created":
-        return _color("created", _GREEN)
+        return color("created", GREEN)
     return action.status
 
 
@@ -83,7 +61,7 @@ def _print_section(title: str, actions: list[ResourceAction], out: object) -> No
     for action in actions:
         symbol = _SYMBOLS.get(action.status, "?")
         color_code = _SYMBOL_COLORS.get(action.status)
-        colored_symbol = _color(symbol, color_code) if color_code else symbol
+        colored_symbol = color(symbol, color_code) if color_code else symbol
         status_text = _format_status(action)
         # Left-align name with padding, right-align status
         print(f"  {colored_symbol} {action.name:<30} {status_text}", file=out)
