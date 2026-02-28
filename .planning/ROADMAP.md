@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-5 (shipped 2026-02-25)
-- 🚧 **v1.1 Push & Config** — Phases 6-8 (in progress)
+- 🚧 **v1.1 Push & Config** — Phases 6-9 (in progress)
 
 ## Phases
 
@@ -28,6 +28,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 6: Configurable Categories** — Structured triage category mapping replaces hardcoded config; all derived properties computed from categories
 - [ ] **Phase 7: Setup Script** — Idempotent CLI provisions required mailboxes and contact groups on Fastmail with dry-run safety
 - [ ] **Phase 8: EventSource Push** — SSE listener replaces fixed-interval polling with sub-10-second push-triggered triage
+- [ ] **Phase 9: Tech Debt Cleanup** — Fix stale human tests, sync deployment artifacts, remove dead code, deduplicate helpers
 
 ## Phase Details
 
@@ -80,10 +81,23 @@ Plans:
 - [x] 08-02-PLAN.md — Wire SSE into main loop (queue-based debounce), health endpoint SSE status, trigger logging, human integration test
 - [ ] 08-03-PLAN.md — Gap closure: prompt shutdown, health trigger field, fast SSE tests, human test rewrite
 
+### Phase 9: Tech Debt Cleanup
+**Goal**: All tech debt from the v1.1 milestone audit is resolved — human tests run cleanly against current APIs, deployment artifacts reflect current config schema, and dead/duplicated code is removed
+**Depends on**: Phase 8
+**Requirements**: None (all v1.1 requirements already satisfied; this closes audit tech debt)
+**Gap Closure:** Closes tech debt items from v1.1 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. Human tests 3, 7-12 run without `AttributeError` — all references to `label_to_group_mapping` and `label_to_imbox` updated to current API
+  2. `.env.example` shows `MAILROOM_TRIAGE_CATEGORIES` JSON config instead of 9 deleted individual label/group vars, `POLL_INTERVAL` defaults to 60, and `DEBOUNCE_SECONDS` is documented
+  3. `k8s/configmap.yaml` matches `.env.example` — no stale env vars, correct defaults
+  4. `JMAPClient.session_capabilities` property and its tests are removed (unused, descoped)
+  5. ANSI color helpers extracted into a shared module used by both `reporting.py` and `sieve_guidance.py`
+**Plans**: TBD (created during `/gsd:plan-phase 9`)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 → 7 → 8
+Phases execute in numeric order: 6 → 7 → 8 → 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -96,3 +110,4 @@ Phases execute in numeric order: 6 → 7 → 8
 | 6. Configurable Categories | v1.1 | 0/2 | Planned | - |
 | 7. Setup Script | v1.1 | 0/3 | Planned | - |
 | 8. EventSource Push | v1.1 | 2/3 | In Progress | - |
+| 9. Tech Debt Cleanup | v1.1 | 0/0 | Planned | - |
