@@ -94,7 +94,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 5. Sweep workflow: re-label archived emails by contact group membership (area: general) -- far-future idea, pluggable workflow
 6. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
 7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone, research in .research/jmap-contacts/
-8. Migrate k8s manifests to Helm chart (area: deployment) -- learning exercise in helm/ ready to promote
+8. Migrate k8s manifests to Helm chart (area: deployment) -- learning exercise in helm/ ready to promote, also solves public/private config split
+9. **Migrate from env var config to config.yaml (area: config) -- HIGH PRIORITY, first thing in next milestone**
 
 ### Blockers/Concerns
 
