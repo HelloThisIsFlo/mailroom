@@ -10,6 +10,23 @@ import sys
 import structlog
 
 
+_PRIORITY_KEYS = ("timestamp", "level", "component", "event")
+
+
+def reorder_keys(
+    logger: object, method_name: str, event_dict: dict[str, object]
+) -> dict[str, object]:
+    """Reorder event_dict so priority fields come first for scannable JSON."""
+    ordered: dict[str, object] = {}
+    for key in _PRIORITY_KEYS:
+        if key in event_dict:
+            ordered[key] = event_dict[key]
+    for key, value in event_dict.items():
+        if key not in ordered:
+            ordered[key] = value
+    return ordered
+
+
 def configure_logging(log_level: str = "info") -> None:
     """Configure structlog for JSON output (prod) or console (dev).
 
@@ -31,6 +48,7 @@ def configure_logging(log_level: str = "info") -> None:
     else:
         # Prod (Docker/k8s): structured JSON
         shared_processors.append(structlog.processors.dict_tracebacks)
+        shared_processors.append(reorder_keys)
         renderer = structlog.processors.JSONRenderer()
 
     structlog.configure(
