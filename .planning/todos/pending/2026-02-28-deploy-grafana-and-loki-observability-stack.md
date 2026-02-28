@@ -2,8 +2,7 @@
 created: 2026-02-28T16:50:00.000Z
 title: Deploy Grafana and Loki observability stack
 area: deployment
-files:
-  - src/mailroom/core/logging.py
+files: []
 ---
 
 ## Problem
@@ -34,9 +33,9 @@ Both are free, open-source, and deployed via Helm charts from `grafana/helm-char
 - **Tempo** — distributed tracing backend. Pair with `opentelemetry-python` to trace poll cycles (JMAP calls, CardDAV calls as spans). Only interesting with multiple services.
 - All three plug into the same Grafana UI — logs ↔ metrics ↔ traces linked together.
 
-### Mailroom code change
+### Prerequisite
 
-Before or alongside this, reorder JSON log fields for scannability (in `logging.py`). Add a reorder processor before `JSONRenderer` so output is `timestamp → level → component → event → ...` instead of bound-context-first. This helps both raw `kubectl logs` and Loki display.
+See separate todo: "Reorder JSON log fields for scannability" — small code change to `logging.py`, can be done independently and much earlier.
 
 ### Talos OS documentation
 

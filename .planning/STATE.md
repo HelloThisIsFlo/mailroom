@@ -99,6 +99,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 10. Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart
 11. Allow contact group reassignment via triage label (area: api) -- currently errors when contact is already in a different group
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
+13. Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py
 
 ### Blockers/Concerns
 
