@@ -87,7 +87,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-1. Make screener-label/contact-group/inbox-label mapping configurable (area: config) -- covered by Phase 6
+1. ~~Make screener-label/contact-group/inbox-label mapping configurable (area: config) -- covered by Phase 6~~ (done: stale)
 2. Replace polling with JMAP EventSource push and debouncer (area: api) -- covered by Phase 8
 3. Create label and group setup script for Fastmail (area: tooling) -- covered by Phase 7
 4. Scan for action labels beyond screener mailbox (area: api) -- deferred to v1.2
