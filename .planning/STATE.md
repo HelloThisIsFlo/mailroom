@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Push & Config
 status: unknown
-last_updated: "2026-02-27T12:02:22.466Z"
+last_updated: "2026-02-28T00:54:39Z"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.1 Push & Config -- Phase 8: EventSource Push
+**Current focus:** Phase 9: Tech Debt Cleanup (post-v1.1 audit)
 
 ## Current Position
 
-Phase: 8 of 8 (EventSource Push) -- COMPLETE
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: v1.1 milestone complete (all phases done, UAT gaps closed)
-Last activity: 2026-02-27 -- Completed 08-03 (UAT gap closure: shutdown, health trigger, test speed)
+Phase: 9 (Tech Debt Cleanup)
+Plan: 1 of 2 in current phase -- COMPLETE
+Status: Executing Phase 9 tech debt cleanup from milestone audit
+Last activity: 2026-02-28 -- Completed 09-01 (stale references, deployment artifacts, dead code)
 
-Progress: [████████████████████] 100% (27/27 plans -- v1.1 complete)
+Progress: [██████████░░░░░░░░░░] 50% (1/2 plans in Phase 9)
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [████████████████████] 100% (2
 | 06-configurable-categories | 2/2 | 8 min | 4.0 min |
 | 07-setup-script | 4/4 | 13 min | 3.3 min |
 | 08-eventsource-push | 3/3 | 11 min | 3.7 min |
+| 09-tech-debt-cleanup | 1/2 | 3 min | 3.0 min |
 
 ## Accumulated Context
 
@@ -64,7 +65,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: object.__setattr__ for private attrs on Pydantic model in model_validator
 - v1.1: required_mailboxes and contact_groups return sorted output for deterministic behavior
 - v1.1: invoke_without_command=True preserves python -m mailroom backward compat
-- v1.1: session_capabilities stored as raw dict for flexible downstream inspection
+- v1.1: session_capabilities stored as raw dict for flexible downstream inspection (REMOVED in Phase 9 -- unused dead code)
 - v1.1: list_groups() added to CardDAVClient as clean helper for provisioning discovery
 - v1.1: Resources categorized per CONTEXT.md: Mailboxes, Action Labels, Contact Groups
 - v1.1: Guidance-only sieve module -- no introspection, outputs instructions for all categories unconditionally
@@ -81,6 +82,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - v1.1: Queue sentinel (put None) in signal handler for instant shutdown wakeup
 - v1.1: Injectable sleep_fn in sse_listener for testable backoff (backward compatible default)
 - v1.1: Age-drop detection for discrete poll event monitoring in human test 16
+- Phase 9: Hardcoded label strings in human tests instead of settings properties -- simpler for standalone scripts
 
 ### Pending Todos
 
@@ -98,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: Completed 08-03-PLAN.md (UAT gap closure: shutdown, health trigger, test speed) -- v1.1 milestone complete
+Last session: 2026-02-28
+Stopped at: Completed 09-01-PLAN.md (stale references, deployment artifacts, dead code cleanup)
 Resume file: None
