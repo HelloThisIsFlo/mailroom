@@ -92,7 +92,11 @@ Plans:
   3. `k8s/configmap.yaml` matches `.env.example` — no stale env vars, correct defaults
   4. `JMAPClient.session_capabilities` property and its tests are removed (unused, descoped)
   5. ANSI color helpers extracted into a shared module used by both `reporting.py` and `sieve_guidance.py`
-**Plans**: TBD (created during `/gsd:plan-phase 9`)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Human test API migration, deployment artifact sync, dead code removal (session_capabilities)
+- [ ] 09-02-PLAN.md — ANSI color helper extraction into shared module with tests
 
 ## Progress
 
@@ -110,4 +114,4 @@ Phases execute in numeric order: 6 → 7 → 8 → 9
 | 6. Configurable Categories | v1.1 | 0/2 | Planned | - |
 | 7. Setup Script | v1.1 | 0/3 | Planned | - |
 | 8. EventSource Push | v1.1 | 2/3 | In Progress | - |
-| 9. Tech Debt Cleanup | v1.1 | 0/0 | Planned | - |
+| 9. Tech Debt Cleanup | v1.1 | 0/2 | Planned | - |
