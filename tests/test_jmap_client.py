@@ -117,33 +117,6 @@ class TestConnect:
         assert request is not None
         assert request.headers["authorization"] == f"Bearer {token}"
 
-    def test_connect_stores_capabilities(
-        self, client: JMAPClient, httpx_mock: HTTPXMock
-    ) -> None:
-        """connect() stores session capabilities for downstream inspection."""
-        session_with_caps = {
-            **FASTMAIL_SESSION_RESPONSE,
-            "capabilities": {
-                "urn:ietf:params:jmap:core": {"maxSizeUpload": 50000000},
-                "urn:ietf:params:jmap:mail": {},
-            },
-        }
-        httpx_mock.add_response(
-            url="https://api.fastmail.com/jmap/session",
-            json=session_with_caps,
-        )
-
-        client.connect()
-
-        caps = client.session_capabilities
-        assert "urn:ietf:params:jmap:core" in caps
-        assert "urn:ietf:params:jmap:mail" in caps
-        assert caps["urn:ietf:params:jmap:core"]["maxSizeUpload"] == 50000000
-
-    def test_session_capabilities_empty_before_connect(self, client: JMAPClient) -> None:
-        """session_capabilities returns empty dict before connect()."""
-        assert client.session_capabilities == {}
-
     def test_connect_stores_event_source_url(
         self, client: JMAPClient, httpx_mock: HTTPXMock
     ) -> None:

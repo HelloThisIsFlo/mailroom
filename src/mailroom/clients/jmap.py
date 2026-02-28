@@ -27,7 +27,6 @@ class JMAPClient:
         )
         self._api_url: str | None = None
         self._account_id: str | None = None
-        self._session_capabilities: dict = {}
         self._download_url: str | None = None
         self._event_source_url: str | None = None
 
@@ -37,11 +36,6 @@ class JMAPClient:
         if self._account_id is None:
             raise RuntimeError("JMAPClient is not connected. Call connect() first.")
         return self._account_id
-
-    @property
-    def session_capabilities(self) -> dict:
-        """Return session capabilities dict. Empty if not connected."""
-        return self._session_capabilities
 
     @property
     def event_source_url(self) -> str | None:
@@ -60,7 +54,6 @@ class JMAPClient:
         data = resp.json()
         self._account_id = data["primaryAccounts"]["urn:ietf:params:jmap:mail"]
         self._api_url = data["apiUrl"]
-        self._session_capabilities = data.get("capabilities", {})
         self._download_url = data.get("downloadUrl")
         self._event_source_url = data.get("eventSourceUrl")
 
