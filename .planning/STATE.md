@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 Phase: 9 (Tech Debt Cleanup)
 Plan: 2 of 2 in current phase -- COMPLETE
 Status: Phase 9 complete (all tech debt cleanup plans done)
-Last activity: 2026-02-28 -- Completed 09-02 (extract shared color helpers module)
+Last activity: 2026-02-28 - Completed quick task 5: Reorder JSON log fields for scannability
 
 Progress: [████████████████████] 100% (2/2 plans in Phase 9)
 
@@ -105,6 +105,12 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 ### Blockers/Concerns
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 5 | Reorder JSON log fields for scannability | 2026-02-28 | fcb6e64 | [5-reorder-json-log-fields-for-scannability](./quick/5-reorder-json-log-fields-for-scannability/) |
 
 ## Session Continuity
 
