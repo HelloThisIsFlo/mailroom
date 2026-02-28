@@ -97,6 +97,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 8. Migrate k8s manifests to Helm chart (area: deployment) -- learning exercise in helm/ ready to promote, also solves public/private config split
 9. **Migrate from env var config to config.yaml (area: config) -- HIGH PRIORITY, first thing in next milestone**
 10. Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart
+11. Allow contact group reassignment via triage label (area: api) -- currently errors when contact is already in a different group
 
 ### Blockers/Concerns
 
