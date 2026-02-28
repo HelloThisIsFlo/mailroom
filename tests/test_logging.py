@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import structlog
 
-from mailroom.core.logging import configure_logging, get_logger
+from mailroom.core.logging import configure_logging, get_logger, reorder_keys
 
 
 def _setup_json_logging(buf: StringIO, level: str = "info") -> None:
@@ -103,6 +103,77 @@ def test_error_logging_with_exception():
     output_str = json.dumps(data)
     assert "ValueError" in output_str
     assert "something went wrong" in output_str
+
+
+def test_reorder_keys_processor():
+    """reorder_keys places priority fields first and preserves all values."""
+    event_dict = {
+        "extra": "data",
+        "level": "info",
+        "event": "something_happened",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "component": "workflow",
+        "detail": "abc",
+    }
+    result = reorder_keys(None, "info", event_dict)
+
+    keys = list(result.keys())
+    assert keys[:4] == ["timestamp", "level", "component", "event"]
+    # All original values preserved
+    assert result == event_dict
+
+
+def test_reorder_keys_without_component():
+    """reorder_keys works when component is absent."""
+    event_dict = {
+        "extra": "data",
+        "level": "warning",
+        "event": "no_component",
+        "timestamp": "2026-01-01T00:00:00Z",
+    }
+    result = reorder_keys(None, "warning", event_dict)
+
+    keys = list(result.keys())
+    assert keys[:3] == ["timestamp", "level", "event"]
+    assert result == event_dict
+
+
+def test_json_field_order_with_component():
+    """JSON output has fields in order: timestamp, level, component, event, ...rest."""
+    buf = StringIO()
+    buf.isatty = lambda: False  # type: ignore[attr-defined]
+
+    with patch.object(sys, "stderr", buf):
+        configure_logging("info")
+        log = structlog.get_logger(component="test")
+        log.info("check_order", extra_field="value")
+
+    output = buf.getvalue().strip()
+    data = json.loads(output)
+    keys = list(data.keys())
+
+    assert keys[:4] == ["timestamp", "level", "component", "event"]
+    assert data["extra_field"] == "value"
+    assert data["event"] == "check_order"
+    assert data["component"] == "test"
+
+
+def test_json_field_order_without_component():
+    """JSON output without component: timestamp, level, event, ...rest."""
+    buf = StringIO()
+    buf.isatty = lambda: False  # type: ignore[attr-defined]
+
+    with patch.object(sys, "stderr", buf):
+        configure_logging("info")
+        log = structlog.get_logger()
+        log.info("no_component_order", detail="xyz")
+
+    output = buf.getvalue().strip()
+    data = json.loads(output)
+    keys = list(data.keys())
+
+    assert keys[:3] == ["timestamp", "level", "event"]
+    assert data["detail"] == "xyz"
 
 
 def test_get_logger_convenience():
