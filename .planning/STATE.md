@@ -98,6 +98,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 9. **Migrate from env var config to config.yaml (area: config) -- HIGH PRIORITY, first thing in next milestone**
 10. Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart
 11. Allow contact group reassignment via triage label (area: api) -- currently errors when contact is already in a different group
+12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
 
 ### Blockers/Concerns
 
