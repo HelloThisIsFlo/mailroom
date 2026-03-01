@@ -109,6 +109,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 ### Roadmap Evolution
 
 - Phase 09.1 inserted after Phase 09: Migrate from env var config to config.yaml (URGENT)
+- Phase 09.1.1 inserted after Phase 9.1: Helm chart migration with PodSecurity hardening (URGENT)
 
 ### Blockers/Concerns
 
@@ -123,5 +124,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 09.1-05-PLAN.md (fix double error message)
-Resume file: None
+Stopped at: Phase 9.1.1 context gathered
+Resume file: .planning/phases/09.1.1-helm-chart-migration-with-podsecurity-hardening/09.1.1-CONTEXT.md
