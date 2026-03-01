@@ -100,7 +100,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 6. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
 7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone, research in .research/jmap-contacts/
 8. Migrate k8s manifests to Helm chart (area: deployment) -- learning exercise in helm/ ready to promote, also solves public/private config split
-9. **Migrate from env var config to config.yaml (area: config) -- HIGH PRIORITY, first thing in next milestone**
+9. ~~Migrate from env var config to config.yaml (area: config)~~ (done: Phase 09.1)
 10. Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart
 11. Allow contact group reassignment via triage label (area: api) -- currently errors when contact is already in a different group
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
