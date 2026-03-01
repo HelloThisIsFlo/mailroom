@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 9: Tech Debt Cleanup (post-v1.1 audit)
+**Current focus:** Phase 9.1: Migrate from env var config to config.yaml
 
 ## Current Position
 
-Phase: 9 (Tech Debt Cleanup)
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 9 complete (all tech debt cleanup plans done)
-Last activity: 2026-02-28 - Completed quick task 5: Reorder JSON log fields for scannability
+Phase: 9.1 (Migrate from env var config to config.yaml)
+Plan: 1 of 4 in current phase
+Status: Plan 01 complete (YAML config foundation with nested sub-models)
+Last activity: 2026-03-01 - Completed 09.1-01 YAML config foundation (TDD)
 
-Progress: [████████████████████] 100% (2/2 plans in Phase 9)
+Progress: [█████░░░░░░░░░░░░░░░] 25% (1/4 plans in Phase 9.1)
 
 ## Performance Metrics
 
@@ -85,6 +85,9 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - Phase 9: Hardcoded label strings in human tests instead of settings properties -- simpler for standalone scripts
 - Phase 9: Color helpers extracted to mailroom.setup.colors with public API (no leading underscores)
 - [Phase quick-5]: reorder_keys inserted in JSON path only (after dict_tracebacks, before JSONRenderer) -- TTY/console path unchanged
+- Phase 9.1: Auth env vars stay flat on root MailroomSettings (not nested under auth sub-model) for env_prefix compatibility
+- Phase 9.1: MAILROOM_CONFIG env var overrides config.yaml path (tests, K8s, alternate configs)
+- Phase 9.1: Autouse conftest fixture creates empty config.yaml in tmp_path for test isolation
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-28
-Stopped at: Completed quick-5 (reorder JSON log fields for scannability)
+Last session: 2026-03-01
+Stopped at: Completed 09.1-01-PLAN.md (YAML config foundation)
 Resume file: None
