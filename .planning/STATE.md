@@ -23,18 +23,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 9.1 (Migrate from env var config to config.yaml)
-Plan: 4 of 4 in current phase
-Status: All plans complete -- phase ready for verification
-Last activity: 2026-03-01 - Completed 09.1-04 human test migration
+Plan: 5 of 5 in current phase (gap closure complete)
+Status: All plans complete -- phase fully finished including gap closure
+Last activity: 2026-03-01 - Completed 09.1-05 fix double error message
 
-Progress: [████████████████████] 100% (4/4 plans in Phase 9.1)
+Progress: [████████████████████] 100% (5/5 plans in Phase 9.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
-- Average duration: 3.4 min
-- Total execution time: ~1 hour 39 min
+- Total plans completed: 30
+- Average duration: 3.3 min
+- Total execution time: ~1 hour 40 min
 
 **By Phase:**
 
@@ -88,6 +88,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - Phase 9.1: Auth env vars stay flat on root MailroomSettings (not nested under auth sub-model) for env_prefix compatibility
 - Phase 9.1: MAILROOM_CONFIG env var overrides config.yaml path (tests, K8s, alternate configs)
 - Phase 9.1: Autouse conftest fixture creates empty config.yaml in tmp_path for test isolation
+- Phase 9.1: SystemExit(1) instead of SystemExit(string) -- int arg suppresses Python auto-print to stderr
 
 ### Pending Todos
 
@@ -122,5 +123,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 09.1-01-PLAN.md (YAML config foundation)
+Stopped at: Completed 09.1-05-PLAN.md (fix double error message)
 Resume file: None
