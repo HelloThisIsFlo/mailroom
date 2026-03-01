@@ -1,356 +1,328 @@
-"""Tests for the configuration module."""
-
-import json
+"""Tests for the YAML-based configuration module."""
 
 import pytest
 from pydantic import ValidationError
 
 from mailroom.core.config import MailroomSettings, ResolvedCategory
 
-# Env vars that might leak into tests from the host environment
-MAILROOM_ENV_VARS = [
-    "MAILROOM_JMAP_TOKEN",
-    "MAILROOM_CARDDAV_PASSWORD",
-    "MAILROOM_POLL_INTERVAL",
-    "MAILROOM_LOG_LEVEL",
-    "MAILROOM_SCREENER_MAILBOX",
-    "MAILROOM_TRIAGE_CATEGORIES",
-    "MAILROOM_DEBOUNCE_SECONDS",
-]
 
-
-@pytest.fixture(autouse=True)
-def _clean_env(monkeypatch):
-    """Remove any MAILROOM_ env vars so tests start from a clean slate."""
-    for var in MAILROOM_ENV_VARS:
-        monkeypatch.delenv(var, raising=False)
-
-
-def test_defaults(monkeypatch):
-    """Setting only the required JMAP token gives sensible defaults."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
-
-    settings = MailroomSettings()
-
-    assert settings.jmap_token == "test-token-abc"
-    assert settings.carddav_password == ""
-    assert settings.poll_interval == 60
-    assert settings.log_level == "info"
-
-    # Default triage categories: 5 entries with correct names
-    assert len(settings.triage_categories) == 5
-    names = [c.name for c in settings.triage_categories]
-    assert names == ["Imbox", "Feed", "Paper Trail", "Jail", "Person"]
-
-    # Triage labels match v1.0 defaults
-    assert settings.triage_labels == [
-        "@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"
-    ]
-
-
-def test_debounce_seconds_default(monkeypatch):
-    """debounce_seconds defaults to 3."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
-
-    settings = MailroomSettings()
-
-    assert settings.debounce_seconds == 3
-
-
-def test_poll_interval_default_lowered(monkeypatch):
-    """poll_interval default changed from 300 to 60 for tighter SSE safety net."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
-
-    settings = MailroomSettings()
-
-    assert settings.poll_interval == 60
-
-
-def test_debounce_seconds_custom(monkeypatch):
-    """MAILROOM_DEBOUNCE_SECONDS overrides the default."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
-    monkeypatch.setenv("MAILROOM_DEBOUNCE_SECONDS", "5")
-
-    settings = MailroomSettings()
-
-    assert settings.debounce_seconds == 5
-
-
-def test_required_jmap_token():
-    """Missing MAILROOM_JMAP_TOKEN causes a validation error."""
-    with pytest.raises(ValidationError) as exc_info:
-        MailroomSettings()
-
-    errors = exc_info.value.errors()
-    assert any(e["loc"] == ("jmap_token",) for e in errors)
-
-
-def test_env_override(monkeypatch):
-    """Environment variables override defaults."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-    monkeypatch.setenv("MAILROOM_POLL_INTERVAL", "60")
-    monkeypatch.setenv("MAILROOM_LOG_LEVEL", "debug")
-
-    settings = MailroomSettings()
-
-    assert settings.poll_interval == 60
-    assert settings.log_level == "debug"
-
-
-def test_triage_labels_property(monkeypatch):
-    """triage_labels returns all five label names including @ToPerson."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    labels = settings.triage_labels
-    assert labels == ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"]
-
-
-def test_label_category_mapping(monkeypatch):
-    """label_to_category_mapping returns correct label-to-category associations."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    mapping = settings.label_to_category_mapping
-
-    imbox = mapping["@ToImbox"]
-    assert isinstance(imbox, ResolvedCategory)
-    assert imbox.contact_group == "Imbox"
-    assert imbox.destination_mailbox == "Inbox"
-    assert imbox.contact_type == "company"
-
-    feed = mapping["@ToFeed"]
-    assert feed.contact_group == "Feed"
-    assert feed.destination_mailbox == "Feed"
-    assert feed.contact_type == "company"
-
-    pt = mapping["@ToPaperTrail"]
-    assert pt.contact_group == "Paper Trail"
-    assert pt.destination_mailbox == "Paper Trail"
-    assert pt.contact_type == "company"
-
-    jail = mapping["@ToJail"]
-    assert jail.contact_group == "Jail"
-    assert jail.destination_mailbox == "Jail"
-    assert jail.contact_type == "company"
-
-    # 5 entries (4 original + @ToPerson)
-    assert len(mapping) == 5
-
-
-def test_screener_mailbox_default(monkeypatch):
-    """screener_mailbox defaults to 'Screener'."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    assert settings.screener_mailbox == "Screener"
-
-
-def test_screener_mailbox_override(monkeypatch):
-    """screener_mailbox can be overridden via env var."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-    monkeypatch.setenv("MAILROOM_SCREENER_MAILBOX", "MyScreener")
-
-    settings = MailroomSettings()
-
-    assert settings.screener_mailbox == "MyScreener"
-
-
-def test_destination_mailbox_in_mapping(monkeypatch):
-    """Each label mapping includes destination_mailbox via ResolvedCategory."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-    mapping = settings.label_to_category_mapping
-
-    # Imbox destination is Inbox (the actual mailbox, not the group name)
-    assert mapping["@ToImbox"].destination_mailbox == "Inbox"
-    # Others match the group/destination name
-    assert mapping["@ToFeed"].destination_mailbox == "Feed"
-    assert mapping["@ToPaperTrail"].destination_mailbox == "Paper Trail"
-    assert mapping["@ToJail"].destination_mailbox == "Jail"
-
-
-# --- Phase 3.1 Config Extension Tests (updated for category-based config) ---
-
-
-def test_toperson_in_default_categories(monkeypatch):
-    """Person category is in default triage_categories with correct label."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    assert "@ToPerson" in settings.triage_labels
-    mapping = settings.label_to_category_mapping
-    person = mapping["@ToPerson"]
-    assert person.contact_type == "person"
-    assert person.contact_group == "Imbox"
-    assert person.destination_mailbox == "Inbox"
-
-
-def test_label_mailroom_warning_default(monkeypatch):
-    """label_mailroom_warning field defaults to '@MailroomWarning'."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    assert settings.label_mailroom_warning == "@MailroomWarning"
-
-
-def test_warnings_enabled_default(monkeypatch):
-    """warnings_enabled field defaults to True."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    assert settings.warnings_enabled is True
-
-
-def test_triage_labels_includes_toperson(monkeypatch):
-    """triage_labels property includes @ToPerson (5 labels total)."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-
-    labels = settings.triage_labels
-    assert "@ToPerson" in labels
-    assert len(labels) == 5
-
-
-def test_toperson_mapping_entry(monkeypatch):
-    """label_to_category_mapping has @ToPerson entry with contact_type='person'."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-    mapping = settings.label_to_category_mapping
-
-    assert "@ToPerson" in mapping
-    entry = mapping["@ToPerson"]
-    assert entry.contact_type == "person"
-    assert entry.contact_group == "Imbox"
-    assert entry.destination_mailbox == "Inbox"
-
-
-def test_existing_mapping_entries_have_company_contact_type(monkeypatch):
-    """All existing mapping entries have contact_type='company'."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-    mapping = settings.label_to_category_mapping
-
-    for label in ["@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail"]:
-        assert mapping[label].contact_type == "company", (
-            f"{label} should have contact_type='company'"
+# ---------------------------------------------------------------------------
+# Phase 9.1: YAML-based config with nested sub-models
+# ---------------------------------------------------------------------------
+
+
+class TestYAMLConfigDefaults:
+    """MailroomSettings loads defaults when config.yaml has no overrides."""
+
+    def test_defaults_with_empty_yaml(self, monkeypatch, tmp_path):
+        """Empty config.yaml gives sensible defaults for all nested fields."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token-abc")
+
+        settings = MailroomSettings()
+
+        assert settings.jmap_token == "test-token-abc"
+        assert settings.carddav_password == ""
+        # Nested access paths
+        assert settings.polling.interval == 60
+        assert settings.polling.debounce_seconds == 3
+        assert settings.logging.level == "info"
+        assert settings.labels.mailroom_error == "@MailroomError"
+        assert settings.labels.mailroom_warning == "@MailroomWarning"
+        assert settings.labels.warnings_enabled is True
+        assert settings.triage.screener_mailbox == "Screener"
+
+    def test_default_triage_categories(self, monkeypatch, tmp_path):
+        """Default triage categories: 5 entries with correct names."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert len(settings.triage.categories) == 5
+        names = [c.name for c in settings.triage.categories]
+        assert names == ["Imbox", "Feed", "Paper Trail", "Jail", "Person"]
+
+    def test_default_triage_labels(self, monkeypatch, tmp_path):
+        """Triage labels match v1.0 defaults via computed property on root."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert settings.triage_labels == [
+            "@ToImbox", "@ToFeed", "@ToPaperTrail", "@ToJail", "@ToPerson"
+        ]
+
+
+class TestYAMLConfigOverrides:
+    """Config values from YAML override defaults."""
+
+    def test_polling_override(self, monkeypatch, tmp_path):
+        """polling.interval from YAML overrides default."""
+        config = tmp_path / "config.yaml"
+        config.write_text("polling:\n  interval: 120\n  debounce_seconds: 5\n")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert settings.polling.interval == 120
+        assert settings.polling.debounce_seconds == 5
+
+    def test_logging_override(self, monkeypatch, tmp_path):
+        """logging.level from YAML overrides default."""
+        config = tmp_path / "config.yaml"
+        config.write_text("logging:\n  level: debug\n")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert settings.logging.level == "debug"
+
+    def test_labels_override(self, monkeypatch, tmp_path):
+        """labels section from YAML overrides defaults."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "labels:\n"
+            "  mailroom_error: '@CustomError'\n"
+            "  warnings_enabled: false\n"
         )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
+        settings = MailroomSettings()
 
-def test_toperson_routes_same_as_toimbox(monkeypatch):
-    """@ToPerson routes to same group/destination as @ToImbox."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+        assert settings.labels.mailroom_error == "@CustomError"
+        assert settings.labels.warnings_enabled is False
 
-    settings = MailroomSettings()
-    mapping = settings.label_to_category_mapping
+    def test_screener_mailbox_override(self, monkeypatch, tmp_path):
+        """triage.screener_mailbox from YAML overrides default."""
+        config = tmp_path / "config.yaml"
+        config.write_text("triage:\n  screener_mailbox: MyScreener\n")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
-    imbox_entry = mapping["@ToImbox"]
-    person_entry = mapping["@ToPerson"]
+        settings = MailroomSettings()
 
-    assert person_entry.contact_group == imbox_entry.contact_group
-    assert person_entry.destination_mailbox == imbox_entry.destination_mailbox
+        assert settings.triage.screener_mailbox == "MyScreener"
 
-
-def test_startup_validates_warning_label_when_enabled(monkeypatch):
-    """required_mailboxes includes @MailroomWarning when warnings_enabled=True."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-    assert settings.warnings_enabled is True
-
-    required = settings.required_mailboxes
-    assert "@MailroomWarning" in required
-
-
-def test_startup_succeeds_without_warning_label_when_disabled(monkeypatch):
-    """required_mailboxes does NOT include @MailroomWarning when warnings_enabled=False."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-    monkeypatch.setenv("MAILROOM_WARNINGS_ENABLED", "false")
-
-    settings = MailroomSettings()
-    assert settings.warnings_enabled is False
-
-    required = settings.required_mailboxes
-    assert "@MailroomWarning" not in required
-
-
-def test_mapping_has_five_entries_with_toperson(monkeypatch):
-    """label_to_category_mapping has 5 entries (4 original + @ToPerson)."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-    mapping = settings.label_to_category_mapping
-
-    assert len(mapping) == 5
-
-
-# --- Phase 6: Custom Categories via Env Var ---
-
-
-def test_custom_categories_via_env_var(monkeypatch):
-    """Custom categories via MAILROOM_TRIAGE_CATEGORIES replaces all defaults."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-    monkeypatch.setenv("MAILROOM_TRIAGE_CATEGORIES", json.dumps([
-        {"name": "Receipts"},
-        {"name": "VIP", "destination_mailbox": "Inbox"},
-    ]))
-    settings = MailroomSettings()
-    assert len(settings.triage_categories) == 2
-    assert settings.triage_labels == ["@ToReceipts", "@ToVIP"]
-    mapping = settings.label_to_category_mapping
-    assert mapping["@ToReceipts"].destination_mailbox == "Receipts"
-    assert mapping["@ToVIP"].destination_mailbox == "Inbox"
-
-
-def test_required_mailboxes_includes_all_category_mailboxes(monkeypatch):
-    """required_mailboxes includes triage labels AND destination mailboxes from categories."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
-
-    settings = MailroomSettings()
-    required = settings.required_mailboxes
-
-    # Must include all triage labels
-    for label in settings.triage_labels:
-        assert label in required, f"Missing triage label: {label}"
-
-    # Must include all destination mailboxes
-    for cat in settings.label_to_category_mapping.values():
-        assert cat.destination_mailbox in required, (
-            f"Missing destination mailbox: {cat.destination_mailbox}"
+    def test_custom_categories_via_yaml(self, monkeypatch, tmp_path):
+        """Custom categories via YAML triage.categories replaces all defaults."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "triage:\n"
+            "  categories:\n"
+            "    - name: Receipts\n"
+            "    - name: VIP\n"
+            "      destination_mailbox: Inbox\n"
         )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert len(settings.triage.categories) == 2
+        assert settings.triage_labels == ["@ToReceipts", "@ToVIP"]
+        mapping = settings.label_to_category_mapping
+        assert mapping["@ToReceipts"].destination_mailbox == "Receipts"
+        assert mapping["@ToVIP"].destination_mailbox == "Inbox"
 
 
-def test_contact_groups_returns_unique_groups(monkeypatch):
-    """contact_groups returns unique groups from resolved categories."""
-    monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+class TestNameOnlyShorthand:
+    """Name-only shorthand ('- Feed') works in YAML triage categories."""
 
-    settings = MailroomSettings()
-    groups = settings.contact_groups
+    def test_string_shorthand(self, monkeypatch, tmp_path):
+        """Plain string '- Feed' in YAML is equivalent to '- name: Feed'."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "triage:\n"
+            "  categories:\n"
+            "    - Feed\n"
+            "    - Paper Trail\n"
+        )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
-    # Default: 4 unique groups (Imbox, Feed, Paper Trail, Jail -- Person shares Imbox)
-    assert len(groups) == 4
-    assert "Imbox" in groups
-    assert "Feed" in groups
-    assert "Paper Trail" in groups
-    assert "Jail" in groups
+        settings = MailroomSettings()
+
+        assert len(settings.triage.categories) == 2
+        assert settings.triage.categories[0].name == "Feed"
+        assert settings.triage.categories[1].name == "Paper Trail"
+        assert settings.triage_labels == ["@ToFeed", "@ToPaperTrail"]
+
+    def test_mixed_shorthand_and_dict(self, monkeypatch, tmp_path):
+        """Mix of string shorthand and dict form works."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "triage:\n"
+            "  categories:\n"
+            "    - name: Imbox\n"
+            "      destination_mailbox: Inbox\n"
+            "    - Feed\n"
+            "    - name: Person\n"
+            "      parent: Imbox\n"
+            "      contact_type: person\n"
+        )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert len(settings.triage.categories) == 3
+        names = [c.name for c in settings.triage.categories]
+        assert names == ["Imbox", "Feed", "Person"]
 
 
-# --- Phase 6: TriageCategory Model, ResolvedCategory, Derivation, Defaults ---
+class TestMissingConfigYAML:
+    """Missing config.yaml fails fast with clear error."""
+
+    def test_missing_config_exits(self, monkeypatch, tmp_path):
+        """Missing config.yaml raises SystemExit with helpful message."""
+        monkeypatch.setenv("MAILROOM_CONFIG", str(tmp_path / "nonexistent.yaml"))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        with pytest.raises(SystemExit) as exc_info:
+            MailroomSettings()
+
+        msg = str(exc_info.value)
+        assert "config.yaml.example" in msg
+
+
+class TestMAILROOM_CONFIG_Override:
+    """MAILROOM_CONFIG env var overrides default config.yaml path."""
+
+    def test_config_path_override(self, monkeypatch, tmp_path):
+        """MAILROOM_CONFIG points to a custom path."""
+        custom_config = tmp_path / "custom" / "my-config.yaml"
+        custom_config.parent.mkdir(parents=True)
+        custom_config.write_text("polling:\n  interval: 999\n")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(custom_config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert settings.polling.interval == 999
+
+
+class TestAuthEnvVarsStayFlat:
+    """Auth credentials remain as flat env vars on root MailroomSettings."""
+
+    def test_auth_fields_flat(self, monkeypatch, tmp_path):
+        """Auth fields are directly on settings root, not nested."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "my-token")
+        monkeypatch.setenv("MAILROOM_CARDDAV_USERNAME", "user@fastmail.com")
+        monkeypatch.setenv("MAILROOM_CARDDAV_PASSWORD", "secret")
+
+        settings = MailroomSettings()
+
+        assert settings.jmap_token == "my-token"
+        assert settings.carddav_username == "user@fastmail.com"
+        assert settings.carddav_password == "secret"
+
+    def test_required_jmap_token(self, monkeypatch, tmp_path):
+        """Missing MAILROOM_JMAP_TOKEN causes a validation error."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+
+        with pytest.raises(ValidationError) as exc_info:
+            MailroomSettings()
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("jmap_token",) for e in errors)
+
+
+class TestComputedProperties:
+    """Computed properties stay on root and access nested sub-models."""
+
+    def test_label_category_mapping(self, monkeypatch, tmp_path):
+        """label_to_category_mapping returns correct associations."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+        mapping = settings.label_to_category_mapping
+
+        imbox = mapping["@ToImbox"]
+        assert isinstance(imbox, ResolvedCategory)
+        assert imbox.contact_group == "Imbox"
+        assert imbox.destination_mailbox == "Inbox"
+        assert imbox.contact_type == "company"
+
+        person = mapping["@ToPerson"]
+        assert person.contact_type == "person"
+        assert person.contact_group == "Imbox"
+        assert person.destination_mailbox == "Inbox"
+
+        assert len(mapping) == 5
+
+    def test_required_mailboxes_includes_all(self, monkeypatch, tmp_path):
+        """required_mailboxes includes triage labels, destinations, screener, and error."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+        required = settings.required_mailboxes
+
+        for label in settings.triage_labels:
+            assert label in required
+        assert "@MailroomWarning" in required
+        assert "@MailroomError" in required
+        assert "Inbox" in required
+        assert "Screener" in required
+
+    def test_required_mailboxes_without_warnings(self, monkeypatch, tmp_path):
+        """required_mailboxes excludes @MailroomWarning when warnings disabled."""
+        config = tmp_path / "config.yaml"
+        config.write_text("labels:\n  warnings_enabled: false\n")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert settings.labels.warnings_enabled is False
+        assert "@MailroomWarning" not in settings.required_mailboxes
+
+    def test_contact_groups_unique(self, monkeypatch, tmp_path):
+        """contact_groups returns unique groups (Person shares Imbox)."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+        groups = settings.contact_groups
+
+        assert len(groups) == 4
+        assert "Imbox" in groups
+        assert "Feed" in groups
+        assert "Paper Trail" in groups
+        assert "Jail" in groups
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: TriageCategory, ResolvedCategory, Derivation, Defaults, Validation
+# (these tests are unchanged — they test models/functions directly, not settings)
+# ---------------------------------------------------------------------------
 
 from dataclasses import FrozenInstanceError
 
 from mailroom.core.config import (
-    ResolvedCategory,
     TriageCategory,
     _default_categories,
     resolve_categories,
@@ -414,7 +386,6 @@ class TestDerivationRules:
         resolved = resolve_categories(cats)
         r = resolved[0]
         assert r.destination_mailbox == "Inbox"
-        # Label and group still derived from name
         assert r.label == "@ToImbox"
         assert r.contact_group == "Imbox"
 
@@ -486,7 +457,7 @@ class TestParentInheritance:
     """Tests for parent-child inheritance in resolve_categories."""
 
     def test_child_inherits_parent_group_and_mailbox(self):
-        """Person (parent='Imbox') inherits contact_group and destination_mailbox from Imbox."""
+        """Person (parent='Imbox') inherits contact_group and destination_mailbox."""
         cats = [
             TriageCategory(name="Imbox", destination_mailbox="Inbox"),
             TriageCategory(name="Person", parent="Imbox", contact_type="person"),
@@ -501,16 +472,11 @@ class TestParentInheritance:
         """Child with explicit contact_group does NOT inherit parent's group."""
         cats = [
             TriageCategory(name="Imbox", destination_mailbox="Inbox"),
-            TriageCategory(
-                name="VIP",
-                parent="Imbox",
-                contact_group="VIPGroup",
-            ),
+            TriageCategory(name="VIP", parent="Imbox", contact_group="VIPGroup"),
         ]
         resolved = resolve_categories(cats)
         vip = next(r for r in resolved if r.name == "VIP")
         assert vip.contact_group == "VIPGroup"
-        # But destination_mailbox IS inherited (not explicitly set)
         assert vip.destination_mailbox == "Inbox"
 
     def test_parent_after_child_still_resolves(self):
@@ -525,52 +491,37 @@ class TestParentInheritance:
         assert person.destination_mailbox == "Inbox"
 
 
-# --- Phase 6: Validation Logic ---
+# --- Validation Logic ---
 
 
 class TestValidationEmptyList:
-    """Validation rejects empty category lists."""
-
     def test_empty_list_rejected(self):
-        """resolve_categories([]) raises ValueError with 'at least one triage category'."""
         with pytest.raises(ValueError, match="(?i)at least one triage category"):
             resolve_categories([])
 
 
 class TestValidationDuplicateNames:
-    """Validation detects duplicate category names."""
-
     def test_duplicate_names_rejected(self):
-        """Two categories named 'Feed' raises ValueError mentioning 'Feed'."""
         cats = [TriageCategory(name="Feed"), TriageCategory(name="Feed")]
         with pytest.raises(ValueError, match="Duplicate category name.*Feed"):
             resolve_categories(cats)
 
 
 class TestValidationInvalidContactType:
-    """Pydantic Literal rejects invalid contact_type values."""
-
     def test_invalid_contact_type_rejected(self):
-        """TriageCategory(name='X', contact_type='invalid') raises ValidationError."""
         with pytest.raises(ValidationError):
             TriageCategory(name="X", contact_type="invalid")
 
 
 class TestValidationParentReferences:
-    """Validation catches non-existent parent references."""
-
     def test_nonexistent_parent_rejected(self):
-        """Parent referencing non-existent category raises ValueError."""
         cats = [TriageCategory(name="Child", parent="Ghost")]
         with pytest.raises(ValueError, match="non-existent parent 'Ghost'"):
             resolve_categories(cats)
 
 
 class TestValidationCircularParents:
-    """Validation detects circular parent chains."""
-
     def test_circular_parent_chain(self):
-        """A -> B -> A raises ValueError with 'Circular parent chain'."""
         cats = [
             TriageCategory(name="A", parent="B"),
             TriageCategory(name="B", parent="A"),
@@ -579,17 +530,13 @@ class TestValidationCircularParents:
             resolve_categories(cats)
 
     def test_self_referencing_parent(self):
-        """A has parent='A' raises ValueError with 'Circular parent chain'."""
         cats = [TriageCategory(name="A", parent="A")]
         with pytest.raises(ValueError, match="Circular parent chain"):
             resolve_categories(cats)
 
 
 class TestValidationSharedContactGroups:
-    """Validation flags shared contact groups without parent relationship."""
-
     def test_shared_groups_without_parent_rejected(self):
-        """Two unrelated categories with same contact_group raises ValueError."""
         cats = [
             TriageCategory(name="Alpha", contact_group="SharedGroup"),
             TriageCategory(name="Beta", contact_group="SharedGroup"),
@@ -598,21 +545,16 @@ class TestValidationSharedContactGroups:
             resolve_categories(cats)
 
     def test_shared_groups_with_parent_allowed(self):
-        """Parent and child sharing contact_group is allowed."""
         cats = [
             TriageCategory(name="Imbox", destination_mailbox="Inbox"),
             TriageCategory(name="Person", parent="Imbox", contact_type="person"),
         ]
-        # Should NOT raise -- parent-child sharing is fine
         resolved = resolve_categories(cats)
         assert len(resolved) == 2
 
 
 class TestValidationDuplicateLabels:
-    """Validation detects duplicate labels after derivation."""
-
     def test_duplicate_labels_rejected(self):
-        """Two categories deriving to the same label raises ValueError."""
         cats = [
             TriageCategory(name="PaperTrail"),
             TriageCategory(name="Custom", label="@ToPaperTrail"),
@@ -622,10 +564,7 @@ class TestValidationDuplicateLabels:
 
 
 class TestValidationAllErrorsAtOnce:
-    """Validation collects ALL errors and reports them together."""
-
     def test_multiple_errors_reported_together(self):
-        """Categories with BOTH duplicate names AND bad parent -> both errors in message."""
         cats = [
             TriageCategory(name="Feed"),
             TriageCategory(name="Feed"),
@@ -639,10 +578,7 @@ class TestValidationAllErrorsAtOnce:
 
 
 class TestValidationDefaultConfigInError:
-    """Error messages include default configuration for reference."""
-
     def test_error_includes_default_config(self):
-        """When validation fails, error message includes default config JSON."""
         with pytest.raises(ValueError) as exc_info:
             resolve_categories([])
         msg = str(exc_info.value)
@@ -651,10 +587,7 @@ class TestValidationDefaultConfigInError:
 
 
 class TestValidationValidCustomCategory:
-    """Valid custom categories resolve successfully."""
-
     def test_single_custom_category(self):
-        """[TriageCategory(name='Receipts')] resolves successfully."""
         cats = [TriageCategory(name="Receipts")]
         resolved = resolve_categories(cats)
         assert len(resolved) == 1
