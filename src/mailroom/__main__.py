@@ -101,7 +101,7 @@ def main() -> None:
 
     # 1. Load config
     settings = MailroomSettings()
-    configure_logging(settings.log_level)
+    configure_logging(settings.logging.level)
     log = structlog.get_logger(component="main")
 
     # 2. Connect JMAP client
@@ -125,7 +125,7 @@ def main() -> None:
     workflow = ScreenerWorkflow(jmap, carddav, settings, mailbox_ids)
 
     # 7. Start health server on daemon thread
-    _start_health_server(HEALTH_PORT, settings.poll_interval)
+    _start_health_server(HEALTH_PORT, settings.polling.interval)
 
     # --- Graceful shutdown ---
 
@@ -166,8 +166,8 @@ def main() -> None:
 
     log.info(
         "service_started",
-        poll_interval=settings.poll_interval,
-        debounce_seconds=settings.debounce_seconds,
+        poll_interval=settings.polling.interval,
+        debounce_seconds=settings.polling.debounce_seconds,
         health_port=HEALTH_PORT,
         push_enabled=jmap.event_source_url is not None,
     )
@@ -176,12 +176,12 @@ def main() -> None:
     while not shutdown_event.is_set():
         trigger = "scheduled"
         try:
-            event_queue.get(timeout=settings.poll_interval)
+            event_queue.get(timeout=settings.polling.interval)
             if shutdown_event.is_set():
                 break  # sentinel from signal handler -- exit immediately
             # Got SSE event -- drain queue and debounce
             pre_drain = drain_queue(event_queue)
-            shutdown_event.wait(settings.debounce_seconds)
+            shutdown_event.wait(settings.polling.debounce_seconds)
             post_drain = drain_queue(event_queue)
             trigger = "push"
             log.debug(

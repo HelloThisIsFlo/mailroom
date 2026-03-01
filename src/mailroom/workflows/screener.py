@@ -129,7 +129,7 @@ class ScreenerWorkflow:
             return {}, {}
 
         # Filter out emails that already have @MailroomError
-        error_id = self._mailbox_ids[self._settings.label_mailroom_error]
+        error_id = self._mailbox_ids[self._settings.labels.mailroom_error]
         responses = self._jmap.call(
             [
                 [
@@ -199,7 +199,7 @@ class ScreenerWorkflow:
         Keeps triage labels intact. The @MailroomError label is a signal
         to the user to resolve the conflict manually.
         """
-        error_id = self._mailbox_ids[self._settings.label_mailroom_error]
+        error_id = self._mailbox_ids[self._settings.labels.mailroom_error]
 
         try:
             for email_id, _ in emails:
@@ -247,7 +247,7 @@ class ScreenerWorkflow:
             sender: Sender email address (for logging).
             email_ids: List of triggering email IDs to apply the warning to.
         """
-        warning_id = self._mailbox_ids[self._settings.label_mailroom_warning]
+        warning_id = self._mailbox_ids[self._settings.labels.mailroom_warning]
 
         try:
             for email_id in email_ids:
@@ -326,11 +326,11 @@ class ScreenerWorkflow:
         log.info("contact_upserted", action=result["action"], uid=result["uid"])
 
         # Step 2b: Apply warning label if name mismatch detected
-        if result.get("name_mismatch", False) and self._settings.warnings_enabled:
+        if result.get("name_mismatch", False) and self._settings.labels.warnings_enabled:
             self._apply_warning_label(sender, email_ids)
 
         # Step 3: Sweep all Screener emails from this sender (JMAP)
-        screener_id = self._mailbox_ids[self._settings.screener_mailbox]
+        screener_id = self._mailbox_ids[self._settings.triage.screener_mailbox]
         sender_emails = self._jmap.query_emails(screener_id, sender=sender)
 
         # Step 4: Move swept emails to destination

@@ -44,8 +44,8 @@ def generate_sieve_guidance(settings: MailroomSettings, *, ui_guide: bool = Fals
     ]
 
     if ui_guide:
-        return _build_ui_guide(root_categories, settings.screener_mailbox)
-    return _build_sieve_snippets(root_categories, settings.screener_mailbox)
+        return _build_ui_guide(root_categories, settings.triage.screener_mailbox)
+    return _build_sieve_snippets(root_categories, settings.triage.screener_mailbox)
 
 
 def _build_sieve_snippets(

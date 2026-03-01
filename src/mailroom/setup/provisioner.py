@@ -55,9 +55,9 @@ def plan_resources(
     triage_label_set = set(settings.triage_labels)
 
     # Mailroom-specific names (error/warning labels) get their own category
-    mailroom_names = {settings.label_mailroom_error}
-    if settings.warnings_enabled:
-        mailroom_names.add(settings.label_mailroom_warning)
+    mailroom_names = {settings.labels.mailroom_error}
+    if settings.labels.warnings_enabled:
+        mailroom_names.add(settings.labels.mailroom_warning)
 
     mailbox_names = [
         name
@@ -209,7 +209,7 @@ def run_setup(apply: bool = False, ui_guide: bool = False) -> int:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 1
 
-    configure_logging(settings.log_level)
+    configure_logging(settings.logging.level)
 
     # Pre-flight: connect JMAP
     jmap = JMAPClient(token=settings.jmap_token)
