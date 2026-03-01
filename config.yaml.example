@@ -1,0 +1,44 @@
+# Mailroom Configuration
+# Copy to config.yaml and adjust as needed:
+#   cp config.yaml.example config.yaml
+#
+# Auth credentials (JMAP token, CardDAV username/password) are set via
+# environment variables — see .env.example for required auth env vars.
+#
+# Override config path: export MAILROOM_CONFIG=/path/to/config.yaml
+
+# --- Polling & Push ---
+# SSE push is the primary trigger; polling is the safety net.
+polling:
+  interval: 60            # Seconds between fallback polls (default: 60)
+  debounce_seconds: 3     # SSE event debounce window in seconds (default: 3)
+
+# --- Triage Categories ---
+# Each category derives:
+#   - label: @To{Name} (e.g., "Imbox" -> "@ToImbox")
+#   - contact_group: category name (e.g., "Feed")
+#   - destination_mailbox: category name, or inherited from parent
+#
+# Use string shorthand for simple categories: "- Feed" equals "- name: Feed"
+# Use dict form for overrides: "- name: Imbox\n  destination_mailbox: Inbox"
+triage:
+  screener_mailbox: Screener
+  categories:
+    - name: Imbox
+      destination_mailbox: Inbox
+    - Feed
+    - Paper Trail
+    - Jail
+    - name: Person
+      parent: Imbox
+      contact_type: person
+
+# --- Error & Warning Labels ---
+labels:
+  mailroom_error: "@MailroomError"
+  mailroom_warning: "@MailroomWarning"
+  warnings_enabled: true    # Set false to disable @MailroomWarning label
+
+# --- Logging ---
+logging:
+  level: info               # debug, info, warning, error
