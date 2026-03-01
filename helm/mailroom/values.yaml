@@ -44,8 +44,6 @@ config:
   logging:
     level: info
 
-# -- Secrets (provide via secrets-values.yaml, NOT here)
-secrets:
-  jmap_token: ""
-  carddav_username: ""
-  carddav_password: ""
+# -- Secrets: provide via -f secrets-values.yaml
+# See secrets-values.yaml.example for required keys
+secrets: {}
