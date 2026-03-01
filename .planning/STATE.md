@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Push & Config
 status: unknown
-last_updated: "2026-03-01T17:28:07.414Z"
+last_updated: "2026-03-01T21:13:42.392Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 18
+  completed_plans: 17
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 9.1: Migrate from env var config to config.yaml
+**Current focus:** Phase 9.1.1: Helm chart migration with PodSecurity hardening
 
 ## Current Position
 
-Phase: 9.1 (Migrate from env var config to config.yaml)
-Plan: 5 of 5 in current phase (gap closure complete)
-Status: All plans complete -- phase fully finished including gap closure
-Last activity: 2026-03-01 - Completed 09.1-05 fix double error message
+Phase: 9.1.1 (Helm chart migration with PodSecurity hardening)
+Plan: 1 of 2 in current phase
+Status: Plan 01 complete -- Helm chart created
+Last activity: 2026-03-01 - Completed 09.1.1-01 Helm chart creation
 
-Progress: [████████████████████] 100% (5/5 plans in Phase 9.1)
+Progress: [██████████----------] 50% (1/2 plans in Phase 9.1.1)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [████████████████████] 100% (5
 | 07-setup-script | 4/4 | 13 min | 3.3 min |
 | 08-eventsource-push | 3/3 | 11 min | 3.7 min |
 | 09-tech-debt-cleanup | 2/2 | 7 min | 3.5 min |
+| 09.1.1-helm-chart-migration | 1/2 | 2 min | 2.0 min |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - Phase 9.1: MAILROOM_CONFIG env var overrides config.yaml path (tests, K8s, alternate configs)
 - Phase 9.1: Autouse conftest fixture creates empty config.yaml in tmp_path for test isolation
 - Phase 9.1: SystemExit(1) instead of SystemExit(string) -- int arg suppresses Python auto-print to stderr
+- [Phase 09.1.1]: Config.yaml content inline in values.yaml under config: key, rendered via toYaml in ConfigMap template
+- [Phase 09.1.1]: MAILROOM_CONFIG=/app/config.yaml set explicitly as env var in Helm templates (Dockerfile runtime has no WORKDIR)
+- [Phase 09.1.1]: Shared _helpers.tpl securityContext templates ensure Deployment and Job have identical PSS compliance
 
 ### Pending Todos
 
@@ -124,5 +128,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Phase 9.1.1 context gathered
-Resume file: .planning/phases/09.1.1-helm-chart-migration-with-podsecurity-hardening/09.1.1-CONTEXT.md
+Stopped at: Completed 09.1.1-01-PLAN.md (Helm chart creation)
+Resume file: .planning/phases/09.1.1-helm-chart-migration-with-podsecurity-hardening/09.1.1-02-PLAN.md
