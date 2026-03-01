@@ -102,6 +102,10 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
 13. ~~Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py~~ (done: quick-5)
 
+### Roadmap Evolution
+
+- Phase 09.1 inserted after Phase 09: Migrate from env var config to config.yaml (URGENT)
+
 ### Blockers/Concerns
 
 None.
