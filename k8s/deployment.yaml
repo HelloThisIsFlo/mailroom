@@ -22,10 +22,13 @@ spec:
             - name: health
               containerPort: 8080
           envFrom:
-            - configMapRef:
-                name: mailroom-config
             - secretRef:
                 name: mailroom-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -45,3 +48,7 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "100m"
+      volumes:
+        - name: config
+          configMap:
+            name: mailroom-config
