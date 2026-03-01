@@ -123,22 +123,26 @@ class TestGenerateGuidanceUIGuideMode:
 class TestGenerateGuidanceCustomCategories:
     """Tests with custom category configurations."""
 
-    def test_custom_category_included(self, monkeypatch) -> None:
+    def test_custom_category_included(self, monkeypatch, tmp_path) -> None:
         """Custom categories appear in guidance output."""
-        import json
-
-        custom_cats = [
-            {"name": "Imbox", "destination_mailbox": "Inbox"},
-            {"name": "Feed"},
-            {"name": "Paper Trail"},
-            {"name": "Jail"},
-            {"name": "Person", "parent": "Imbox", "contact_type": "person"},
-            {"name": "Receipts"},
-        ]
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "triage:\n"
+            "  categories:\n"
+            "    - name: Imbox\n"
+            "      destination_mailbox: Inbox\n"
+            "    - Feed\n"
+            "    - Paper Trail\n"
+            "    - Jail\n"
+            "    - name: Person\n"
+            "      parent: Imbox\n"
+            "      contact_type: person\n"
+            "    - Receipts\n"
+        )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
         monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token")
         monkeypatch.setenv("MAILROOM_CARDDAV_USERNAME", "test")
         monkeypatch.setenv("MAILROOM_CARDDAV_PASSWORD", "test")
-        monkeypatch.setenv("MAILROOM_TRIAGE_CATEGORIES", json.dumps(custom_cats))
 
         settings = MailroomSettings()
         output = generate_sieve_guidance(settings, ui_guide=False)
@@ -159,12 +163,17 @@ class TestGenerateGuidanceCustomCategories:
         # Should have one per root category: Imbox, Feed, Paper Trail, Jail = 4
         assert len(condition_lines) == 4
 
-    def test_custom_screener_mailbox(self, monkeypatch) -> None:
+    def test_custom_screener_mailbox(self, monkeypatch, tmp_path) -> None:
         """Screener section uses custom screener_mailbox name."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "triage:\n"
+            "  screener_mailbox: MyScreener\n"
+        )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
         monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token")
         monkeypatch.setenv("MAILROOM_CARDDAV_USERNAME", "test")
         monkeypatch.setenv("MAILROOM_CARDDAV_PASSWORD", "test")
-        monkeypatch.setenv("MAILROOM_SCREENER_MAILBOX", "MyScreener")
 
         settings = MailroomSettings()
         output = generate_sieve_guidance(settings, ui_guide=False)

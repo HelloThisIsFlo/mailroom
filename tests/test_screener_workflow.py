@@ -1683,7 +1683,7 @@ class TestWarningLabelOnNameMismatchDisabled:
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav, mock_settings):
-        mock_settings.warnings_enabled = False
+        mock_settings.labels.warnings_enabled = False
 
         carddav.search_by_email.return_value = []
         carddav.upsert_contact.return_value = {
