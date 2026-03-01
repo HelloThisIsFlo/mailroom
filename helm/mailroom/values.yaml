@@ -1,0 +1,51 @@
+# -- Image configuration
+image:
+  repository: ghcr.io/hellothisisflo/mailroom
+  tag: latest
+  pullPolicy: Always
+
+# -- Number of replicas (single-instance service)
+replicaCount: 1
+
+# -- Resource limits and requests
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "100m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"
+
+# -- Setup Job configuration
+setup:
+  # -- Run setup in apply mode (provisions missing resources on Fastmail)
+  apply: false
+
+# -- Application configuration (becomes config.yaml in ConfigMap)
+config:
+  polling:
+    interval: 60
+    debounce_seconds: 3
+  triage:
+    screener_mailbox: Screener
+    categories:
+      - name: Imbox
+        destination_mailbox: Inbox
+      - Feed
+      - Paper Trail
+      - Jail
+      - name: Person
+        parent: Imbox
+        contact_type: person
+  labels:
+    mailroom_error: "@MailroomError"
+    mailroom_warning: "@MailroomWarning"
+    warnings_enabled: true
+  logging:
+    level: info
+
+# -- Secrets (provide via secrets-values.yaml, NOT here)
+secrets:
+  jmap_token: ""
+  carddav_username: ""
+  carddav_password: ""
