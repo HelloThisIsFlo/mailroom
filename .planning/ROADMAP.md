@@ -115,8 +115,9 @@ Phases execute in numeric order: 6 → 7 → 8 → 9
 | 7. Setup Script | v1.1 | 0/3 | Planned | - |
 | 8. EventSource Push | v1.1 | 2/3 | In Progress | - |
 | 9. Tech Debt Cleanup | v1.1 | 0/2 | Planned | - |
+| 9.1. Migrate to config.yaml | v1.1 | 4/4 | Complete | 2026-03-01 |
 
-### Phase 09.1: Migrate from env var config to config.yaml (INSERTED)
+### Phase 09.1: Migrate from env var config to config.yaml (INSERTED) -- COMPLETE
 
 **Goal:** Replace MAILROOM_-prefixed environment variables with a config.yaml file as the primary configuration mechanism for all non-secret settings, with nested sub-models by concern area and name-only shorthand for triage categories
 **Depends on:** Phase 9
@@ -128,10 +129,10 @@ Phases execute in numeric order: 6 → 7 → 8 → 9
   4. K8s ConfigMap contains embedded config.yaml file content; Deployment uses volume mount
   5. Missing config.yaml fails fast with clear error message pointing to config.yaml.example
   6. Name-only shorthand works in YAML triage categories (e.g., `- Feed`)
-**Plans**: 4 plans
+**Plans**: 4 plans -- ALL COMPLETE
 
 Plans:
-- [ ] 09.1-01-PLAN.md — TDD: Config model rewrite with nested sub-models, YAML loading, test infrastructure, example files
-- [ ] 09.1-02-PLAN.md — Source code access path migration + K8s artifact updates
-- [ ] 09.1-03-PLAN.md — Test file migration (screener, provisioner, sieve guidance, eventsource, logging)
-- [ ] 09.1-04-PLAN.md — Human test migration + committable config.yaml
+- [x] 09.1-01-PLAN.md — TDD: Config model rewrite with nested sub-models, YAML loading, test infrastructure, example files
+- [x] 09.1-02-PLAN.md — Source code access path migration + K8s artifact updates
+- [x] 09.1-03-PLAN.md — Test file migration (screener, provisioner, sieve guidance, eventsource, logging)
+- [x] 09.1-04-PLAN.md — Human test migration + committable config.yaml
