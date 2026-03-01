@@ -1,19 +1,20 @@
-"""Mailroom configuration loaded from MAILROOM_-prefixed environment variables."""
+"""Mailroom configuration loaded from config.yaml + auth env vars."""
 
 from __future__ import annotations
 
 import json
+import os
+import sys
 from dataclasses import dataclass
-from typing import Literal
-
-from typing import Self
+from pathlib import Path
+from typing import Literal, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, YamlConfigSettingsSource
 
 
 # ---------------------------------------------------------------------------
-# Phase 6: Configurable triage category models
+# Phase 6: Configurable triage category models (unchanged)
 # ---------------------------------------------------------------------------
 
 
@@ -77,7 +78,7 @@ def derive_destination_mailbox(name: str) -> str:
 def _default_categories() -> list[TriageCategory]:
     """Return the v1.0 default categories.
 
-    Used when ``MAILROOM_TRIAGE_CATEGORIES`` is not set.
+    Used when triage.categories is not set in config.yaml.
     """
     return [
         TriageCategory(name="Imbox", destination_mailbox="Inbox"),
@@ -156,7 +157,6 @@ def _validate_categories(categories: list[TriageCategory]) -> list[str]:
             label_owners[label] = cat.name
 
     # 6. Shared contact groups without parent relationship
-    # Build resolved groups for checking
     group_owners: dict[str, list[str]] = {}
     for cat in categories:
         group = (
@@ -168,12 +168,10 @@ def _validate_categories(categories: list[TriageCategory]) -> list[str]:
 
     for group, owners in group_owners.items():
         if len(owners) > 1:
-            # Check if all sharing is via parent relationships
             for i, a in enumerate(owners):
                 for b in owners[i + 1 :]:
                     cat_a = next(c for c in categories if c.name == a)
                     cat_b = next(c for c in categories if c.name == b)
-                    # Allowed if one is parent of the other
                     if cat_a.parent != b and cat_b.parent != a:
                         errors.append(
                             f"Categories '{a}' and '{b}' share contact group "
@@ -196,7 +194,6 @@ def resolve_categories(
 
     Raises ``ValueError`` with all validation errors if any are found.
     """
-    # Validate first -- collect all errors
     errors = _validate_categories(categories)
     if errors:
         default_json = json.dumps(
@@ -240,11 +237,9 @@ def resolve_categories(
             new_group = r.contact_group
             new_mailbox = r.destination_mailbox
 
-            # Inherit contact_group if NOT explicitly set by user
             if originals[cat.name].contact_group is None:
                 new_group = parent_resolved.contact_group
 
-            # Inherit destination_mailbox if NOT explicitly set by user
             if originals[cat.name].destination_mailbox is None:
                 new_mailbox = parent_resolved.destination_mailbox
 
@@ -262,11 +257,77 @@ def resolve_categories(
     return resolved
 
 
-class MailroomSettings(BaseSettings):
-    """Application settings with sensible defaults matching the user's Fastmail setup.
+# ---------------------------------------------------------------------------
+# Phase 9.1: Nested sub-models for YAML config
+# ---------------------------------------------------------------------------
 
-    All values are loaded from environment variables with the MAILROOM_ prefix.
-    For example, MAILROOM_JMAP_TOKEN sets jmap_token.
+
+class PollingSettings(BaseModel):
+    """Polling and debounce configuration."""
+
+    interval: int = 60
+    debounce_seconds: int = 3
+
+
+class TriageSettings(BaseModel):
+    """Triage mailbox and category configuration."""
+
+    screener_mailbox: str = "Screener"
+    categories: list[TriageCategory] = Field(default_factory=_default_categories)
+
+    @field_validator("categories", mode="before")
+    @classmethod
+    def normalize_categories(cls, v: list) -> list:
+        """Allow plain strings as shorthand: '- Feed' -> {'name': 'Feed'}."""
+        return [{"name": item} if isinstance(item, str) else item for item in v]
+
+
+class LabelSettings(BaseModel):
+    """Error and warning label configuration."""
+
+    mailroom_error: str = "@MailroomError"
+    mailroom_warning: str = "@MailroomWarning"
+    warnings_enabled: bool = True
+
+
+class LoggingSettings(BaseModel):
+    """Logging configuration."""
+
+    level: str = "info"
+
+
+# ---------------------------------------------------------------------------
+# Main settings class
+# ---------------------------------------------------------------------------
+
+
+def _resolve_config_path() -> str:
+    """Resolve config.yaml path: MAILROOM_CONFIG env var or cwd default.
+
+    Raises SystemExit with a helpful message if the config file is missing.
+    """
+    config_path = os.environ.get("MAILROOM_CONFIG", "config.yaml")
+    path = Path(config_path)
+    if not path.exists():
+        print(
+            f"Error: Config file not found: {path.resolve()}\n"
+            f"Copy config.yaml.example to config.yaml and edit it:\n"
+            f"  cp config.yaml.example config.yaml",
+            file=sys.stderr,
+        )
+        raise SystemExit(
+            f"Config file not found: {path.resolve()}\n"
+            f"Copy config.yaml.example to config.yaml and edit it:\n"
+            f"  cp config.yaml.example config.yaml"
+        )
+    return str(path)
+
+
+class MailroomSettings(BaseSettings):
+    """Application settings loaded from config.yaml + auth env vars.
+
+    Non-secret configuration lives in config.yaml (polling, triage, labels, logging).
+    Auth credentials come from MAILROOM_-prefixed environment variables.
     """
 
     model_config = SettingsConfigDict(
@@ -275,39 +336,40 @@ class MailroomSettings(BaseSettings):
         arbitrary_types_allowed=True,
     )
 
-    # Required credentials -- no defaults, fails if missing
+    # Required credentials -- from env vars (flat, not nested)
     jmap_token: str
 
-    # CardDAV credentials -- not required in Phase 1 (empty defaults for forward compat)
+    # CardDAV credentials -- not required (empty defaults for forward compat)
     carddav_username: str = ""
     carddav_password: str = ""
 
-    # Polling
-    poll_interval: int = 60  # seconds (tighter safety net with SSE push as primary)
-    debounce_seconds: int = 3  # SSE event debounce window
+    # Nested sections -- from config.yaml
+    polling: PollingSettings = PollingSettings()
+    triage: TriageSettings = TriageSettings()
+    labels: LabelSettings = LabelSettings()
+    logging: LoggingSettings = LoggingSettings()
 
-    # Logging
-    log_level: str = "info"
-
-    # Error label (verified at startup alongside other labels)
-    label_mailroom_error: str = "@MailroomError"
-
-    # Warning label (non-blocking alerts, e.g. name mismatch)
-    label_mailroom_warning: str = "@MailroomWarning"
-    warnings_enabled: bool = True
-
-    # Screener mailbox name (configurable for flexibility)
-    screener_mailbox: str = "Screener"
-
-    # Triage categories -- single source of truth for all category configuration
-    triage_categories: list[TriageCategory] = Field(
-        default_factory=_default_categories,
-    )
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Configure source priority: init > env vars > YAML config file."""
+        config_path = _resolve_config_path()
+        return (
+            init_settings,
+            env_settings,
+            YamlConfigSettingsSource(settings_cls, yaml_file=config_path),
+        )
 
     @model_validator(mode="after")
     def resolve_and_validate_categories(self) -> Self:
         """Resolve triage categories and build label-to-category lookup."""
-        resolved = resolve_categories(self.triage_categories)
+        resolved = resolve_categories(self.triage.categories)
         object.__setattr__(self, "_resolved_categories", resolved)
         object.__setattr__(
             self, "_label_to_category", {r.label: r for r in resolved}
@@ -321,28 +383,22 @@ class MailroomSettings(BaseSettings):
 
     @property
     def label_to_category_mapping(self) -> dict[str, ResolvedCategory]:
-        """Return a mapping from triage label to its resolved category.
-
-        Used by the triage workflow to determine where to move emails
-        based on which label the user applied. Each ResolvedCategory
-        includes contact_group, destination_mailbox, and contact_type.
-        """
+        """Return a mapping from triage label to its resolved category."""
         return dict(self._label_to_category)
 
     @property
     def required_mailboxes(self) -> list[str]:
-        """Return all mailbox names that must exist at startup.
-
-        Includes Inbox, screener, error label, all triage labels, and all
-        unique destination mailboxes. Conditionally includes the warning
-        label when warnings are enabled.
-        """
-        mailboxes: set[str] = {"Inbox", self.screener_mailbox, self.label_mailroom_error}
+        """Return all mailbox names that must exist at startup."""
+        mailboxes: set[str] = {
+            "Inbox",
+            self.triage.screener_mailbox,
+            self.labels.mailroom_error,
+        }
         for c in self._resolved_categories:
             mailboxes.add(c.label)
             mailboxes.add(c.destination_mailbox)
-        if self.warnings_enabled:
-            mailboxes.add(self.label_mailroom_warning)
+        if self.labels.warnings_enabled:
+            mailboxes.add(self.labels.mailroom_warning)
         return sorted(mailboxes)
 
     @property
