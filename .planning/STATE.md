@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Push & Config
-status: unknown
-last_updated: "2026-03-01T21:13:42.392Z"
+status: phase-complete
+last_updated: "2026-03-01T22:29:20Z"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -18,23 +18,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 9.1.1: Helm chart migration with PodSecurity hardening
+**Current focus:** Phase 9.1.1 complete -- Helm chart migration with PodSecurity hardening
 
 ## Current Position
 
-Phase: 9.1.1 (Helm chart migration with PodSecurity hardening)
-Plan: 1 of 2 in current phase
-Status: Plan 01 complete -- Helm chart created
-Last activity: 2026-03-01 - Completed 09.1.1-01 Helm chart creation
+Phase: 9.1.1 (Helm chart migration with PodSecurity hardening) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: Phase complete -- all plans executed
+Last activity: 2026-03-01 - Completed 09.1.1-02 Migration cleanup and chart validation
 
-Progress: [██████████----------] 50% (1/2 plans in Phase 9.1.1)
+Progress: [████████████████████] 100% (2/2 plans in Phase 9.1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
+- Total plans completed: 31
 - Average duration: 3.3 min
-- Total execution time: ~1 hour 40 min
+- Total execution time: ~1 hour 42 min
 
 **By Phase:**
 
@@ -50,7 +50,7 @@ Progress: [██████████----------] 50% (1/2 plans in Phase 9.1
 | 07-setup-script | 4/4 | 13 min | 3.3 min |
 | 08-eventsource-push | 3/3 | 11 min | 3.7 min |
 | 09-tech-debt-cleanup | 2/2 | 7 min | 3.5 min |
-| 09.1.1-helm-chart-migration | 1/2 | 2 min | 2.0 min |
+| 09.1.1-helm-chart-migration | 2/2 | 4 min | 2.0 min |
 
 ## Accumulated Context
 
@@ -93,6 +93,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - [Phase 09.1.1]: Config.yaml content inline in values.yaml under config: key, rendered via toYaml in ConfigMap template
 - [Phase 09.1.1]: MAILROOM_CONFIG=/app/config.yaml set explicitly as env var in Helm templates (Dockerfile runtime has no WORKDIR)
 - [Phase 09.1.1]: Shared _helpers.tpl securityContext templates ensure Deployment and Job have identical PSS compliance
+- [Phase 09.1.1]: secrets: {} empty map in values.yaml instead of empty-string placeholders -- forces users to provide via secrets-values.yaml
+- [Phase 09.1.1]: | default "" | quote pattern in secret.yaml template -- nil-safe rendering when secrets not provided
 
 ### Pending Todos
 
@@ -103,9 +105,9 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 5. Sweep workflow: re-label archived emails by contact group membership (area: general) -- far-future idea, pluggable workflow
 6. ~~Create JMAP EventSource discovery script~~ (done: quick-4)
 7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone, research in .research/jmap-contacts/
-8. Migrate k8s manifests to Helm chart (area: deployment) -- learning exercise in helm/ ready to promote, also solves public/private config split
+8. ~~Migrate k8s manifests to Helm chart (area: deployment) -- learning exercise in helm/ ready to promote, also solves public/private config split~~ (done: Phase 09.1.1)
 9. ~~Migrate from env var config to config.yaml (area: config)~~ (done: Phase 09.1)
-10. Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart
+10. ~~Add PodSecurity securityContext to deployment (area: deployment) -- not blocking, just warnings on rollout restart~~ (done: Phase 09.1.1)
 11. Allow contact group reassignment via triage label (area: api) -- currently errors when contact is already in a different group
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
 13. ~~Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py~~ (done: quick-5)
@@ -128,5 +130,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 09.1.1-01-PLAN.md (Helm chart creation)
-Resume file: .planning/phases/09.1.1-helm-chart-migration-with-podsecurity-hardening/09.1.1-02-PLAN.md
+Stopped at: Completed 09.1.1-02-PLAN.md (Migration cleanup and chart validation) -- Phase 09.1.1 COMPLETE
+Resume file: N/A -- phase complete, no more plans

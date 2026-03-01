@@ -142,7 +142,7 @@ Plans:
 **Goal:** Convert plain k8s/ manifests into a Helm chart at helm/mailroom/ with Pod Security Standards (restricted level) hardening, a setup Job preflight check as a Helm hook, and secrets-values.yaml pattern for credentials
 **Requirements**: None (inserted phase, no formal requirement IDs)
 **Depends on:** Phase 9.1
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 09.1.1-01-PLAN.md -- Create complete Helm chart (Chart.yaml, values.yaml, _helpers.tpl, all templates, NOTES.txt)
