@@ -1,0 +1,14 @@
+Mailroom has been deployed to namespace {{ .Release.Namespace }}.
+
+{{- if not .Values.setup.apply }}
+The setup preflight check ran in dry-run mode.
+If it failed, either fix your config or re-deploy with:
+  helm upgrade {{ .Release.Name }} helm/mailroom/ -n {{ .Release.Namespace }} \
+    -f secrets-values.yaml --set setup.apply=true
+{{- else }}
+Setup ran in apply mode -- Fastmail resources have been provisioned.
+{{- end }}
+
+Check status:
+  kubectl get pods -n {{ .Release.Namespace }}
+  kubectl logs -n {{ .Release.Namespace }} deploy/{{ include "mailroom.fullname" . }}
