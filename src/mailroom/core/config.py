@@ -315,11 +315,7 @@ def _resolve_config_path() -> str:
             f"  cp config.yaml.example config.yaml",
             file=sys.stderr,
         )
-        raise SystemExit(
-            f"Config file not found: {path.resolve()}\n"
-            f"Copy config.yaml.example to config.yaml and edit it:\n"
-            f"  cp config.yaml.example config.yaml"
-        )
+        raise SystemExit(1)
     return str(path)
 
 

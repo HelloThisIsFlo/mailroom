@@ -184,16 +184,17 @@ class TestNameOnlyShorthand:
 class TestMissingConfigYAML:
     """Missing config.yaml fails fast with clear error."""
 
-    def test_missing_config_exits(self, monkeypatch, tmp_path):
-        """Missing config.yaml raises SystemExit with helpful message."""
+    def test_missing_config_exits(self, monkeypatch, tmp_path, capsys):
+        """Missing config.yaml raises SystemExit(1) with helpful stderr message."""
         monkeypatch.setenv("MAILROOM_CONFIG", str(tmp_path / "nonexistent.yaml"))
         monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
         with pytest.raises(SystemExit) as exc_info:
             MailroomSettings()
 
-        msg = str(exc_info.value)
-        assert "config.yaml.example" in msg
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "config.yaml.example" in captured.err
 
 
 class TestMAILROOM_CONFIG_Override:
