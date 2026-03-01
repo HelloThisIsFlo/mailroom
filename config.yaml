@@ -1,0 +1,23 @@
+polling:
+  interval: 60
+  debounce_seconds: 3
+
+triage:
+  screener_mailbox: Screener
+  categories:
+    - name: Imbox
+      destination_mailbox: Inbox
+    - Feed
+    - Paper Trail
+    - Jail
+    - name: Person
+      parent: Imbox
+      contact_type: person
+
+labels:
+  mailroom_error: "@MailroomError"
+  mailroom_warning: "@MailroomWarning"
+  warnings_enabled: true
+
+logging:
+  level: info

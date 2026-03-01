@@ -78,8 +78,8 @@ except ValueError as e:
 # Resolve all mailboxes the workflow needs
 all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     "Inbox",
-    settings.screener_mailbox,
-    settings.label_mailroom_error,
+    settings.triage.screener_mailbox,
+    settings.labels.mailroom_error,
     *settings.triage_labels,
     *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
@@ -136,12 +136,12 @@ for sender, labels in conflicted_senders.items():
     print(f"  {sender} -> {', '.join(sorted(labels))}")
 
 # Record which emails are in Screener before poll (for post-check)
-screener_id = mailbox_ids[settings.screener_mailbox]
+screener_id = mailbox_ids[settings.triage.screener_mailbox]
 pre_screener_emails = set(jmap.query_emails(screener_id))
 print(f"\nScreener has {len(pre_screener_emails)} total emails before poll.")
 
 # Record which emails already have @MailroomError before poll
-error_id = mailbox_ids[settings.label_mailroom_error]
+error_id = mailbox_ids[settings.labels.mailroom_error]
 pre_error_emails = set(jmap.query_emails(error_id))
 print(f"@MailroomError has {len(pre_error_emails)} emails before poll.")
 

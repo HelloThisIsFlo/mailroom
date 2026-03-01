@@ -77,8 +77,8 @@ except ValueError as e:
 # Resolve all mailboxes the workflow needs
 all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     "Inbox",
-    settings.screener_mailbox,
-    settings.label_mailroom_error,
+    settings.triage.screener_mailbox,
+    settings.labels.mailroom_error,
     *settings.triage_labels,
     *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
@@ -171,8 +171,8 @@ if membership:
     print(f"  WARNING: Contact also in {membership}. Test may be affected.")
 
 # Record pre-poll state
-screener_id = mailbox_ids[settings.screener_mailbox]
-error_id = mailbox_ids[settings.label_mailroom_error]
+screener_id = mailbox_ids[settings.triage.screener_mailbox]
+error_id = mailbox_ids[settings.labels.mailroom_error]
 pre_error_emails = set(jmap.query_emails(error_id))
 pre_screener_sender_emails = set(jmap.query_emails(screener_id, sender=test_sender))
 

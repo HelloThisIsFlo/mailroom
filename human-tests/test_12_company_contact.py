@@ -73,9 +73,9 @@ except ValueError as e:
 # Resolve all mailboxes the workflow needs
 all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     "Inbox",
-    settings.screener_mailbox,
-    settings.label_mailroom_error,
-    settings.label_mailroom_warning,
+    settings.triage.screener_mailbox,
+    settings.labels.mailroom_error,
+    settings.labels.mailroom_warning,
     *settings.triage_labels,
     *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
@@ -258,7 +258,7 @@ else:
     print(f"  @ToImbox label: removed (no emails with label) -- PASS")
 
 # Check emails swept from Screener
-screener_id = mailbox_ids[settings.screener_mailbox]
+screener_id = mailbox_ids[settings.triage.screener_mailbox]
 sender_in_screener = jmap.query_emails(screener_id, sender=test_sender)
 if sender_in_screener:
     jmap_failures.append(f"Sender still has {len(sender_in_screener)} email(s) in Screener")

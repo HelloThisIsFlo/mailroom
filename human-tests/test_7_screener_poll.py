@@ -69,8 +69,8 @@ except ValueError as e:
 # Resolve all mailboxes the workflow needs
 all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
     "Inbox",
-    settings.screener_mailbox,
-    settings.label_mailroom_error,
+    settings.triage.screener_mailbox,
+    settings.labels.mailroom_error,
     *settings.triage_labels,
     *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
 ]))
