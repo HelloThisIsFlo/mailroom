@@ -15,4 +15,6 @@ helm upgrade --install mailroom "$CHART_DIR" \
   -n mailroom \
   --create-namespace
 
+echo ""
+echo "Waiting for deployment to be healthy..."
 kubectl rollout status deployment/mailroom -n mailroom --timeout=120s
