@@ -12,4 +12,6 @@ fi
 
 helm upgrade --install mailroom "$CHART_DIR" \
   -f "$SECRETS_FILE" \
-  -n mailroom --create-namespace
+  -n mailroom \
+  --create-namespace \
+  --wait
