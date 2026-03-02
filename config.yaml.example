@@ -17,21 +17,29 @@ polling:
 # Each category derives:
 #   - label: @To{Name} (e.g., "Imbox" -> "@ToImbox")
 #   - contact_group: category name (e.g., "Feed")
-#   - destination_mailbox: category name, or inherited from parent
+#   - destination_mailbox: category name (e.g., "Feed")
+#
+# Children inherit NOTHING from parent -- they get their own label, group, mailbox.
+# Parent relationship = additive only: triage adds child + parent chain labels.
 #
 # Use string shorthand for simple categories: "- Feed" equals "- name: Feed"
-# Use dict form for overrides: "- name: Imbox\n  destination_mailbox: Inbox"
+# Use add_to_inbox: true to make emails appear in Inbox (default: false).
+# destination_mailbox: Inbox is NOT allowed -- use add_to_inbox instead.
 triage:
   screener_mailbox: Screener
   categories:
     - name: Imbox
-      destination_mailbox: Inbox
+      add_to_inbox: true
     - Feed
     - Paper Trail
     - Jail
     - name: Person
       parent: Imbox
       contact_type: person
+    - name: Billboard
+      parent: Paper Trail
+    - name: Truck
+      parent: Paper Trail
 
 # --- Error & Warning Labels ---
 labels:

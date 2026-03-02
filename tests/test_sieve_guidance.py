@@ -94,42 +94,45 @@ class TestGenerateGuidanceDefaultMode:
         """Imbox (add_to_inbox=True) rule has no archive action."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         lines = output.split("\n")
-        # Find the Imbox section and verify no Archive in it
+        # Find the Imbox rule section: starts at Imbox heading, ends at next category heading
         in_imbox = False
         imbox_lines: list[str] = []
         for line in lines:
-            if "Imbox" in line and "Condition" not in line and "Action" not in line:
+            if 'contact group "Imbox"' in line:
                 in_imbox = True
                 imbox_lines = [line]
                 continue
             if in_imbox:
+                # Stop at the next contact group condition (next category)
+                if "Sender is in contact group" in line and "Imbox" not in line:
+                    break
                 imbox_lines.append(line)
-                # Stop at next category or screener section
-                stripped = line.strip()
-                if stripped and not stripped.startswith(("Condition", "Action", "#", "1.", "2.", "3.", "(", "+")):
-                    # Check if this is a new category heading
-                    if "Sender is in contact group" not in line and "Add label" not in line and "Continue" not in line and "Archive" not in line and "No archive" not in line and "child of" not in line:
-                        break
         imbox_section = "\n".join(imbox_lines)
-        # Imbox section should mention "No archive" or not have "Archive" as an action
-        assert "Archive" not in imbox_section or "No archive" in imbox_section
+        # Imbox should NOT have "Archive" as an action step, but should have "No archive" comment
+        assert "No archive" in imbox_section
+        # Verify action lines don't include Archive step
+        action_lines = [l for l in imbox_lines if l.strip().startswith(("1.", "2.", "3."))]
+        for action_line in action_lines:
+            if "Archive" in action_line:
+                pytest.fail(f"Imbox should not have Archive action, but found: {action_line}")
 
     def test_standard_has_archive(self, settings) -> None:
         """Feed (standard, add_to_inbox=False) rule has archive action."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         lines = output.split("\n")
-        # Find Feed section and verify Archive is present
+        # Find Feed rule section by its condition line, then check subsequent lines
         in_feed = False
         feed_lines: list[str] = []
         for line in lines:
-            if "Feed" in line and "Condition" not in line:
+            if 'contact group "Feed"' in line:
                 in_feed = True
                 feed_lines = [line]
                 continue
             if in_feed:
-                feed_lines.append(line)
+                # Stop at the next contact group condition (next category)
                 if "Sender is in contact group" in line and "Feed" not in line:
                     break
+                feed_lines.append(line)
         feed_section = "\n".join(feed_lines)
         assert "Archive" in feed_section
 

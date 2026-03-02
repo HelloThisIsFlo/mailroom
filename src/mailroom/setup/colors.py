@@ -9,6 +9,9 @@ RED = "\033[31m"
 DIM = "\033[2m"
 RESET = "\033[0m"
 CYAN = "\033[36m"
+BLUE = "\033[34m"
+MAGENTA = "\033[35m"
+BOLD = "\033[1m"
 
 
 def use_color() -> bool:
