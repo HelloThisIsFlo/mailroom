@@ -50,14 +50,16 @@ class TestPollNoEmails:
 
     def test_queries_all_triage_labels(self, workflow, jmap):
         workflow.poll()
-        # Should query each of the 5 triage labels (including @ToPerson)
-        assert jmap.query_emails.call_count == 5
+        # Should query each of the 7 triage labels (v1.2 defaults)
+        assert jmap.query_emails.call_count == 7
         queried_ids = [c.args[0] for c in jmap.query_emails.call_args_list]
         assert "mb-toimbox" in queried_ids
         assert "mb-tofeed" in queried_ids
         assert "mb-topapertrl" in queried_ids
         assert "mb-tojail" in queried_ids
         assert "mb-toperson" in queried_ids
+        assert "mb-tobillboard" in queried_ids
+        assert "mb-totruck" in queried_ids
 
     def test_no_sender_lookup(self, workflow, jmap):
         workflow.poll()
@@ -523,10 +525,10 @@ class TestCollectTriagedFilterErrorLabel:
 class TestGetDestinationMailboxIds:
     """_get_destination_mailbox_ids maps triage labels to correct mailbox IDs."""
 
-    def test_imbox_maps_to_inbox(self, workflow):
-        """@ToImbox -> [inbox_id]: emails appear in Inbox."""
+    def test_imbox_maps_to_imbox(self, workflow):
+        """@ToImbox -> [imbox_id]: emails go to Imbox mailbox (v1.2: add_to_inbox handles Inbox)."""
         result = workflow._get_destination_mailbox_ids("@ToImbox")
-        assert result == ["mb-inbox"]
+        assert result == ["mb-imbox"]
 
     def test_feed_maps_to_feed(self, workflow):
         """@ToFeed -> [feed_id]: emails go to Feed mailbox."""
@@ -589,15 +591,15 @@ class TestProcessSenderNewContact:
             "mb-screener", sender="alice@example.com"
         )
 
-    def test_batch_move_called_with_inbox(self, workflow, jmap):
-        """batch_move_emails called: remove Screener, add Inbox for Imbox destination."""
+    def test_batch_move_called_with_imbox(self, workflow, jmap):
+        """batch_move_emails called: remove Screener, add Imbox for Imbox destination."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
         jmap.batch_move_emails.assert_called_once_with(
             ["email-1", "email-2", "email-3"],
             "mb-screener",
-            ["mb-inbox"],
+            ["mb-imbox"],
         )
 
     def test_triage_label_removed_last(self, workflow, jmap):
@@ -747,7 +749,7 @@ class TestProcessSenderMultipleTriggering:
         jmap.batch_move_emails.assert_called_once_with(
             [f"email-{i}" for i in range(1, 11)],
             "mb-screener",
-            ["mb-inbox"],
+            ["mb-imbox"],
         )
 
     def test_only_triggering_get_remove_label(self, workflow, jmap):
@@ -1322,7 +1324,7 @@ class TestContactTypePassthroughToPerson:
         carddav.upsert_contact.return_value = {
             "action": "created",
             "uid": "ct-person-uid",
-            "group": "Imbox",
+            "group": "Person",
             "name_mismatch": False,
         }
 
@@ -1342,7 +1344,7 @@ class TestContactTypePassthroughToPerson:
             {"alice@example.com": "Alice Person"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Person", "Imbox", contact_type="person"
+            "alice@example.com", "Alice Person", "Person", contact_type="person"
         )
 
 
@@ -1444,7 +1446,7 @@ class TestToPersonRoutingPoll:
         carddav.upsert_contact.return_value = {
             "action": "created",
             "uid": "person-poll-uid",
-            "group": "Imbox",
+            "group": "Person",
             "name_mismatch": False,
         }
 
@@ -1457,16 +1459,16 @@ class TestToPersonRoutingPoll:
         """upsert_contact called with contact_type='person' for @ToPerson."""
         workflow.poll()
         carddav.upsert_contact.assert_called_once_with(
-            "person@example.com", "Jane Doe", "Imbox", contact_type="person"
+            "person@example.com", "Jane Doe", "Person", contact_type="person"
         )
 
-    def test_sweep_to_inbox(self, workflow, jmap):
-        """Sweep moves emails to Inbox (same as @ToImbox destination)."""
+    def test_sweep_to_person_mailbox(self, workflow, jmap):
+        """Sweep moves emails to Person mailbox (v1.2: independent child)."""
         workflow.poll()
         jmap.batch_move_emails.assert_called_once_with(
             ["email-1"],
             "mb-screener",
-            ["mb-inbox"],
+            ["mb-person"],
         )
 
     def test_triage_label_removed(self, workflow, jmap):
@@ -1475,8 +1477,8 @@ class TestToPersonRoutingPoll:
         jmap.remove_label.assert_called_once_with("email-1", "mb-toperson")
 
 
-class TestToPersonRoutesImboxGroup:
-    """@ToPerson routes to Imbox contact group (same as @ToImbox)."""
+class TestToPersonRoutesPersonGroup:
+    """@ToPerson routes to Person contact group (v1.2: independent child)."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -1484,7 +1486,7 @@ class TestToPersonRoutesImboxGroup:
         carddav.upsert_contact.return_value = {
             "action": "created",
             "uid": "person-group-uid",
-            "group": "Imbox",
+            "group": "Person",
             "name_mismatch": False,
         }
 
@@ -1496,16 +1498,16 @@ class TestToPersonRoutesImboxGroup:
 
         jmap.query_emails.side_effect = query_side_effect
 
-    def test_routes_to_imbox_group(self, workflow, carddav):
-        """@ToPerson upsert_contact uses 'Imbox' group."""
+    def test_routes_to_person_group(self, workflow, carddav):
+        """@ToPerson upsert_contact uses 'Person' group (v1.2: independent)."""
         workflow._process_sender(
             "person@example.com",
             [("email-1", "@ToPerson")],
             {"person@example.com": "Jane Doe"},
         )
-        # The group argument (3rd positional) is "Imbox"
+        # The group argument (3rd positional) is "Person"
         args, kwargs = carddav.upsert_contact.call_args
-        assert args[2] == "Imbox"
+        assert args[2] == "Person"
 
 
 class TestToPersonConflictWithToImbox:
@@ -1844,12 +1846,12 @@ class TestWarningAppliedToTriggeringEmailsOnly:
 
 
 class TestToPersonDestinationMailbox:
-    """@ToPerson maps to Inbox destination (same as @ToImbox)."""
+    """@ToPerson maps to Person mailbox (v1.2: independent child)."""
 
-    def test_toperson_maps_to_inbox(self, workflow):
-        """@ToPerson -> [inbox_id]: same destination as @ToImbox."""
+    def test_toperson_maps_to_person(self, workflow):
+        """@ToPerson -> [person_id]: own destination mailbox (v1.2: independent)."""
         result = workflow._get_destination_mailbox_ids("@ToPerson")
-        assert result == ["mb-inbox"]
+        assert result == ["mb-person"]
 
 
 # =============================================================================

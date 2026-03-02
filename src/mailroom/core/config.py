@@ -14,7 +14,7 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, Settings
 
 
 # ---------------------------------------------------------------------------
-# Phase 6: Configurable triage category models (unchanged)
+# Phase 6 / Phase 11: Configurable triage category models
 # ---------------------------------------------------------------------------
 
 
@@ -31,6 +31,7 @@ class TriageCategory(BaseModel):
     destination_mailbox: str | None = None
     contact_type: Literal["company", "person"] = "company"
     parent: str | None = None
+    add_to_inbox: bool = False
 
     @field_validator("name")
     @classmethod
@@ -52,6 +53,7 @@ class ResolvedCategory:
     destination_mailbox: str
     contact_type: str
     parent: str | None
+    add_to_inbox: bool
 
 
 # -- Derivation helpers -----------------------------------------------------
@@ -76,16 +78,18 @@ def derive_destination_mailbox(name: str) -> str:
 
 
 def _default_categories() -> list[TriageCategory]:
-    """Return the v1.0 default categories.
+    """Return the v1.2 default categories.
 
     Used when triage.categories is not set in config.yaml.
     """
     return [
-        TriageCategory(name="Imbox", destination_mailbox="Inbox"),
+        TriageCategory(name="Imbox", add_to_inbox=True),
         TriageCategory(name="Feed"),
         TriageCategory(name="Paper Trail"),
         TriageCategory(name="Jail"),
         TriageCategory(name="Person", parent="Imbox", contact_type="person"),
+        TriageCategory(name="Billboard", parent="Paper Trail"),
+        TriageCategory(name="Truck", parent="Paper Trail"),
     ]
 
 
@@ -102,6 +106,7 @@ def _validate_categories(categories: list[TriageCategory]) -> list[str]:
       - No circular parent chains (including self-reference)
       - No duplicate labels after derivation
       - No shared contact groups unless related via parent
+      - No destination_mailbox resolving to "Inbox" (use add_to_inbox instead)
     """
     errors: list[str] = []
 
@@ -178,6 +183,19 @@ def _validate_categories(categories: list[TriageCategory]) -> list[str]:
                             f"'{group}' without a parent relationship"
                         )
 
+    # 7. destination_mailbox must not resolve to "Inbox" (CFG-02)
+    for cat in categories:
+        resolved_mailbox = (
+            cat.destination_mailbox
+            if cat.destination_mailbox is not None
+            else derive_destination_mailbox(cat.name)
+        )
+        if resolved_mailbox == "Inbox":
+            errors.append(
+                f"Category '{cat.name}' has destination_mailbox: Inbox. "
+                f"Use add_to_inbox: true instead to make emails appear in Inbox."
+            )
+
     return errors
 
 
@@ -187,10 +205,10 @@ def resolve_categories(
     """Resolve a list of user-provided categories into fully concrete objects.
 
     Validates all constraints first (collecting all errors), then performs
-    two-pass resolution:
-      1. Derive missing fields from the category name.
-      2. Apply parent inheritance (children inherit parent's contact_group
-         and destination_mailbox unless explicitly overridden).
+    single-pass resolution: each category derives all fields from its own
+    name (or explicit overrides). No parent field inheritance -- children
+    are independent with their own label, contact_group, and
+    destination_mailbox.
 
     Raises ``ValueError`` with all validation errors if any are found.
     """
@@ -206,55 +224,43 @@ def resolve_categories(
             + f"\n\nDefault configuration for reference:\n{default_json}"
         )
 
-    # First pass: resolve own fields
-    first_pass: dict[str, ResolvedCategory] = {}
+    # Single pass: derive all fields from own name (or explicit overrides)
+    resolved: list[ResolvedCategory] = []
     for cat in categories:
-        first_pass[cat.name] = ResolvedCategory(
-            name=cat.name,
-            label=cat.label if cat.label is not None else derive_label(cat.name),
-            contact_group=(
-                cat.contact_group
-                if cat.contact_group is not None
-                else derive_contact_group(cat.name)
-            ),
-            destination_mailbox=(
-                cat.destination_mailbox
-                if cat.destination_mailbox is not None
-                else derive_destination_mailbox(cat.name)
-            ),
-            contact_type=cat.contact_type,
-            parent=cat.parent,
+        resolved.append(
+            ResolvedCategory(
+                name=cat.name,
+                label=cat.label if cat.label is not None else derive_label(cat.name),
+                contact_group=(
+                    cat.contact_group
+                    if cat.contact_group is not None
+                    else derive_contact_group(cat.name)
+                ),
+                destination_mailbox=(
+                    cat.destination_mailbox
+                    if cat.destination_mailbox is not None
+                    else derive_destination_mailbox(cat.name)
+                ),
+                contact_type=cat.contact_type,
+                parent=cat.parent,
+                add_to_inbox=cat.add_to_inbox,
+            )
         )
 
-    # Second pass: apply parent inheritance
-    originals = {cat.name: cat for cat in categories}
-    resolved: list[ResolvedCategory] = []
-
-    for cat in categories:
-        r = first_pass[cat.name]
-        if cat.parent and cat.parent in first_pass:
-            parent_resolved = first_pass[cat.parent]
-            new_group = r.contact_group
-            new_mailbox = r.destination_mailbox
-
-            if originals[cat.name].contact_group is None:
-                new_group = parent_resolved.contact_group
-
-            if originals[cat.name].destination_mailbox is None:
-                new_mailbox = parent_resolved.destination_mailbox
-
-            r = ResolvedCategory(
-                name=r.name,
-                label=r.label,
-                contact_group=new_group,
-                destination_mailbox=new_mailbox,
-                contact_type=r.contact_type,
-                parent=r.parent,
-            )
-
-        resolved.append(r)
-
     return resolved
+
+
+def get_parent_chain(
+    category_name: str,
+    resolved_map: dict[str, ResolvedCategory],
+) -> list[ResolvedCategory]:
+    """Return [self, parent, grandparent, ...] chain for a category."""
+    chain: list[ResolvedCategory] = []
+    current = resolved_map.get(category_name)
+    while current:
+        chain.append(current)
+        current = resolved_map.get(current.parent) if current.parent else None
+    return chain
 
 
 # ---------------------------------------------------------------------------

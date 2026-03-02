@@ -32,10 +32,10 @@ class TestGenerateGuidanceDefaultMode:
         assert 'Move to folder "Feed"' in output
 
     def test_imbox_category(self, settings) -> None:
-        """Imbox category shows action mentioning Inbox (destination_mailbox)."""
+        """Imbox category shows action mentioning Imbox mailbox (v1.2: own derived name)."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert 'Sender is in contact group "Imbox"' in output
-        assert 'Move to folder "Inbox"' in output
+        assert 'Move to folder "Imbox"' in output
 
     def test_paper_trail_category(self, settings) -> None:
         """Paper Trail category is present."""
@@ -130,7 +130,7 @@ class TestGenerateGuidanceCustomCategories:
             "triage:\n"
             "  categories:\n"
             "    - name: Imbox\n"
-            "      destination_mailbox: Inbox\n"
+            "      add_to_inbox: true\n"
             "    - Feed\n"
             "    - Paper Trail\n"
             "    - Jail\n"
@@ -183,64 +183,87 @@ class TestGenerateGuidanceCustomCategories:
 
 
 class TestOverrideHighlighting:
-    """Tests for override name highlighting in sieve guidance output."""
+    """Tests for override name highlighting in sieve guidance output.
 
-    def test_override_name_not_colored_when_not_tty(self, settings) -> None:
+    Uses a custom settings fixture with an explicit destination_mailbox
+    override (Feed -> CustomBox) to test the highlighting feature.
+    """
+
+    @pytest.fixture
+    def override_settings(self, monkeypatch, tmp_path):
+        """Settings with a destination_mailbox override for testing highlighting."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "triage:\n"
+            "  categories:\n"
+            "    - name: Imbox\n"
+            "      add_to_inbox: true\n"
+            "    - name: Feed\n"
+            "      destination_mailbox: CustomBox\n"
+            "    - Paper Trail\n"
+            "    - Jail\n"
+        )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token")
+        monkeypatch.setenv("MAILROOM_CARDDAV_USERNAME", "test")
+        monkeypatch.setenv("MAILROOM_CARDDAV_PASSWORD", "test")
+        return MailroomSettings()
+
+    def test_override_name_not_colored_when_not_tty(self, override_settings) -> None:
         """Override names have no ANSI codes when stdout is not a TTY."""
-        output = generate_sieve_guidance(settings, ui_guide=True)
+        output = generate_sieve_guidance(override_settings, ui_guide=True)
         # Non-TTY: no ANSI escape codes anywhere
         assert "\033[" not in output
-        # But the override name "Inbox" is still present
-        assert "Inbox" in output
+        # But the override name "CustomBox" is still present
+        assert "CustomBox" in output
 
-    def test_override_detected_for_imbox(self, settings) -> None:
-        """Imbox category shows Inbox (destination_mailbox override) in output."""
-        output = generate_sieve_guidance(settings, ui_guide=True)
-        assert 'Move to folder" = "Inbox"' in output
+    def test_override_detected_for_feed(self, override_settings) -> None:
+        """Feed category shows CustomBox (destination_mailbox override) in output."""
+        output = generate_sieve_guidance(override_settings, ui_guide=True)
+        assert 'Move to folder" = "CustomBox"' in output
 
-    def test_override_in_sieve_snippets(self, settings) -> None:
-        """Imbox override name appears in sieve snippet mode too."""
-        output = generate_sieve_guidance(settings, ui_guide=False)
-        assert 'Move to folder "Inbox"' in output
-        assert 'fileinto "INBOX.Inbox"' in output
+    def test_override_in_sieve_snippets(self, override_settings) -> None:
+        """Override name appears in sieve snippet mode too."""
+        output = generate_sieve_guidance(override_settings, ui_guide=False)
+        assert 'Move to folder "CustomBox"' in output
+        assert 'fileinto "INBOX.CustomBox"' in output
 
-    def test_matching_name_not_marked_as_override(self, settings) -> None:
-        """Feed category (name=Feed, destination_mailbox=Feed) has no ANSI codes."""
-        output = generate_sieve_guidance(settings, ui_guide=True)
-        # Non-TTY so no codes at all, but specifically check Feed section
+    def test_matching_name_not_marked_as_override(self, override_settings) -> None:
+        """Imbox category (name=Imbox, destination_mailbox=Imbox) has no ANSI codes."""
+        output = generate_sieve_guidance(override_settings, ui_guide=True)
+        # Non-TTY so no codes at all
         assert "\033[" not in output
-        assert 'Move to folder" = "Feed"' in output
+        assert 'Move to folder" = "Imbox"' in output
 
-    def test_override_name_colored_when_tty(self, settings, monkeypatch) -> None:
+    def test_override_name_colored_when_tty(self, override_settings, monkeypatch) -> None:
         """Override names get ANSI color when stdout is a TTY."""
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
         monkeypatch.delenv("NO_COLOR", raising=False)
-        output = generate_sieve_guidance(settings, ui_guide=True)
-        # Should contain ANSI cyan around "Inbox" (override of Imbox)
+        output = generate_sieve_guidance(override_settings, ui_guide=True)
+        # Should contain ANSI cyan around "CustomBox" (override of Feed)
         assert "\033[36m" in output  # cyan code present
-        assert "Inbox" in output
+        assert "CustomBox" in output
 
-    def test_no_color_for_matching_name_when_tty(self, settings, monkeypatch) -> None:
+    def test_no_color_for_matching_name_when_tty(self, override_settings, monkeypatch) -> None:
         """Non-override names are NOT wrapped in ANSI color even when TTY."""
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
         monkeypatch.delenv("NO_COLOR", raising=False)
-        output = generate_sieve_guidance(settings, ui_guide=True)
-        # Feed's destination_mailbox matches its name, so no cyan wrapping
-        # Find the Feed section line and ensure no cyan around "Feed"
+        output = generate_sieve_guidance(override_settings, ui_guide=True)
+        # Imbox's destination_mailbox matches its name, so no cyan wrapping
         lines = output.split("\n")
-        feed_folder_lines = [
+        imbox_folder_lines = [
             line for line in lines
-            if "Move to folder" in line and "Feed" in line
+            if "Move to folder" in line and "Imbox" in line
         ]
-        assert len(feed_folder_lines) == 1
-        # The Feed folder name should NOT be wrapped in cyan
-        assert "\033[36mFeed\033[0m" not in feed_folder_lines[0]
+        assert len(imbox_folder_lines) == 1
+        # The Imbox folder name should NOT be wrapped in cyan
+        assert "\033[36mImbox\033[0m" not in imbox_folder_lines[0]
 
-    def test_override_color_in_sieve_snippets_when_tty(self, settings, monkeypatch) -> None:
+    def test_override_color_in_sieve_snippets_when_tty(self, override_settings, monkeypatch) -> None:
         """Override names are colored in sieve snippet mode when TTY."""
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
         monkeypatch.delenv("NO_COLOR", raising=False)
-        output = generate_sieve_guidance(settings, ui_guide=False)
-        # Cyan should appear for Inbox override
+        output = generate_sieve_guidance(override_settings, ui_guide=False)
+        # Cyan should appear for CustomBox override
         assert "\033[36m" in output
-        assert "Inbox" in output
+        assert "CustomBox" in output
