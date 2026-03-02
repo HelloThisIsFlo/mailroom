@@ -14,8 +14,10 @@ Prerequisites:
 """
 
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.error import URLError
@@ -91,15 +93,19 @@ for key in ENV_KEYS:
         print(f"  WARNING: {key} not set in environment")
     env_flags.extend(["-e", f"{key}={value}"])
 
-# Override poll interval for faster test cycles
-env_flags.extend(["-e", "MAILROOM_POLL_INTERVAL=30"])
-# Set log level to debug for visibility
-env_flags.extend(["-e", "MAILROOM_LOG_LEVEL=debug"])
+# Create a temp config.yaml with poll interval and log level overrides
+# (these are YAML-only settings, not env vars -- see config.py)
+config_tmp_dir = tempfile.mkdtemp(prefix="mailroom-test-")
+config_file = os.path.join(config_tmp_dir, "config.yaml")
+with open(config_file, "w") as f:
+    f.write("polling:\n  interval: 30\nlogging:\n  level: debug\n")
 
 result = run_docker([
     "run", "-d",
     "--name", CONTAINER_NAME,
     "-p", "8080:8080",
+    "-v", f"{config_file}:/app/config.yaml:ro",
+    "-e", "MAILROOM_CONFIG=/app/config.yaml",
     *env_flags,
     IMAGE_TAG,
 ])
@@ -241,7 +247,8 @@ print("\n  --- STEP 5 PASS ---\n")
 # === Cleanup ===
 print("=== Cleanup ===\n")
 cleanup()
-print("  Container removed.\n")
+shutil.rmtree(config_tmp_dir, ignore_errors=True)
+print("  Container and temp config removed.\n")
 
 
 # === Report ===

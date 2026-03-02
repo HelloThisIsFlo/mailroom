@@ -21,14 +21,6 @@ def _set_config_path(monkeypatch, tmp_path):
         "MAILROOM_JMAP_TOKEN",
         "MAILROOM_CARDDAV_USERNAME",
         "MAILROOM_CARDDAV_PASSWORD",
-        "MAILROOM_POLL_INTERVAL",
-        "MAILROOM_LOG_LEVEL",
-        "MAILROOM_SCREENER_MAILBOX",
-        "MAILROOM_TRIAGE_CATEGORIES",
-        "MAILROOM_DEBOUNCE_SECONDS",
-        "MAILROOM_LABEL_MAILROOM_ERROR",
-        "MAILROOM_LABEL_MAILROOM_WARNING",
-        "MAILROOM_WARNINGS_ENABLED",
     ]:
         monkeypatch.delenv(var, raising=False)
     config = tmp_path / "config.yaml"
