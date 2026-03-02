@@ -523,27 +523,47 @@ class TestCollectTriagedFilterErrorLabel:
 
 
 class TestGetDestinationMailboxIds:
-    """_get_destination_mailbox_ids maps triage labels to correct mailbox IDs."""
+    """_get_destination_mailbox_ids maps triage labels to correct mailbox IDs (additive chain)."""
 
-    def test_imbox_maps_to_imbox(self, workflow):
-        """@ToImbox -> [imbox_id]: emails go to Imbox mailbox (v1.2: add_to_inbox handles Inbox)."""
+    def test_imbox_maps_to_imbox_plus_inbox(self, workflow):
+        """@ToImbox -> [mb-imbox, mb-inbox]: Imbox mailbox + Inbox (add_to_inbox=True)."""
         result = workflow._get_destination_mailbox_ids("@ToImbox")
-        assert result == ["mb-imbox"]
+        assert result == ["mb-imbox", "mb-inbox"]
 
     def test_feed_maps_to_feed(self, workflow):
-        """@ToFeed -> [feed_id]: emails go to Feed mailbox."""
+        """@ToFeed -> [feed_id]: root, no parent, no add_to_inbox."""
         result = workflow._get_destination_mailbox_ids("@ToFeed")
         assert result == ["mb-feed"]
 
     def test_paper_trail_maps_to_paper_trail(self, workflow):
-        """@ToPaperTrail -> [paper_trail_id]: emails go to Paper Trail mailbox."""
+        """@ToPaperTrail -> [paper_trail_id]: root, no parent, no add_to_inbox."""
         result = workflow._get_destination_mailbox_ids("@ToPaperTrail")
         assert result == ["mb-papertrl"]
 
     def test_jail_maps_to_jail(self, workflow):
-        """@ToJail -> [jail_id]: emails go to Jail mailbox."""
+        """@ToJail -> [jail_id]: root, no parent, no add_to_inbox."""
         result = workflow._get_destination_mailbox_ids("@ToJail")
         assert result == ["mb-jail"]
+
+    def test_person_maps_to_person_plus_imbox(self, workflow):
+        """@ToPerson -> [mb-person, mb-imbox]: child + parent (additive chain)."""
+        result = workflow._get_destination_mailbox_ids("@ToPerson")
+        assert result == ["mb-person", "mb-imbox"]
+
+    def test_billboard_maps_to_billboard_plus_paper_trail(self, workflow):
+        """@ToBillboard -> [mb-billboard, mb-papertrl]: child + parent (additive chain)."""
+        result = workflow._get_destination_mailbox_ids("@ToBillboard")
+        assert result == ["mb-billboard", "mb-papertrl"]
+
+    def test_truck_maps_to_truck_plus_paper_trail(self, workflow):
+        """@ToTruck -> [mb-truck, mb-papertrl]: child + parent (additive chain)."""
+        result = workflow._get_destination_mailbox_ids("@ToTruck")
+        assert result == ["mb-truck", "mb-papertrl"]
+
+    def test_person_does_not_include_inbox(self, workflow):
+        """@ToPerson does NOT include Inbox -- add_to_inbox does NOT propagate from Imbox."""
+        result = workflow._get_destination_mailbox_ids("@ToPerson")
+        assert "mb-inbox" not in result
 
 
 class TestProcessSenderNewContact:
@@ -591,15 +611,15 @@ class TestProcessSenderNewContact:
             "mb-screener", sender="alice@example.com"
         )
 
-    def test_batch_move_called_with_imbox(self, workflow, jmap):
-        """batch_move_emails called: remove Screener, add Imbox for Imbox destination."""
+    def test_batch_move_called_with_imbox_plus_inbox(self, workflow, jmap):
+        """batch_move_emails called: remove Screener, add [Imbox, Inbox] (add_to_inbox=True)."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
         jmap.batch_move_emails.assert_called_once_with(
             ["email-1", "email-2", "email-3"],
             "mb-screener",
-            ["mb-imbox"],
+            ["mb-imbox", "mb-inbox"],
         )
 
     def test_triage_label_removed_last(self, workflow, jmap):
@@ -743,13 +763,13 @@ class TestProcessSenderMultipleTriggering:
         jmap.query_emails.side_effect = query_side_effect
 
     def test_all_swept(self, workflow, jmap):
-        """All 10 Screener emails from sender are swept."""
+        """All 10 Screener emails from sender are swept to additive chain."""
         triggering = [(f"email-{i}", "@ToImbox") for i in range(1, 6)]
         workflow._process_sender("alice@example.com", triggering)
         jmap.batch_move_emails.assert_called_once_with(
             [f"email-{i}" for i in range(1, 11)],
             "mb-screener",
-            ["mb-imbox"],
+            ["mb-imbox", "mb-inbox"],
         )
 
     def test_only_triggering_get_remove_label(self, workflow, jmap):
@@ -1462,13 +1482,13 @@ class TestToPersonRoutingPoll:
             "person@example.com", "Jane Doe", "Person", contact_type="person"
         )
 
-    def test_sweep_to_person_mailbox(self, workflow, jmap):
-        """Sweep moves emails to Person mailbox (v1.2: independent child)."""
+    def test_sweep_to_person_plus_imbox(self, workflow, jmap):
+        """Sweep moves emails to Person + Imbox mailboxes (additive chain)."""
         workflow.poll()
         jmap.batch_move_emails.assert_called_once_with(
             ["email-1"],
             "mb-screener",
-            ["mb-person"],
+            ["mb-person", "mb-imbox"],
         )
 
     def test_triage_label_removed(self, workflow, jmap):
@@ -1846,12 +1866,169 @@ class TestWarningAppliedToTriggeringEmailsOnly:
 
 
 class TestToPersonDestinationMailbox:
-    """@ToPerson maps to Person mailbox (v1.2: independent child)."""
+    """@ToPerson maps to Person + Imbox mailboxes (additive chain)."""
 
-    def test_toperson_maps_to_person(self, workflow):
-        """@ToPerson -> [person_id]: own destination mailbox (v1.2: independent)."""
+    def test_toperson_maps_to_person_plus_imbox(self, workflow):
+        """@ToPerson -> [mb-person, mb-imbox]: child + parent (additive chain)."""
         result = workflow._get_destination_mailbox_ids("@ToPerson")
-        assert result == ["mb-person"]
+        assert result == ["mb-person", "mb-imbox"]
+
+
+# =============================================================================
+# Plan 11-02: Additive parent chain tests
+# =============================================================================
+
+
+class TestAdditiveContactGroups:
+    """_process_sender adds contact to all ancestor groups via add_to_group."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender:
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_person_adds_to_imbox_group(self, workflow, carddav):
+        """Person triage: upsert_contact with 'Person', then add_to_group with 'Imbox'."""
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "person-uid-1",
+            "group": "Person",
+            "name_mismatch": False,
+        }
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToPerson")],
+            {"alice@example.com": "Alice"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", "Alice", "Person", contact_type="person"
+        )
+        carddav.add_to_group.assert_called_once_with("Imbox", "person-uid-1")
+
+    def test_billboard_adds_to_paper_trail_group(self, workflow, carddav):
+        """Billboard triage: upsert with 'Billboard', then add_to_group with 'Paper Trail'."""
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "bb-uid-1",
+            "group": "Billboard",
+            "name_mismatch": False,
+        }
+        workflow._process_sender(
+            "promo@example.com",
+            [("email-1", "@ToBillboard")],
+            {"promo@example.com": "Promo Sender"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "promo@example.com", "Promo Sender", "Billboard", contact_type="company"
+        )
+        carddav.add_to_group.assert_called_once_with("Paper Trail", "bb-uid-1")
+
+    def test_truck_adds_to_paper_trail_group(self, workflow, carddav):
+        """Truck triage: upsert with 'Truck', then add_to_group with 'Paper Trail'."""
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "truck-uid-1",
+            "group": "Truck",
+            "name_mismatch": False,
+        }
+        workflow._process_sender(
+            "shipping@example.com",
+            [("email-1", "@ToTruck")],
+            {"shipping@example.com": "Shipping Co"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "shipping@example.com", "Shipping Co", "Truck", contact_type="company"
+        )
+        carddav.add_to_group.assert_called_once_with("Paper Trail", "truck-uid-1")
+
+    def test_root_feed_no_add_to_group(self, workflow, carddav):
+        """Feed (root) triage: upsert called, NO add_to_group (no ancestors)."""
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "feed-uid-1",
+            "group": "Feed",
+            "name_mismatch": False,
+        }
+        workflow._process_sender(
+            "feed@example.com",
+            [("email-1", "@ToFeed")],
+            {"feed@example.com": "Feed Sender"},
+        )
+        carddav.upsert_contact.assert_called_once()
+        carddav.add_to_group.assert_not_called()
+
+    def test_root_imbox_no_add_to_group(self, workflow, carddav):
+        """Imbox (root) triage: upsert called, NO add_to_group (no ancestors)."""
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "imbox-uid-1",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice"},
+        )
+        carddav.upsert_contact.assert_called_once()
+        carddav.add_to_group.assert_not_called()
+
+
+class TestAddToInboxNotInherited:
+    """Person triage does NOT add Inbox even though Imbox has add_to_inbox=True."""
+
+    def test_person_no_inbox(self, workflow):
+        """Person destination list does NOT include Inbox (add_to_inbox not inherited)."""
+        result = workflow._get_destination_mailbox_ids("@ToPerson")
+        assert "mb-inbox" not in result
+        assert result == ["mb-person", "mb-imbox"]
+
+    def test_billboard_no_inbox(self, workflow):
+        """Billboard destination list does NOT include Inbox (Paper Trail has no add_to_inbox)."""
+        result = workflow._get_destination_mailbox_ids("@ToBillboard")
+        assert "mb-inbox" not in result
+        assert result == ["mb-billboard", "mb-papertrl"]
+
+    def test_truck_no_inbox(self, workflow):
+        """Truck destination list does NOT include Inbox (Paper Trail has no add_to_inbox)."""
+        result = workflow._get_destination_mailbox_ids("@ToTruck")
+        assert "mb-inbox" not in result
+        assert result == ["mb-truck", "mb-papertrl"]
+
+
+class TestRootCategoryAddToInbox:
+    """Imbox triage adds Inbox via add_to_inbox flag."""
+
+    def test_imbox_adds_inbox(self, workflow):
+        """Imbox destination includes Inbox because add_to_inbox=True."""
+        result = workflow._get_destination_mailbox_ids("@ToImbox")
+        assert "mb-inbox" in result
+        assert result == ["mb-imbox", "mb-inbox"]
+
+    def test_feed_no_inbox(self, workflow):
+        """Feed destination does NOT include Inbox (add_to_inbox=False)."""
+        result = workflow._get_destination_mailbox_ids("@ToFeed")
+        assert "mb-inbox" not in result
+        assert result == ["mb-feed"]
+
+    def test_paper_trail_no_inbox(self, workflow):
+        """Paper Trail destination does NOT include Inbox (add_to_inbox=False)."""
+        result = workflow._get_destination_mailbox_ids("@ToPaperTrail")
+        assert "mb-inbox" not in result
+        assert result == ["mb-papertrl"]
+
+    def test_jail_no_inbox(self, workflow):
+        """Jail destination does NOT include Inbox (add_to_inbox=False)."""
+        result = workflow._get_destination_mailbox_ids("@ToJail")
+        assert "mb-inbox" not in result
+        assert result == ["mb-jail"]
 
 
 # =============================================================================
