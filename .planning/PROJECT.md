@@ -2,20 +2,11 @@
 
 ## What This Is
 
-A background Python service that replicates HEY Mail's Screener workflow on Fastmail. Users triage unknown senders by applying a label on their phone (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`, `@ToPerson`), and Mailroom automatically adds the sender to the right Fastmail contact group, sweeps all their emails out of the Screener, and ensures future emails are routed correctly by existing Fastmail rules. Supports both company and person contact types. Built for one user migrating from HEY to Fastmail.
+A background Python service that replicates HEY Mail's Screener workflow on Fastmail. Users triage unknown senders by applying a label on their phone (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`, `@ToPerson`), and Mailroom automatically adds the sender to the right Fastmail contact group, sweeps all their emails out of the Screener, and ensures future emails are routed correctly by existing Fastmail rules. Supports both company and person contact types. Triage categories are fully configurable via YAML, with an idempotent setup CLI that provisions Fastmail resources. Push notifications via JMAP EventSource deliver sub-10-second triage latency with polling fallback. Deployed as a Helm chart on Kubernetes. Built for one user migrating from HEY to Fastmail.
 
 ## Core Value
 
 One label tap on a phone triages an entire sender — all their backlogged emails move to the right place, and all future emails are auto-routed.
-
-## Current Milestone: v1.1 Push & Config
-
-**Goal:** Replace polling with push notifications, make triage categories user-configurable, and add automated Fastmail setup.
-
-**Target features:**
-- Replace polling with JMAP EventSource push notifications (SSE with debounce, polling fallback)
-- Make triage label/group/inbox mappings user-configurable (not hardcoded in config defaults)
-- Setup script that provisions required labels and contact groups on Fastmail automatically
 
 ## Requirements
 
@@ -36,12 +27,21 @@ One label tap on a phone triages an entire sender — all their backlogged email
 - ✓ Person/company contact types via @ToPerson label — v1.0 (bonus)
 - ✓ Sender display name preservation when creating contacts — v1.0 (bonus, originally v2)
 - ✓ Health/liveness probe for k8s restart on hang — v1.0 (bonus, originally v2)
+- ✓ Triage categories configurable via structured YAML config with zero-config defaults — v1.1
+- ✓ All derived properties (labels, groups, mailboxes) computed from category mapping — v1.1
+- ✓ Startup validation rejects invalid category configurations — v1.1
+- ✓ Setup script provisions mailboxes and contact groups on Fastmail with dry-run safety — v1.1
+- ✓ Setup script outputs sieve rule guidance for manual email routing configuration — v1.1
+- ✓ JMAP EventSource push with sub-10-second triage latency — v1.1
+- ✓ Auto-reconnect with exponential backoff on SSE disconnect — v1.1
+- ✓ Polling fallback when SSE unavailable — v1.1
+- ✓ Health endpoint reports EventSource status and thread liveness — v1.1
+- ✓ Config.yaml replaces env vars for non-secret settings — v1.1 (inserted)
+- ✓ Helm chart deployment with secrets-values.yaml pattern — v1.1 (inserted)
 
 ### Active
 
-- [ ] Replace polling with JMAP EventSource push (SSE listener, debounce, polling fallback)
-- [ ] Make triage label/group/inbox mappings user-configurable
-- [ ] Setup script that provisions required labels and contact groups on Fastmail
+(None — next milestone requirements defined via `/gsd:new-milestone`)
 
 ### Future Milestones
 
@@ -66,20 +66,24 @@ One label tap on a phone triages an entire sender — all their backlogged email
 - Pluggable workflow engine — v1 code is cleanly separated; plugin system is premature
 - noreply address cleanup — known gotcha, can be addressed later
 - IMAP IDLE — over-engineering; EventSource is the correct JMAP push mechanism
+- Async runtime (asyncio) — synchronous-by-design; single-user service gains nothing from async
+- Backward compatibility with v1.0 flat env vars — clean break, no established user base
+- Sieve rule creation via API — Fastmail has no API for filter rules
+- Nested mailbox hierarchy — flat namespace sufficient
 
 ## Context
 
-Shipped v1.0 with 8,666 LOC Python across 122 files.
-Tech stack: Python, JMAP (httpx), CardDAV (httpx + vobject), pydantic-settings, structlog, Docker, Kubernetes.
-180 unit tests + 13 human integration tests against live Fastmail.
-Deployed as a single-replica k8s Deployment polling every 5 minutes.
-Phase 3.1 was an inserted phase adding person/company contact type support beyond original scope.
+Shipped v1.1 with 12,572 LOC Python across 46 files.
+Tech stack: Python, JMAP (httpx), CardDAV (httpx + vobject), pydantic-settings + YAML, structlog, Click CLI, Docker, Helm/Kubernetes.
+278 unit tests + 16 human integration tests against live Fastmail.
+Deployed as a Helm chart on home Kubernetes cluster with JMAP EventSource push (sub-10s triage).
+Two inserted phases (9.1 config.yaml, 9.1.1 Helm chart) added during milestone for deployment improvements.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Polling over webhooks | Fastmail doesn't support webhooks | ✓ Good — 5-min poll is fast enough for triage UX |
+| Polling over webhooks | Fastmail doesn't support webhooks | ✓ Good — replaced by EventSource push in v1.1, polling kept as fallback |
 | JMAP + CardDAV (not pure JMAP) | JMAP contacts spec not finalized | ✓ Good — CardDAV proven reliable against live Fastmail |
 | Retry on failure (leave triage label) | Safer than silently dropping; next poll retries | ✓ Good — zero lost triages in testing |
 | Re-add Inbox label on Imbox sweep | Swept emails should appear in Inbox immediately | ✓ Good — emails appear immediately after triage |
@@ -89,15 +93,21 @@ Phase 3.1 was an inserted phase adding person/company contact type support beyon
 | CardDAV as validation gate (Phase 2) | KIND:group model from training data, unverified | ✓ Good — live validation prevented building on assumptions |
 | Company-default contacts with @ToPerson override | Most senders are companies; person-type is opt-in | ✓ Good — clean separation, users choose explicitly |
 | Batch chunking at 100 emails per JMAP call | Conservative under 500 minimum maxObjectsInSet | ✓ Good — no batch size errors observed |
-| Individual env vars (not structured config) | Maps cleanly to k8s ConfigMap entries | ✓ Good — envFrom injects all 18 vars directly |
+| Two-pass category resolution | Handle any parent/child declaration order | ✓ Good — no ordering constraints on user config |
+| Guidance-only sieve module | No Fastmail API for filter rules | ✓ Good — outputs instructions for all categories |
+| SSE via httpx streaming | Consistency with existing JMAP client | ✓ Good — shared session, single HTTP library |
+| Drain-wait-drain debounce pattern | Collapse rapid SSE events into one poll | ✓ Good — prevents thundering herd on state changes |
+| Queue sentinel for shutdown | `put(None)` in signal handler for instant wakeup | ✓ Good — graceful shutdown < 1s |
+| Config.yaml over env vars | Nested config, name-only shorthand, cleaner K8s | ✓ Good — auth stays as env vars for secrets |
+| Helm chart over plain manifests | Templated values, secrets-values.yaml pattern | ✓ Good — simplified deployment and config management |
 
 ## Constraints
 
 - **API Protocol**: JMAP for email, CardDAV for contacts — Fastmail does not support JMAP for contacts yet
 - **No Webhooks**: Fastmail has no inbound webhook support; push via JMAP EventSource (SSE) with polling fallback
-- **Deployment**: Existing home Kubernetes cluster, manual deploy via `kubectl apply`
+- **Deployment**: Home Kubernetes cluster, Helm chart deploy via `helm upgrade --install`
 - **Language**: Python
 - **Architecture**: Clean separation of concerns — Screener logic in its own module, clear interfaces
 
 ---
-*Last updated: 2026-02-25 after v1.1 milestone start*
+*Last updated: 2026-03-02 after v1.1 milestone*
