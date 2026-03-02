@@ -71,33 +71,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEBT-01 | — | Pending |
-| DEBT-02 | — | Pending |
-| DEBT-03 | — | Pending |
-| DEBT-04 | — | Pending |
-| DEBT-05 | — | Pending |
-| CFG-01 | — | Pending |
-| CFG-02 | — | Pending |
-| CFG-03 | — | Pending |
-| CFG-04 | — | Pending |
-| CFG-05 | — | Pending |
-| CFG-06 | — | Pending |
-| CFG-07 | — | Pending |
-| CFG-08 | — | Pending |
-| SCAN-01 | — | Pending |
-| SCAN-02 | — | Pending |
-| SCAN-03 | — | Pending |
-| RTRI-01 | — | Pending |
-| RTRI-02 | — | Pending |
-| RTRI-03 | — | Pending |
-| RTRI-04 | — | Pending |
-| RTRI-05 | — | Pending |
+| DEBT-01 | Phase 10 | Pending |
+| DEBT-02 | Phase 10 | Pending |
+| DEBT-03 | Phase 10 | Pending |
+| DEBT-04 | Phase 10 | Pending |
+| DEBT-05 | Phase 10 | Pending |
+| CFG-01 | Phase 11 | Pending |
+| CFG-02 | Phase 11 | Pending |
+| CFG-03 | Phase 11 | Pending |
+| CFG-04 | Phase 11 | Pending |
+| CFG-05 | Phase 11 | Pending |
+| CFG-06 | Phase 11 | Pending |
+| CFG-07 | Phase 11 | Pending |
+| CFG-08 | Phase 11 | Pending |
+| SCAN-01 | Phase 12 | Pending |
+| SCAN-02 | Phase 12 | Pending |
+| SCAN-03 | Phase 12 | Pending |
+| RTRI-01 | Phase 13 | Pending |
+| RTRI-02 | Phase 13 | Pending |
+| RTRI-03 | Phase 13 | Pending |
+| RTRI-04 | Phase 13 | Pending |
+| RTRI-05 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after initial definition*
+*Last updated: 2026-03-02 after roadmap creation*

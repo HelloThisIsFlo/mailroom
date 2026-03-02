@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: defining_requirements
+status: ready_to_plan
 last_updated: "2026-03-02"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,14 +18,31 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.2 Triage Pipeline v2
+**Current focus:** Phase 10 - Tech Debt Cleanup
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-02 — Milestone v1.2 started
+Phase: 10 of 13 (Tech Debt Cleanup) -- first of 4 v1.2 phases
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-02 -- Roadmap created for v1.2
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (v1.2)
+- Average duration: --
+- Total execution time: --
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
@@ -34,22 +51,18 @@ Last activity: 2026-03-02 — Milestone v1.2 started
 Full decision log with outcomes in PROJECT.md Key Decisions table.
 v1.1 decisions archived to milestones/v1.1-ROADMAP.md.
 
+Recent decisions for v1.2:
+- `add_to_inbox` does NOT inherit through parent chain (explicit per category only)
+- No backward compatibility -- config supports current format only
+- Re-triage has no `@MailroomWarning` -- it is a normal supported operation
+- Contact notes capture triage history (added/moved with dates)
+- CardDAV group reassignment order: add-to-new FIRST, then remove-from-old (safe partial-failure order)
+
 ### Pending Todos
 
-4. Scan for action labels beyond screener mailbox (area: api) -- IN SCOPE v1.2
 5. Sweep workflow: re-label archived emails by contact group membership (area: general) -- far-future idea
 7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone
-11. Allow contact group reassignment via triage label (area: api) -- IN SCOPE v1.2
 12. Deploy Grafana + Loki observability stack (area: deployment) -- deferred to v1.3
-14. Resolve v1.1 tech debt carry-forward in v1.2 (area: general) -- IN SCOPE v1.2
-15. Separate inbox flag from destination mailbox in category config (area: api) -- IN SCOPE v1.2
-16. Change parent inheritance to additive label propagation (area: api) -- IN SCOPE v1.2
-
-### Pre-v1.2 Research
-
-JMAP labels are mailboxes. Scanning for triage labels = querying label mailbox IDs directly.
-JMAP batched calls allow all label queries in one HTTP round-trip.
-Benchmark script: `.research/triage-label-scan/batched_vs_sequential.py`
 
 ### Blockers/Concerns
 
@@ -58,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Milestone v1.2 started — defining requirements
+Stopped at: Roadmap created for v1.2 -- ready to plan Phase 10
 Resume file: N/A
