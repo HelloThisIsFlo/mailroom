@@ -13,5 +13,6 @@ fi
 helm upgrade --install mailroom "$CHART_DIR" \
   -f "$SECRETS_FILE" \
   -n mailroom \
-  --create-namespace \
-  --wait
+  --create-namespace
+
+kubectl rollout status deployment/mailroom -n mailroom --timeout=120s
