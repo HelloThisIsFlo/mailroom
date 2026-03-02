@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Push & Config
-status: phase-complete
-last_updated: "2026-03-01T22:29:20Z"
+status: unknown
+last_updated: "2026-03-02T12:28:21.523Z"
 progress:
   total_phases: 6
   completed_phases: 6
@@ -95,6 +95,8 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - [Phase 09.1.1]: Shared _helpers.tpl securityContext templates ensure Deployment and Job have identical PSS compliance
 - [Phase 09.1.1]: secrets: {} empty map in values.yaml instead of empty-string placeholders -- forces users to provide via secrets-values.yaml
 - [Phase 09.1.1]: | default "" | quote pattern in secret.yaml template -- nil-safe rendering when secrets not provided
+- [Phase quick-6]: Namespace management removed from Helm chart -- external concern, not app chart responsibility
+- [Phase quick-6]: Security hardening (securityContext, readOnlyRootFilesystem, /tmp emptyDir) removed from Helm chart -- PodSecurity Admission is cluster-level policy
 
 ### Pending Todos
 
@@ -112,7 +114,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
 13. ~~Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py~~ (done: quick-5)
 14. Resolve v1.1 tech debt carry-forward in v1.2 (area: general) -- 4 items: missing VERIFICATION.md, stale test env var, private attr access, stale conftest cleanup
-15. Simplify Helm chart to vanilla textbook patterns (area: deployment) -- remove namespace.yaml, securityContext, readOnlyRootFilesystem+tmp hack; keep only standard beginner-tutorial patterns
+15. ~~Simplify Helm chart to vanilla textbook patterns (area: deployment) -- remove namespace.yaml, securityContext, readOnlyRootFilesystem+tmp hack; keep only standard beginner-tutorial patterns~~ (done: quick-6)
 
 ### Roadmap Evolution
 
@@ -128,6 +130,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 5 | Reorder JSON log fields for scannability | 2026-02-28 | fcb6e64 | [5-reorder-json-log-fields-for-scannability](./quick/5-reorder-json-log-fields-for-scannability/) |
+| 6 | Simplify Helm chart to vanilla textbook patterns | 2026-03-02 | dad4f0c | [6-simplify-helm-chart-to-vanilla-textbook-](./quick/6-simplify-helm-chart-to-vanilla-textbook-/) |
 
 ## Session Continuity
 
