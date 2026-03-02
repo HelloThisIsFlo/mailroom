@@ -112,6 +112,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI, document in Talos OS repo
 13. ~~Reorder JSON log fields for scannability (area: api) -- timestamp/level/component first, small change to logging.py~~ (done: quick-5)
 14. Resolve v1.1 tech debt carry-forward in v1.2 (area: general) -- 4 items: missing VERIFICATION.md, stale test env var, private attr access, stale conftest cleanup
+15. Simplify Helm chart to vanilla textbook patterns (area: deployment) -- remove namespace.yaml, securityContext, readOnlyRootFilesystem+tmp hack; keep only standard beginner-tutorial patterns
 
 ### Roadmap Evolution
 
