@@ -34,6 +34,9 @@ config:
       - Feed
       - Paper Trail
       - Jail
+      - Truck
+      - Bank
+      - Billboard
       - name: Person
         parent: Imbox
         contact_type: person
