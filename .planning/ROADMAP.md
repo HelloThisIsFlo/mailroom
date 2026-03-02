@@ -73,10 +73,12 @@ Plans:
   3. Triaging a sender with a child category applies both the child's label and the parent's label chain (additive propagation, not field inheritance)
   4. Circular parent references and `destination_mailbox: Inbox` are rejected at startup with clear error messages
   5. Setup CLI provisions separate mailboxes and contact groups for each child category, and sieve guidance reflects additive label semantics
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Config models, defaults, validation, resolution (add_to_inbox, independent children, CFG-02, parent chain)
+- [ ] 11-02-PLAN.md — Screener workflow additive filing and additive contact groups
+- [ ] 11-03-PLAN.md — Sieve guidance all-category display, syntax highlighting, config.yaml.example
 
 ### Phase 12: Label Scanning
 **Goal**: Triage pipeline discovers labeled emails by querying label mailboxes directly, scanning beyond the Screener mailbox with batched JMAP requests
@@ -116,6 +118,6 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 10. Tech Debt Cleanup | 2/2 | Complete    | 2026-03-02 | - |
-| 11. Config Layer | v1.2 | 0/? | Not started | - |
+| 11. Config Layer | v1.2 | 0/3 | Not started | - |
 | 12. Label Scanning | v1.2 | 0/? | Not started | - |
 | 13. Re-triage | v1.2 | 0/? | Not started | - |
