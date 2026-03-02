@@ -17,4 +17,7 @@ __pycache__/
 # Helm secrets (never commit real credentials)
 helm/mailroom/secrets-values.yaml
 
+# User config (commit the .example, not the real file)
+config.yaml
+
 .DS_Store
