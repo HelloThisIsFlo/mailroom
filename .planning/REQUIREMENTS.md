@@ -35,10 +35,15 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 ### Re-triage
 
 - [ ] **RTRI-01**: Applying a triage label to an already-grouped sender moves them to the new contact group
-- [ ] **RTRI-02**: Re-triaged sender's emails swept from old destination mailbox to new destination
+- [ ] **RTRI-02**: Re-triaged sender's emails re-filed by fetching ALL emails from the contact (any mailbox, not just Screener) and applying the new additive mailbox labels (child + parent chain)
 - [ ] **RTRI-03**: Re-triage logged as `group_reassigned` structured event with old and new group names
 - [ ] **RTRI-04**: Contact note captures triage history — "Added to [group] on [date]" and "Moved from [old] to [new] on [date]"
 - [ ] **RTRI-05**: Human integration test validates re-triage workflow end-to-end
+- [ ] **RTRI-06**: `add_to_inbox` only adds Inbox label to emails that were in Screener at triage time — re-triage does NOT add Inbox to existing emails (they are not new)
+
+### Milestone Closeout
+
+- [ ] **CLOSE-01**: `docs/WIP.md` finalized into proper documentation and integrated into `docs/` at end of milestone
 
 ## Future Requirements
 
@@ -92,10 +97,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RTRI-03 | Phase 13 | Pending |
 | RTRI-04 | Phase 13 | Pending |
 | RTRI-05 | Phase 13 | Pending |
+| RTRI-06 | Phase 13 | Pending |
+| CLOSE-01 | Post-Phase 13 | Pending |
 
 **Coverage:**
-- v1.2 requirements: 21 total
-- Mapped to phases: 21
+- v1.2 requirements: 23 total
+- Mapped to phases: 23
 - Unmapped: 0
 
 ---

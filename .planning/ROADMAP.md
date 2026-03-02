@@ -94,13 +94,15 @@ Plans:
 ### Phase 13: Re-triage
 **Goal**: Applying a triage label to an already-grouped sender moves them to the new group with email re-filing and auditable triage history
 **Depends on**: Phase 12
-**Requirements**: RTRI-01, RTRI-02, RTRI-03, RTRI-04, RTRI-05
+**Requirements**: RTRI-01, RTRI-02, RTRI-03, RTRI-04, RTRI-05, RTRI-06
 **Success Criteria** (what must be TRUE):
   1. Applying a triage label to a sender who is already in a contact group moves them to the new group (add-to-new first, then remove-from-old)
-  2. Re-triaged sender's emails are swept from the old destination mailbox to the new destination
+  2. Re-triaged sender's emails are re-filed by fetching ALL emails from the contact (any mailbox) and applying new additive labels (child + parent chain destinations)
   3. Contact note captures triage history with dates -- both initial "Added to [group]" and subsequent "Moved from [old] to [new]" entries
   4. Re-triage is logged as a `group_reassigned` structured event with old and new group names
   5. A human integration test validates the full re-triage workflow end-to-end against live Fastmail
+  6. `add_to_inbox` only adds Inbox label to emails from Screener -- re-triage does NOT re-add Inbox to existing emails
+**Note**: Sweep logic decisions captured in `docs/WIP.md` during Phase 11 discussion. Key: sweep fetches all emails from contact, applies additive mailbox labels, add_to_inbox is Screener-only.
 **Plans**: TBD
 
 Plans:
