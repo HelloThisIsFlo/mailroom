@@ -9,7 +9,7 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 
 ### Tech Debt
 
-- [ ] **DEBT-01**: Phase 09.1.1 VERIFICATION.md written to close audit gap
+- [x] **DEBT-01**: Phase 09.1.1 VERIFICATION.md written to close audit gap
 - [ ] **DEBT-02**: `resolved_categories` exposed as public property on MailroomSettings
 - [ ] **DEBT-03**: `sieve_guidance.py` uses public `resolved_categories` interface
 - [ ] **DEBT-04**: `test_13_docker_polling.py` passes poll interval via config.yaml mount
@@ -71,7 +71,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEBT-01 | Phase 10 | Pending |
+| DEBT-01 | Phase 10 | Complete |
 | DEBT-02 | Phase 10 | Pending |
 | DEBT-03 | Phase 10 | Pending |
 | DEBT-04 | Phase 10 | Pending |

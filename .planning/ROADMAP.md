@@ -113,7 +113,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 10. Tech Debt Cleanup | v1.2 | 0/2 | Planned | - |
+| 10. Tech Debt Cleanup | v1.2 | 1/2 | In Progress | - |
 | 11. Config Layer | v1.2 | 0/? | Not started | - |
 | 12. Label Scanning | v1.2 | 0/? | Not started | - |
 | 13. Re-triage | v1.2 | 0/? | Not started | - |
