@@ -401,3 +401,8 @@ class MailroomSettings(BaseSettings):
     def contact_groups(self) -> list[str]:
         """Return all contact group names for startup validation."""
         return sorted({c.contact_group for c in self._resolved_categories})
+
+    @property
+    def resolved_categories(self) -> list[ResolvedCategory]:
+        """Return all resolved triage categories."""
+        return list(self._resolved_categories)

@@ -26,13 +26,13 @@ def _highlight_folder(cat) -> str:
 def generate_sieve_guidance(settings: MailroomSettings, *, ui_guide: bool = False) -> str:
     """Generate sieve rule guidance for all configured root categories.
 
-    Iterates over settings._resolved_categories, skipping child categories
+    Iterates over settings.resolved_categories, skipping child categories
     (those with a non-None parent), and produces either copy-paste sieve-style
     snippets (default) or Fastmail Settings UI step-by-step instructions
     (when ui_guide=True).
 
     Args:
-        settings: Mailroom config with _resolved_categories and screener_mailbox.
+        settings: Mailroom config with resolved_categories and screener_mailbox.
         ui_guide: If True, show Fastmail UI instructions instead of sieve snippets.
 
     Returns:
@@ -40,7 +40,7 @@ def generate_sieve_guidance(settings: MailroomSettings, *, ui_guide: bool = Fals
     """
     # Collect root categories (skip children -- they inherit routing from parent)
     root_categories = [
-        cat for cat in settings._resolved_categories if cat.parent is None
+        cat for cat in settings.resolved_categories if cat.parent is None
     ]
 
     if ui_guide:
