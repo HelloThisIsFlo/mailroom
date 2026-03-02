@@ -21,15 +21,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Stage 2: Slim runtime
 FROM python:3.12-slim
 
-# Create non-root user
-RUN groupadd -r app && useradd -r -d /app -g app -N app
+# Non-root user
+ARG APP_UID=9999
+RUN groupadd -r -g $APP_UID app && useradd -r -u $APP_UID -d /app -g app -N app
+USER $APP_UID
 
 # Copy only the virtualenv (no uv binary, no source needed)
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH"
-
-USER app
 EXPOSE 8080
 
 CMD ["python", "-m", "mailroom"]
