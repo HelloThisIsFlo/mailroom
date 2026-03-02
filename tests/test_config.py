@@ -244,6 +244,50 @@ class TestAuthEnvVarsStayFlat:
         assert any(e["loc"] == ("jmap_token",) for e in errors)
 
 
+class TestResolvedCategoriesProperty:
+    """Public resolved_categories property on MailroomSettings."""
+
+    def test_resolved_categories_returns_list_of_resolved_category(self, monkeypatch, tmp_path):
+        """settings.resolved_categories returns a list of ResolvedCategory objects."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+        categories = settings.resolved_categories
+
+        assert isinstance(categories, list)
+        assert len(categories) == 5
+        assert all(isinstance(c, ResolvedCategory) for c in categories)
+
+    def test_resolved_categories_returns_copy(self, monkeypatch, tmp_path):
+        """Mutating the returned list does not affect internal state."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+        categories = settings.resolved_categories
+        original_len = len(categories)
+
+        # Mutate the returned list
+        categories.append(
+            ResolvedCategory(
+                name="Fake",
+                label="@ToFake",
+                contact_group="Fake",
+                destination_mailbox="Fake",
+                contact_type="company",
+                parent=None,
+            )
+        )
+
+        # Internal state should be unchanged
+        assert len(settings.resolved_categories) == original_len
+
+
 class TestComputedProperties:
     """Computed properties stay on root and access nested sub-models."""
 
