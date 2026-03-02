@@ -21,6 +21,13 @@ spec:
         - name: setup
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           command: ["mailroom", "setup"]
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: [ALL]
           {{- if .Values.setup.apply }}
           args: ["--apply"]
           {{- end }}
