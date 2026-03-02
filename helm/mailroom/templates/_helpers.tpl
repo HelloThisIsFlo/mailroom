@@ -45,26 +45,3 @@ Selector labels
 app.kubernetes.io/name: {{ include "mailroom.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
-
-{{/*
-Pod-level security context (restricted PSS)
-*/}}
-{{- define "mailroom.podSecurityContext" -}}
-runAsNonRoot: true
-seccompProfile:
-  type: RuntimeDefault
-{{- end }}
-
-{{/*
-Container-level security context (restricted PSS)
-*/}}
-{{- define "mailroom.containerSecurityContext" -}}
-runAsNonRoot: true
-allowPrivilegeEscalation: false
-readOnlyRootFilesystem: true
-seccompProfile:
-  type: RuntimeDefault
-capabilities:
-  drop:
-    - ALL
-{{- end }}

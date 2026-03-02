@@ -17,8 +17,6 @@ spec:
         {{- include "mailroom.selectorLabels" . | nindent 8 }}
     spec:
       restartPolicy: Never
-      securityContext:
-        {{- include "mailroom.podSecurityContext" . | nindent 8 }}
       containers:
         - name: setup
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -37,15 +35,9 @@ spec:
               mountPath: /app/config.yaml
               subPath: config.yaml
               readOnly: true
-            - name: tmp
-              mountPath: /tmp
-          securityContext:
-            {{- include "mailroom.containerSecurityContext" . | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: config
           configMap:
             name: {{ include "mailroom.fullname" . }}-config
-        - name: tmp
-          emptyDir: {}
