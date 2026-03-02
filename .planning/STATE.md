@@ -42,6 +42,7 @@ v1.1 decisions archived to milestones/v1.1-ROADMAP.md.
 12. Deploy Grafana + Loki observability stack (area: deployment) -- log query UI
 14. Resolve v1.1 tech debt carry-forward in v1.2 (area: general) -- 4 items
 15. Separate inbox flag from destination mailbox in category config (area: api) -- two independent axes
+16. Change parent inheritance to additive label propagation (area: api) -- parent = "also apply parent label"
 
 ### Blockers/Concerns
 
