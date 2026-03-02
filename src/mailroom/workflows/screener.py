@@ -7,7 +7,7 @@ import vobject
 
 from mailroom.clients.carddav import CardDAVClient
 from mailroom.clients.jmap import JMAPClient
-from mailroom.core.config import MailroomSettings
+from mailroom.core.config import MailroomSettings, get_parent_chain
 
 
 class ScreenerWorkflow:
@@ -325,6 +325,15 @@ class ScreenerWorkflow:
         )
         log.info("contact_upserted", action=result["action"], uid=result["uid"])
 
+        # Step 2a: Additive contact groups -- add to all ancestor groups
+        resolved_map = {c.name: c for c in self._settings.resolved_categories}
+        chain = get_parent_chain(category.name, resolved_map)
+        if len(chain) > 1 and "uid" in result:
+            contact_uid = result["uid"]
+            for ancestor in chain[1:]:
+                self._carddav.add_to_group(ancestor.contact_group, contact_uid)
+                log.info("ancestor_group_added", group=ancestor.contact_group)
+
         # Step 2b: Apply warning label if name mismatch detected
         if result.get("name_mismatch", False) and self._settings.labels.warnings_enabled:
             self._apply_warning_label(sender, email_ids)
@@ -351,17 +360,25 @@ class ScreenerWorkflow:
         )
 
     def _get_destination_mailbox_ids(self, label_name: str) -> list[str]:
-        """Return the mailbox IDs to add when sweeping for this label's destination.
+        """Return mailbox IDs for additive filing (child + all ancestors).
 
-        Looks up the destination_mailbox from the config mapping and resolves
-        it to a mailbox ID.
-
-        - Imbox: destination_mailbox is "Inbox", returns [inbox_id]
-        - Feed/Paper Trail/Jail: destination_mailbox matches mailbox name
+        Walks the parent chain and collects destination mailbox IDs.
+        If the triaged category (NOT ancestors) has add_to_inbox=True,
+        Inbox is also added.
         """
         category = self._settings.label_to_category_mapping[label_name]
-        destination_mailbox = category.destination_mailbox
-        return [self._mailbox_ids[destination_mailbox]]
+        resolved_map = {c.name: c for c in self._settings.resolved_categories}
+        chain = get_parent_chain(category.name, resolved_map)
+
+        ids = [self._mailbox_ids[c.destination_mailbox] for c in chain]
+
+        # add_to_inbox: per-category only (never inherited), Screener-only
+        if category.add_to_inbox:
+            inbox_id = self._mailbox_ids["Inbox"]
+            if inbox_id not in ids:
+                ids.append(inbox_id)
+
+        return ids
 
     def _check_already_grouped(
         self,
