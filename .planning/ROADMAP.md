@@ -57,10 +57,11 @@ Full details: `milestones/v1.1-ROADMAP.md`
   3. `test_13_docker_polling.py` passes poll interval via config.yaml mount and the interval is actually respected
   4. `conftest.py` cleanup list contains only env var names that exist in current `MailroomSettings`
   5. Phase 09.1.1 has a VERIFICATION.md that documents its UAT results
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: TBD
+- [ ] 10-01-PLAN.md — Public resolved_categories property, sieve_guidance update, Docker test fix, conftest cleanup
+- [ ] 10-02-PLAN.md — Write retroactive VERIFICATION.md for Phase 09.1.1
 
 ### Phase 11: Config Layer
 **Goal**: Operators can configure inbox visibility independently of destination mailbox, and child categories resolve as fully independent categories that additively carry parent labels
@@ -112,7 +113,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 10. Tech Debt Cleanup | v1.2 | 0/? | Not started | - |
+| 10. Tech Debt Cleanup | v1.2 | 0/2 | Planned | - |
 | 11. Config Layer | v1.2 | 0/? | Not started | - |
 | 12. Label Scanning | v1.2 | 0/? | Not started | - |
 | 13. Re-triage | v1.2 | 0/? | Not started | - |
