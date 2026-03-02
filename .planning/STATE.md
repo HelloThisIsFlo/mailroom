@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: executing
-last_updated: "2026-03-02"
+status: unknown
+last_updated: "2026-03-02T17:57:16.428Z"
 progress:
-  total_phases: 4
-  completed_phases: 0
+  total_phases: 1
+  completed_phases: 1
   total_plans: 2
   completed_plans: 2
 ---
