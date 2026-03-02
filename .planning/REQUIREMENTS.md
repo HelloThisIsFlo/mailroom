@@ -23,8 +23,8 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 - [ ] **CFG-04**: Parent relationship applies parent's label chain on triage (additive labels, not field inheritance)
 - [x] **CFG-05**: Circular parent references detected and rejected at startup validation
 - [x] **CFG-06**: No backward compatibility — config supports current format only, no migration shims or legacy fallbacks
-- [ ] **CFG-07**: Setup CLI provisions independent mailbox and contact group for each child category
-- [ ] **CFG-08**: Sieve guidance output reflects additive parent label semantics
+- [x] **CFG-07**: Setup CLI provisions independent mailbox and contact group for each child category
+- [x] **CFG-08**: Sieve guidance output reflects additive parent label semantics
 
 ### Scanning
 
@@ -87,8 +87,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CFG-04 | Phase 11 | Pending |
 | CFG-05 | Phase 11 | Complete |
 | CFG-06 | Phase 11 | Complete |
-| CFG-07 | Phase 11 | Pending |
-| CFG-08 | Phase 11 | Pending |
+| CFG-07 | Phase 11 | Complete |
+| CFG-08 | Phase 11 | Complete |
 | SCAN-01 | Phase 12 | Pending |
 | SCAN-02 | Phase 12 | Pending |
 | SCAN-03 | Phase 12 | Pending |

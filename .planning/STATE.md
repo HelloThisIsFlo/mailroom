@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: in-progress
-last_updated: "2026-03-02T19:37:23.118Z"
+last_updated: "2026-03-02T19:42:27Z"
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 5
 ---
 
 # Project State
@@ -23,25 +23,25 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 11 of 13 (Config Layer) -- second of 4 v1.2 phases
-Plan: 1 of 3 (in progress)
-Status: Plan 11-01 Complete
-Last activity: 2026-03-02 -- Completed 11-01 (Config Layer: add_to_inbox, independent children, parent chain)
+Plan: 3 of 3 (complete)
+Status: Phase 11 Complete
+Last activity: 2026-03-02 -- Completed 11-03 (Sieve guidance: all-category display, syntax highlighting)
 
-Progress: [███-------] 33% (1/3 plans complete in Phase 11)
+Progress: [██████████] 100% (3/3 plans complete in Phase 11)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3 (v1.2)
-- Average duration: 3min
-- Total execution time: 10min
+- Total plans completed: 5 (v1.2)
+- Average duration: 4min
+- Total execution time: 21min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 10-tech-debt-cleanup | 2 | 3min | 2min |
-| 11-config-layer | 1 | 7min | 7min |
+| 11-config-layer | 3 | 18min | 6min |
 
 *Updated after each plan completion*
 
@@ -64,6 +64,8 @@ Recent decisions for v1.2:
 - [11-01] Imbox uses add_to_inbox=True with derived destination_mailbox="Imbox" (not "Inbox")
 - [11-01] Children are fully independent: Person has contact_group="Person", destination_mailbox="Person"
 - [11-01] CFG-02 rejects destination_mailbox: Inbox at validation time with helpful error
+- [11-03] Removed _highlight_folder -- all mailbox names get unconditional CYAN highlighting
+- [11-03] Prominent IMPORTANT note at top of sieve guidance about "Continue to apply other rules"
 
 ### Pending Todos
 
@@ -78,5 +80,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 11-01-PLAN.md (Config Layer: add_to_inbox, independent children, parent chain)
+Stopped at: Completed 11-03-PLAN.md (Sieve guidance: all-category display, syntax highlighting)
 Resume file: N/A
