@@ -41,14 +41,23 @@ One label tap on a phone triages an entire sender — all their backlogged email
 
 ### Active
 
-(None — next milestone requirements defined via `/gsd:new-milestone`)
+## Current Milestone: v1.2 Triage Pipeline v2
+
+**Goal:** Evolve the triage pipeline — independent config axes (inbox flag, additive parent labels), label-based scanning beyond Screener, and re-triage support for moving senders between groups.
+
+**Target features:**
+- Separate `add_to_inbox` flag from `destination_mailbox` in category config
+- Change parent inheritance to additive label propagation (child = independent category + parent's labels)
+- Scan for triage labels via label mailbox queries (not limited to Screener)
+- Re-triage: move sender between contact groups, re-file emails, `@MailroomWarning`
+- JMAP batched queries for scanning multiple label mailboxes in one round-trip
+- v1.1 tech debt cleanup (4 carry-forward items)
+
+**Open questions (resolve during phase planning):**
+- Should `add_to_inbox` inherit through parent chain?
+- Scan scope: all label mailboxes or configurable subset?
 
 ### Future Milestones
-
-**v1.2 Re-triage & Expanded Scanning:**
-- Re-triage support — moving a sender from one group to another
-- Scan for action labels beyond screener mailbox
-- Broader action label support
 
 **v1.3 Observability:**
 - Dry-run mode that logs intended actions without making changes
@@ -78,6 +87,7 @@ Tech stack: Python, JMAP (httpx), CardDAV (httpx + vobject), pydantic-settings +
 278 unit tests + 16 human integration tests against live Fastmail.
 Deployed as a Helm chart on home Kubernetes cluster with JMAP EventSource push (sub-10s triage).
 Two inserted phases (9.1 config.yaml, 9.1.1 Helm chart) added during milestone for deployment improvements.
+Pre-v1.2 research: JMAP labels are mailboxes — scanning for triage labels by querying label mailbox IDs directly (batched) is fast and eliminates Screener-only limitation.
 
 ## Key Decisions
 
@@ -110,4 +120,4 @@ Two inserted phases (9.1 config.yaml, 9.1.1 Helm chart) added during milestone f
 - **Architecture**: Clean separation of concerns — Screener logic in its own module, clear interfaces
 
 ---
-*Last updated: 2026-03-02 after v1.1 milestone*
+*Last updated: 2026-03-02 after v1.2 milestone start*
