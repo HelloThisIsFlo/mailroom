@@ -95,6 +95,7 @@ Full decision log with outcomes in PROJECT.md Key Decisions table.
 - [Phase 09.1.1]: Shared _helpers.tpl securityContext templates ensure Deployment and Job have identical PSS compliance
 - [Phase 09.1.1]: secrets: {} empty map in values.yaml instead of empty-string placeholders -- forces users to provide via secrets-values.yaml
 - [Phase 09.1.1]: | default "" | quote pattern in secret.yaml template -- nil-safe rendering when secrets not provided
+- [Phase quick-6]: Namespace ownership moved from Helm template to kubectl pre-flight in deploy.sh -- avoids annotation conflict on existing namespaces
 
 ### Pending Todos
 
@@ -127,9 +128,10 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 5 | Reorder JSON log fields for scannability | 2026-02-28 | fcb6e64 | [5-reorder-json-log-fields-for-scannability](./quick/5-reorder-json-log-fields-for-scannability/) |
+| 6 | Fix Helm namespace ownership conflict | 2026-03-02 | 80e34fc | [6-fix-helm-namespace-ownership-conflict](./quick/6-fix-helm-namespace-ownership-conflict/) |
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: Completed 09.1.1-02-PLAN.md (Migration cleanup and chart validation) -- Phase 09.1.1 COMPLETE
-Resume file: N/A -- phase complete, no more plans
+Last session: 2026-03-02
+Stopped at: Completed quick task 6 (Fix Helm namespace ownership conflict)
+Resume file: N/A -- quick task complete
