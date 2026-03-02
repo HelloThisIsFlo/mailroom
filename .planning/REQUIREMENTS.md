@@ -17,12 +17,12 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 
 ### Config
 
-- [ ] **CFG-01**: Operator can set `add_to_inbox` per category to control Inbox visibility independently of destination mailbox (does not inherit through parent chain)
-- [ ] **CFG-02**: System rejects `destination_mailbox: Inbox` with clear error pointing to `add_to_inbox` flag
-- [ ] **CFG-03**: Child categories resolve as fully independent categories (own label, contact group, destination mailbox derived from name)
+- [x] **CFG-01**: Operator can set `add_to_inbox` per category to control Inbox visibility independently of destination mailbox (does not inherit through parent chain)
+- [x] **CFG-02**: System rejects `destination_mailbox: Inbox` with clear error pointing to `add_to_inbox` flag
+- [x] **CFG-03**: Child categories resolve as fully independent categories (own label, contact group, destination mailbox derived from name)
 - [ ] **CFG-04**: Parent relationship applies parent's label chain on triage (additive labels, not field inheritance)
-- [ ] **CFG-05**: Circular parent references detected and rejected at startup validation
-- [ ] **CFG-06**: No backward compatibility — config supports current format only, no migration shims or legacy fallbacks
+- [x] **CFG-05**: Circular parent references detected and rejected at startup validation
+- [x] **CFG-06**: No backward compatibility — config supports current format only, no migration shims or legacy fallbacks
 - [ ] **CFG-07**: Setup CLI provisions independent mailbox and contact group for each child category
 - [ ] **CFG-08**: Sieve guidance output reflects additive parent label semantics
 
@@ -81,12 +81,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEBT-03 | Phase 10 | Complete |
 | DEBT-04 | Phase 10 | Complete |
 | DEBT-05 | Phase 10 | Complete |
-| CFG-01 | Phase 11 | Pending |
-| CFG-02 | Phase 11 | Pending |
-| CFG-03 | Phase 11 | Pending |
+| CFG-01 | Phase 11 | Complete |
+| CFG-02 | Phase 11 | Complete |
+| CFG-03 | Phase 11 | Complete |
 | CFG-04 | Phase 11 | Pending |
-| CFG-05 | Phase 11 | Pending |
-| CFG-06 | Phase 11 | Pending |
+| CFG-05 | Phase 11 | Complete |
+| CFG-06 | Phase 11 | Complete |
 | CFG-07 | Phase 11 | Pending |
 | CFG-08 | Phase 11 | Pending |
 | SCAN-01 | Phase 12 | Pending |
