@@ -26,59 +26,46 @@ class TestGenerateGuidanceDefaultMode:
         assert "Sieve Rules" in output
 
     def test_feed_category(self, settings) -> None:
-        """Feed category shows contact group condition and folder action."""
+        """Feed category shows contact group condition and folder action with archive."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert 'Sender is in contact group "Feed"' in output
-        assert 'Move to folder "Feed"' in output
+        assert "Add label: " in output
 
     def test_imbox_category(self, settings) -> None:
-        """Imbox category shows action mentioning Imbox mailbox (v1.2: own derived name)."""
+        """Imbox category shows its own mailbox name (v1.2: derived Imbox, not Inbox)."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert 'Sender is in contact group "Imbox"' in output
-        assert 'Move to folder "Imbox"' in output
 
     def test_paper_trail_category(self, settings) -> None:
         """Paper Trail category is present."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert 'Sender is in contact group "Paper Trail"' in output
-        assert 'Move to folder "Paper Trail"' in output
 
     def test_jail_category(self, settings) -> None:
         """Jail category is present."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert 'Sender is in contact group "Jail"' in output
-        assert 'Move to folder "Jail"' in output
 
-    def test_person_skipped(self, settings) -> None:
-        """Person (child of Imbox) does NOT appear as a separate rule section."""
+    def test_person_included(self, settings) -> None:
+        """Person (child of Imbox) appears as a separate rule section."""
         output = generate_sieve_guidance(settings, ui_guide=False)
-        # Person should not appear as a category heading in the per-category rules
-        lines = output.split("\n")
-        category_headings = [
-            line.strip()
-            for line in lines
-            if line.strip()
-            and not line.strip().startswith("#")
-            and not line.strip().startswith("Condition:")
-            and not line.strip().startswith("Action:")
-            and not line.strip().startswith("Step")
-            and not line.strip().startswith("Note:")
-            and not line.strip().startswith("Routing")
-            and not line.strip().startswith("These")
-            and not line.strip().startswith("Settings")
-            and not line.strip().startswith("require")
-            and not line.strip().startswith("if ")
-            and not line.strip().startswith("{")
-        ]
-        # Person should not be a standalone heading
-        assert "Person" not in category_headings
+        assert 'Sender is in contact group "Person"' in output
+
+    def test_billboard_included(self, settings) -> None:
+        """Billboard (child of Paper Trail) appears as a separate rule section."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        assert 'Sender is in contact group "Billboard"' in output
+
+    def test_truck_included(self, settings) -> None:
+        """Truck (child of Paper Trail) appears as a separate rule section."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        assert 'Sender is in contact group "Truck"' in output
 
     def test_screener_catch_all(self, settings) -> None:
         """Screener catch-all section is present with correct mailbox name."""
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert "Screener catch-all rule:" in output
         assert "Screener" in output
-        assert 'Move to folder "Screener"' in output
         assert "LAST" in output
 
     def test_sieve_reference_snippets(self, settings) -> None:
@@ -86,6 +73,76 @@ class TestGenerateGuidanceDefaultMode:
         output = generate_sieve_guidance(settings, ui_guide=False)
         assert "fileinto" in output
         assert "jmapquery" in output
+
+    def test_continue_note_prominent(self, settings) -> None:
+        """Prominent note about 'Continue to apply other rules' appears at top."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        lines = output.split("\n")
+        # The IMPORTANT note should appear before any per-category rules
+        important_idx = None
+        first_condition_idx = None
+        for i, line in enumerate(lines):
+            if "IMPORTANT" in line and "Continue to apply other rules" in line:
+                important_idx = i
+            if "Sender is in contact group" in line and first_condition_idx is None:
+                first_condition_idx = i
+        assert important_idx is not None, "IMPORTANT note about Continue not found"
+        assert first_condition_idx is not None, "No category conditions found"
+        assert important_idx < first_condition_idx, "IMPORTANT note should come before category rules"
+
+    def test_add_to_inbox_no_archive(self, settings) -> None:
+        """Imbox (add_to_inbox=True) rule has no archive action."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        lines = output.split("\n")
+        # Find the Imbox section and verify no Archive in it
+        in_imbox = False
+        imbox_lines: list[str] = []
+        for line in lines:
+            if "Imbox" in line and "Condition" not in line and "Action" not in line:
+                in_imbox = True
+                imbox_lines = [line]
+                continue
+            if in_imbox:
+                imbox_lines.append(line)
+                # Stop at next category or screener section
+                stripped = line.strip()
+                if stripped and not stripped.startswith(("Condition", "Action", "#", "1.", "2.", "3.", "(", "+")):
+                    # Check if this is a new category heading
+                    if "Sender is in contact group" not in line and "Add label" not in line and "Continue" not in line and "Archive" not in line and "No archive" not in line and "child of" not in line:
+                        break
+        imbox_section = "\n".join(imbox_lines)
+        # Imbox section should mention "No archive" or not have "Archive" as an action
+        assert "Archive" not in imbox_section or "No archive" in imbox_section
+
+    def test_standard_has_archive(self, settings) -> None:
+        """Feed (standard, add_to_inbox=False) rule has archive action."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        lines = output.split("\n")
+        # Find Feed section and verify Archive is present
+        in_feed = False
+        feed_lines: list[str] = []
+        for line in lines:
+            if "Feed" in line and "Condition" not in line:
+                in_feed = True
+                feed_lines = [line]
+                continue
+            if in_feed:
+                feed_lines.append(line)
+                if "Sender is in contact group" in line and "Feed" not in line:
+                    break
+        feed_section = "\n".join(feed_lines)
+        assert "Archive" in feed_section
+
+    def test_all_seven_categories_present(self, settings) -> None:
+        """All 7 default categories appear as rules in the output."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        condition_lines = [
+            line
+            for line in output.split("\n")
+            if "Sender is in contact group" in line
+        ]
+        # Should have one per category: Imbox, Feed, Paper Trail, Jail, Person, Billboard, Truck = 7
+        assert len(condition_lines) == 7
 
 
 class TestGenerateGuidanceUIGuideMode:
@@ -102,10 +159,9 @@ class TestGenerateGuidanceUIGuideMode:
         assert "Filters & Rules" in output
 
     def test_per_category_steps(self, settings) -> None:
-        """Per-category steps mention contact group condition and Move to folder."""
+        """Per-category steps mention contact group condition."""
         output = generate_sieve_guidance(settings, ui_guide=True)
         assert "contact group" in output
-        assert "Move to folder" in output
 
     def test_screener_catch_all_with_last(self, settings) -> None:
         """Screener catch-all mentions LAST ordering."""
@@ -118,6 +174,22 @@ class TestGenerateGuidanceUIGuideMode:
         output = generate_sieve_guidance(settings, ui_guide=True)
         assert "fileinto" not in output
         assert "jmapquery" not in output
+
+    def test_all_categories_shown(self, settings) -> None:
+        """All 7 categories appear in UI guide mode."""
+        output = generate_sieve_guidance(settings, ui_guide=True)
+        assert "Imbox" in output
+        assert "Feed" in output
+        assert "Paper Trail" in output
+        assert "Jail" in output
+        assert "Person" in output
+        assert "Billboard" in output
+        assert "Truck" in output
+
+    def test_continue_to_apply_mentioned(self, settings) -> None:
+        """UI guide mentions 'Continue to apply other rules' or equivalent checkbox."""
+        output = generate_sieve_guidance(settings, ui_guide=True)
+        assert "apply other rules" in output.lower() or "continue" in output.lower()
 
 
 class TestGenerateGuidanceCustomCategories:
@@ -148,10 +220,9 @@ class TestGenerateGuidanceCustomCategories:
         output = generate_sieve_guidance(settings, ui_guide=False)
 
         assert 'Sender is in contact group "Receipts"' in output
-        assert 'Move to folder "Receipts"' in output
 
-    def test_skips_child_categories(self, settings) -> None:
-        """Child categories (Person) do not appear as separate rule entries."""
+    def test_includes_child_categories(self, settings) -> None:
+        """Child categories (Person, Billboard, Truck) appear as separate rule entries."""
         output = generate_sieve_guidance(settings, ui_guide=False)
 
         # Count how many times "Condition: Sender is in contact group" appears
@@ -160,8 +231,8 @@ class TestGenerateGuidanceCustomCategories:
             for line in output.split("\n")
             if "Sender is in contact group" in line
         ]
-        # Should have one per root category: Imbox, Feed, Paper Trail, Jail = 4
-        assert len(condition_lines) == 4
+        # Should have one per category: Imbox, Feed, Paper Trail, Jail, Person, Billboard, Truck = 7
+        assert len(condition_lines) == 7
 
     def test_custom_screener_mailbox(self, monkeypatch, tmp_path) -> None:
         """Screener section uses custom screener_mailbox name."""
@@ -179,91 +250,89 @@ class TestGenerateGuidanceCustomCategories:
         output = generate_sieve_guidance(settings, ui_guide=False)
 
         assert "MyScreener" in output
-        assert 'Move to folder "MyScreener"' in output
 
 
-class TestOverrideHighlighting:
-    """Tests for override name highlighting in sieve guidance output.
+class TestGroupedDisplay:
+    """Tests that categories are grouped by parent in the output."""
 
-    Uses a custom settings fixture with an explicit destination_mailbox
-    override (Feed -> CustomBox) to test the highlighting feature.
-    """
+    def test_children_appear_after_parent(self, settings) -> None:
+        """Child categories appear after their parent in the output."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        lines = output.split("\n")
+
+        # Find positions of Imbox and Person
+        imbox_idx = None
+        person_idx = None
+        for i, line in enumerate(lines):
+            if 'contact group "Imbox"' in line:
+                imbox_idx = i
+            if 'contact group "Person"' in line:
+                person_idx = i
+        assert imbox_idx is not None, "Imbox not found"
+        assert person_idx is not None, "Person not found"
+        assert imbox_idx < person_idx, "Person should appear after Imbox"
+
+    def test_paper_trail_children_after_parent(self, settings) -> None:
+        """Billboard and Truck appear after Paper Trail."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        lines = output.split("\n")
+
+        paper_trail_idx = None
+        billboard_idx = None
+        truck_idx = None
+        for i, line in enumerate(lines):
+            if 'contact group "Paper Trail"' in line:
+                paper_trail_idx = i
+            if 'contact group "Billboard"' in line:
+                billboard_idx = i
+            if 'contact group "Truck"' in line:
+                truck_idx = i
+        assert paper_trail_idx is not None, "Paper Trail not found"
+        assert billboard_idx is not None, "Billboard not found"
+        assert truck_idx is not None, "Truck not found"
+        assert paper_trail_idx < billboard_idx, "Billboard should appear after Paper Trail"
+        assert paper_trail_idx < truck_idx, "Truck should appear after Paper Trail"
+
+    def test_child_of_annotation(self, settings) -> None:
+        """Child categories have a '(child of ...)' annotation."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
+        assert "child of Imbox" in output
+        assert "child of Paper Trail" in output
+
+
+class TestSyntaxHighlighting:
+    """Tests for syntax highlighting in sieve guidance output."""
 
     @pytest.fixture
-    def override_settings(self, monkeypatch, tmp_path):
-        """Settings with a destination_mailbox override for testing highlighting."""
-        config = tmp_path / "config.yaml"
-        config.write_text(
-            "triage:\n"
-            "  categories:\n"
-            "    - name: Imbox\n"
-            "      add_to_inbox: true\n"
-            "    - name: Feed\n"
-            "      destination_mailbox: CustomBox\n"
-            "    - Paper Trail\n"
-            "    - Jail\n"
-        )
-        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
-        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "test-token")
-        monkeypatch.setenv("MAILROOM_CARDDAV_USERNAME", "test")
-        monkeypatch.setenv("MAILROOM_CARDDAV_PASSWORD", "test")
-        return MailroomSettings()
+    def tty_settings(self, settings, monkeypatch):
+        """Settings with TTY stdout for color output."""
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        return settings
 
-    def test_override_name_not_colored_when_not_tty(self, override_settings) -> None:
-        """Override names have no ANSI codes when stdout is not a TTY."""
-        output = generate_sieve_guidance(override_settings, ui_guide=True)
-        # Non-TTY: no ANSI escape codes anywhere
+    def test_bold_category_names_when_tty(self, tty_settings) -> None:
+        """Category names are wrapped in BOLD when TTY is detected."""
+        output = generate_sieve_guidance(tty_settings, ui_guide=False)
+        assert "\033[1m" in output  # BOLD code present
+
+    def test_cyan_mailbox_names_when_tty(self, tty_settings) -> None:
+        """Mailbox names are wrapped in CYAN when TTY is detected."""
+        output = generate_sieve_guidance(tty_settings, ui_guide=False)
+        assert "\033[36m" in output  # CYAN code present
+
+    def test_magenta_keywords_when_tty(self, tty_settings) -> None:
+        """Sieve keywords (Archive, Continue) are wrapped in MAGENTA when TTY."""
+        output = generate_sieve_guidance(tty_settings, ui_guide=False)
+        assert "\033[35m" in output  # MAGENTA code present
+
+    def test_no_ansi_when_not_tty(self, settings) -> None:
+        """No ANSI codes when stdout is not a TTY."""
+        output = generate_sieve_guidance(settings, ui_guide=False)
         assert "\033[" not in output
-        # But the override name "CustomBox" is still present
-        assert "CustomBox" in output
 
-    def test_override_detected_for_feed(self, override_settings) -> None:
-        """Feed category shows CustomBox (destination_mailbox override) in output."""
-        output = generate_sieve_guidance(override_settings, ui_guide=True)
-        assert 'Move to folder" = "CustomBox"' in output
-
-    def test_override_in_sieve_snippets(self, override_settings) -> None:
-        """Override name appears in sieve snippet mode too."""
-        output = generate_sieve_guidance(override_settings, ui_guide=False)
-        assert 'Move to folder "CustomBox"' in output
-        assert 'fileinto "INBOX.CustomBox"' in output
-
-    def test_matching_name_not_marked_as_override(self, override_settings) -> None:
-        """Imbox category (name=Imbox, destination_mailbox=Imbox) has no ANSI codes."""
-        output = generate_sieve_guidance(override_settings, ui_guide=True)
-        # Non-TTY so no codes at all
+    def test_no_ansi_when_no_color_env(self, settings, monkeypatch) -> None:
+        """No ANSI codes when NO_COLOR env var is set."""
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+        monkeypatch.setenv("NO_COLOR", "1")
+        output = generate_sieve_guidance(settings, ui_guide=False)
         assert "\033[" not in output
-        assert 'Move to folder" = "Imbox"' in output
-
-    def test_override_name_colored_when_tty(self, override_settings, monkeypatch) -> None:
-        """Override names get ANSI color when stdout is a TTY."""
-        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-        monkeypatch.delenv("NO_COLOR", raising=False)
-        output = generate_sieve_guidance(override_settings, ui_guide=True)
-        # Should contain ANSI cyan around "CustomBox" (override of Feed)
-        assert "\033[36m" in output  # cyan code present
-        assert "CustomBox" in output
-
-    def test_no_color_for_matching_name_when_tty(self, override_settings, monkeypatch) -> None:
-        """Non-override names are NOT wrapped in ANSI color even when TTY."""
-        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-        monkeypatch.delenv("NO_COLOR", raising=False)
-        output = generate_sieve_guidance(override_settings, ui_guide=True)
-        # Imbox's destination_mailbox matches its name, so no cyan wrapping
-        lines = output.split("\n")
-        imbox_folder_lines = [
-            line for line in lines
-            if "Move to folder" in line and "Imbox" in line
-        ]
-        assert len(imbox_folder_lines) == 1
-        # The Imbox folder name should NOT be wrapped in cyan
-        assert "\033[36mImbox\033[0m" not in imbox_folder_lines[0]
-
-    def test_override_color_in_sieve_snippets_when_tty(self, override_settings, monkeypatch) -> None:
-        """Override names are colored in sieve snippet mode when TTY."""
-        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-        monkeypatch.delenv("NO_COLOR", raising=False)
-        output = generate_sieve_guidance(override_settings, ui_guide=False)
-        # Cyan should appear for CustomBox override
-        assert "\033[36m" in output
-        assert "CustomBox" in output

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mailroom.setup.colors import GREEN, YELLOW, RED, DIM, RESET, CYAN, use_color, color
+from mailroom.setup.colors import GREEN, YELLOW, RED, DIM, RESET, CYAN, BLUE, MAGENTA, BOLD, use_color, color
 
 
 class TestUseColor:
@@ -54,5 +54,8 @@ class TestConstants:
             ("DIM", DIM),
             ("RESET", RESET),
             ("CYAN", CYAN),
+            ("BLUE", BLUE),
+            ("MAGENTA", MAGENTA),
+            ("BOLD", BOLD),
         ]:
             assert value.startswith("\033["), f"{name} does not start with ANSI escape"
