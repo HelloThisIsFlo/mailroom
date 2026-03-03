@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 11-config-layer
 source: 11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md
 started: 2026-03-02T20:00:00Z
-updated: 2026-03-03T00:00:00Z
+updated: 2026-03-03T00:10:00Z
 ---
 
 ## Current Test
@@ -67,17 +67,42 @@ skipped: 0
   reason: "User reported: error message buried in traceback; lowercase 'inbox' not caught by CFG-02, fails later with confusing 'mailboxes not found' error instead"
   severity: minor
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "config.py line 193: `resolved_mailbox == 'Inbox'` is case-sensitive. Also __main__.py line 103 has no try/except for ValidationError, so Pydantic traceback is unformatted."
+  artifacts:
+    - path: "src/mailroom/core/config.py"
+      issue: "Line 193: case-sensitive comparison `resolved_mailbox == 'Inbox'`"
+    - path: "src/mailroom/__main__.py"
+      issue: "Line 103: no ValidationError handling, raw Pydantic traceback shown"
+    - path: "tests/test_config.py"
+      issue: "TestDestinationMailboxInboxRejected only tests exact 'Inbox', no case variants"
+  missing:
+    - "Change to case-insensitive check: resolved_mailbox.lower() == 'inbox'"
+    - "Add case variant tests (inbox, INBOX)"
+    - "Wrap MailroomSettings() in __main__.py with try/except for clean error output"
+  debug_session: ".planning/debug/cfg02-case-sensitive.md"
 
 - truth: "Sieve guidance output is clean and focused on UI instructions"
   status: failed
   reason: "User reported: (1) --ui-guide option outdated, should be removed. (2) Commented sieve equivalent code blocks are clutter, should be removed."
   severity: minor
   test: 8
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "--ui-guide flag flows CLI→provisioner→sieve_guidance with a _build_ui_guide() function (65 lines). Commented sieve blocks at lines 109-116 and 122-129 in sieve_guidance.py."
+  artifacts:
+    - path: "src/mailroom/cli.py"
+      issue: "Lines 30-32: --ui-guide option definition"
+    - path: "src/mailroom/setup/provisioner.py"
+      issue: "ui_guide parameter in run_setup() and generate_sieve_guidance() calls"
+    - path: "src/mailroom/setup/sieve_guidance.py"
+      issue: "ui_guide branching, _build_ui_guide() function (lines 144-208), commented sieve blocks (lines 109-116, 122-129)"
+    - path: "tests/test_sieve_guidance.py"
+      issue: "TestGenerateGuidanceUIGuideMode class (lines 151-195), test_sieve_reference_snippets (lines 71-75)"
+    - path: "human-tests/test_14_setup_dry_run.py"
+      issue: "ui_guide=False in run_setup() call"
+    - path: "human-tests/test_15_setup_apply.py"
+      issue: "ui_guide=False in both run_setup() calls"
+  missing:
+    - "Remove --ui-guide from CLI, provisioner, sieve_guidance, and all tests"
+    - "Delete _build_ui_guide() function entirely"
+    - "Delete commented sieve equivalent blocks from _build_sieve_snippets()"
+    - "Remove/update test_sieve_reference_snippets and TestGenerateGuidanceUIGuideMode"
   debug_session: ""
