@@ -34,10 +34,10 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 
 ### Re-triage
 
-- [ ] **RTRI-01**: Applying a triage label to an already-grouped sender moves them to the new contact group
-- [ ] **RTRI-02**: Re-triaged sender's emails re-filed by fetching ALL emails from the contact (any mailbox, not just Screener) and applying the new additive mailbox labels (child + parent chain)
+- [x] **RTRI-01**: Applying a triage label to an already-grouped sender moves them to the new contact group
+- [x] **RTRI-02**: Re-triaged sender's emails re-filed by fetching ALL emails from the contact (any mailbox, not just Screener) and applying the new additive mailbox labels (child + parent chain)
 - [ ] **RTRI-03**: Re-triage logged as `group_reassigned` structured event with old and new group names
-- [ ] **RTRI-04**: Contact note captures triage history — "Added to [group] on [date]" and "Moved from [old] to [new] on [date]"
+- [x] **RTRI-04**: Contact note captures triage history — "Added to [group] on [date]" and "Moved from [old] to [new] on [date]"
 - [ ] **RTRI-05**: Human integration test validates re-triage workflow end-to-end
 - [ ] **RTRI-06**: `add_to_inbox` only adds Inbox label to emails that were in Screener at triage time — re-triage does NOT add Inbox to existing emails (they are not new)
 
@@ -92,10 +92,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCAN-01 | Phase 12 | Complete |
 | SCAN-02 | Phase 12 | Complete |
 | SCAN-03 | Phase 12 | Complete |
-| RTRI-01 | Phase 13 | Pending |
-| RTRI-02 | Phase 13 | Pending |
+| RTRI-01 | Phase 13 | Complete |
+| RTRI-02 | Phase 13 | Complete |
 | RTRI-03 | Phase 13 | Pending |
-| RTRI-04 | Phase 13 | Pending |
+| RTRI-04 | Phase 13 | Complete |
 | RTRI-05 | Phase 13 | Pending |
 | RTRI-06 | Phase 13 | Pending |
 | CLOSE-01 | Post-Phase 13 | Pending |

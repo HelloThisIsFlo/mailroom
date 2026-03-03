@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: completed
-stopped_at: Phase 13 context gathered
-last_updated: "2026-03-03T22:42:39.524Z"
-last_activity: 2026-03-03 -- Completed 12-01 (Batched label scanning with per-method error handling)
+status: in-progress
+stopped_at: "Completed 13-01-PLAN.md"
+last_updated: "2026-03-03T23:28:10.876Z"
+last_activity: 2026-03-03 -- Completed 13-01 (Client layer methods for re-triage)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 12 - Label Scanning
+**Current focus:** Phase 13 - Re-triage
 
 ## Current Position
 
-Phase: 12 of 13 (Label Scanning) -- third of 4 v1.2 phases
-Plan: 1 of 1 (complete)
-Status: Phase 12 Complete
-Last activity: 2026-03-03 -- Completed 12-01 (Batched label scanning with per-method error handling)
+Phase: 13 of 13 (Re-triage) -- fourth of 4 v1.2 phases
+Plan: 2 of 3 (next)
+Status: Phase 13 In Progress
+Last activity: 2026-03-03 -- Completed 13-01 (Client layer methods for re-triage)
 
-Progress: [██████████] 100% (1/1 plans complete in Phase 12)
+Progress: [███░░░░░░░] 33% (1/3 plans complete in Phase 13)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7 (v1.2)
+- Total plans completed: 8 (v1.2)
 - Average duration: 5min
-- Total execution time: 33min
+- Total execution time: 39min
 
 **By Phase:**
 
@@ -46,6 +46,7 @@ Progress: [██████████] 100% (1/1 plans complete in Phase 12)
 | 10-tech-debt-cleanup | 2 | 3min | 2min |
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
+| 13-re-triage | 1 | 6min | 6min |
 
 *Updated after each plan completion*
 
@@ -76,6 +77,10 @@ Recent decisions for v1.2:
 - [12-01] Error filtering stays as separate jmap.call() after batch -- cannot batch without result references
 - [12-01] Escalation threshold: 3 consecutive failures before ERROR level (~3 minutes at 60s poll interval)
 - [12-01] Pagination via follow-up query_emails() for labels with total > len(ids)
+- [13-01] create_contact() requires group_name as keyword-only arg for triage history note
+- [13-01] Triage history uses em-dash Mailroom header for programmatic detection
+- [13-01] Old-format notes preserved as historical context above Mailroom section
+- [13-01] get_email_mailbox_ids returns sets for O(1) membership checks
 
 ### Pending Todos
 
@@ -89,6 +94,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-03T22:42:39.511Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-re-triage/13-CONTEXT.md
+Last session: 2026-03-03T23:28:00.000Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: .planning/phases/13-re-triage/13-02-PLAN.md
