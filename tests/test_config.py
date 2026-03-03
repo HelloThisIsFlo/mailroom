@@ -622,6 +622,24 @@ class TestDestinationMailboxInboxRejected:
         with pytest.raises(ValueError, match="destination_mailbox.*Inbox.*add_to_inbox"):
             resolve_categories(cats)
 
+    def test_lowercase_inbox_rejected(self):
+        """Explicit destination_mailbox='inbox' (lowercase) is rejected with helpful error."""
+        cats = [TriageCategory(name="Imbox", destination_mailbox="inbox")]
+        with pytest.raises(ValueError, match="add_to_inbox"):
+            resolve_categories(cats)
+
+    def test_uppercase_inbox_rejected(self):
+        """Explicit destination_mailbox='INBOX' (uppercase) is rejected with helpful error."""
+        cats = [TriageCategory(name="Imbox", destination_mailbox="INBOX")]
+        with pytest.raises(ValueError, match="add_to_inbox"):
+            resolve_categories(cats)
+
+    def test_derived_lowercase_inbox_rejected(self):
+        """Category named 'inbox' (derives destination_mailbox='inbox') is rejected."""
+        cats = [TriageCategory(name="inbox")]
+        with pytest.raises(ValueError, match="add_to_inbox"):
+            resolve_categories(cats)
+
     def test_add_to_inbox_is_the_correct_alternative(self):
         """Using add_to_inbox=True instead of destination_mailbox='Inbox' works."""
         cats = [TriageCategory(name="Imbox", add_to_inbox=True)]
