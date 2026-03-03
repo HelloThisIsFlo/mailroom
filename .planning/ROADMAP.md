@@ -106,10 +106,12 @@ Plans:
   5. A human integration test validates the full re-triage workflow end-to-end against live Fastmail
   6. `add_to_inbox` only adds Inbox label to emails from Screener -- re-triage does NOT re-add Inbox to existing emails
 **Note**: Sweep logic decisions captured in `docs/WIP.md` during Phase 11 discussion. Key: sweep fetches all emails from contact, applies additive mailbox labels, add_to_inbox is Screener-only.
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — Client layer: remove_from_group, query_emails_by_sender, get_email_mailbox_ids, triage history notes
+- [ ] 13-02-PLAN.md — Screener workflow re-triage logic replacing already-grouped error path
+- [ ] 13-03-PLAN.md — Human integration tests: test_17_retriage + test_9 early exit
 
 ## Progress
 
@@ -121,4 +123,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 | 10. Tech Debt Cleanup | 2/2 | Complete    | 2026-03-02 | - |
 | 11. Config Layer | 4/4 | Complete    | 2026-03-03 | - |
 | 12. Label Scanning | 1/1 | Complete    | 2026-03-03 | - |
-| 13. Re-triage | v1.2 | 0/? | Not started | - |
+| 13. Re-triage | v1.2 | 0/3 | Not started | - |
