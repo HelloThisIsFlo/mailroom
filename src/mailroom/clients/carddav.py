@@ -390,6 +390,8 @@ class CardDAVClient:
         email: str,
         display_name: str | None = None,
         contact_type: str = "company",
+        *,
+        group_name: str,
     ) -> dict:
         """Create a new contact vCard in the addressbook.
 
@@ -401,6 +403,7 @@ class CardDAVClient:
             email: Contact email address.
             display_name: Display name (falls back to email prefix if None).
             contact_type: "company" (default) or "person".
+            group_name: Target group name for the triage history note.
 
         Returns:
             Dict with 'href', 'etag', and 'uid' keys.
@@ -433,7 +436,8 @@ class CardDAVClient:
         email_prop.value = email
         email_prop.type_param = "INTERNET"
         card.add("note").value = (
-            f"Added by Mailroom on {date.today().isoformat()}"
+            f"\u2014 Mailroom \u2014\n"
+            f"Triaged to {group_name} on {date.today().isoformat()}"
         )
 
         # PUT to addressbook with If-None-Match
@@ -530,6 +534,92 @@ class CardDAVClient:
             f"after {max_retries} retries (ETag conflict)"
         )
 
+    def remove_from_group(
+        self,
+        group_name: str,
+        contact_uid: str,
+        max_retries: int = 3,
+    ) -> str:
+        """Remove a contact from a group by modifying the group's vCard.
+
+        Fetches the group vCard, removes the X-ADDRESSBOOKSERVER-MEMBER
+        entry for the contact, and PUTs it back with If-Match for
+        concurrency safety. Retries on 412 Precondition Failed (ETag conflict).
+
+        Idempotent: if the contact is not a member, returns the current ETag
+        without modifying the group.
+
+        Args:
+            group_name: Name of the group (must exist in self._groups).
+            contact_uid: UID of the contact to remove.
+            max_retries: Maximum number of retry attempts on 412.
+
+        Returns:
+            The ETag of the group vCard (new ETag after PUT, or current
+            ETag if contact was not a member).
+
+        Raises:
+            RuntimeError: After exhausting retries on 412 conflicts.
+        """
+        self._require_connection()
+        group_info = self._groups[group_name]
+        href = group_info["href"]
+        group_url = f"https://{self._hostname}{href}"
+
+        member_urn = f"urn:uuid:{contact_uid}"
+
+        for attempt in range(max_retries):
+            # GET current group vCard
+            resp = self._http.get(group_url)
+            resp.raise_for_status()
+            current_etag = resp.headers.get("etag", "")
+
+            card = vobject.readOne(resp.text)
+
+            # Check if member is present
+            existing_members = card.contents.get(
+                "x-addressbookserver-member", []
+            )
+            existing_urns = [m.value for m in existing_members]
+            if member_urn not in existing_urns:
+                return current_etag
+
+            # Filter out the member
+            filtered = [
+                m for m in existing_members if m.value != member_urn
+            ]
+            if filtered:
+                card.contents["x-addressbookserver-member"] = filtered
+            else:
+                # Last member removed -- delete the key to avoid
+                # vobject serialization issues with empty lists
+                del card.contents["x-addressbookserver-member"]
+
+            # PUT with If-Match
+            put_resp = self._http.put(
+                group_url,
+                content=card.serialize().encode("utf-8"),
+                headers={
+                    "Content-Type": "text/vcard; charset=utf-8",
+                    "If-Match": current_etag,
+                },
+            )
+
+            if put_resp.status_code == 412:
+                continue
+
+            put_resp.raise_for_status()
+
+            # Update stored ETag
+            new_etag = put_resp.headers.get("etag", "")
+            self._groups[group_name]["etag"] = new_etag
+            return new_etag
+
+        raise RuntimeError(
+            f"Failed to remove member from group {group_name} "
+            f"after {max_retries} retries (ETag conflict)"
+        )
+
     def check_membership(
         self,
         contact_uid: str,
@@ -605,7 +695,8 @@ class CardDAVClient:
         if not results:
             # New contact
             new_contact = self.create_contact(
-                email, display_name, contact_type=contact_type
+                email, display_name, contact_type=contact_type,
+                group_name=group_name,
             )
             self.add_to_group(group_name, new_contact["uid"])
             return {
@@ -656,26 +747,33 @@ class CardDAVClient:
                 card.fn.value = display_name
             changed = True
 
-        # NOTE handling: always set/update on existing contacts
+        # NOTE handling: triage history log
+        today = date.today().isoformat()
+        retriage_entry = f"Re-triaged to {group_name} on {today}"
+        mailroom_header = "\u2014 Mailroom \u2014"
+
         note_entries = card.contents.get("note", [])
         if note_entries and note_entries[0].value.strip():
-            # Existing note: append update marker below original
             existing_note = note_entries[0].value
-            note_entries[0].value = (
-                f"{existing_note}\n\n"
-                f"Updated by Mailroom on {date.today().isoformat()}"
-            )
-            changed = True
-        else:
-            # No note or empty note: add fresh
-            if note_entries:
+            if mailroom_header in existing_note:
+                # New format: append chronological entry
                 note_entries[0].value = (
-                    f"Added by Mailroom on {date.today().isoformat()}"
+                    f"{existing_note}\n{retriage_entry}"
                 )
             else:
-                card.add("note").value = (
-                    f"Added by Mailroom on {date.today().isoformat()}"
+                # Old format: preserve old note, add Mailroom section
+                note_entries[0].value = (
+                    f"{existing_note}\n\n"
+                    f"{mailroom_header}\n{retriage_entry}"
                 )
+            changed = True
+        else:
+            # No note or empty note: add Mailroom section
+            new_note = f"{mailroom_header}\n{retriage_entry}"
+            if note_entries:
+                note_entries[0].value = new_note
+            else:
+                card.add("note").value = new_note
             changed = True
 
         # PUT updated vCard if anything changed

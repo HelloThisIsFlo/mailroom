@@ -191,7 +191,9 @@ def _contact_vcard(
     for extra in extra_emails or []:
         lines.append(f"EMAIL;TYPE=INTERNET:{extra}")
     if note:
-        lines.append(f"NOTE:{note}")
+        # Escape newlines for vCard format (literal \n in the field value)
+        escaped_note = note.replace("\n", "\\n")
+        lines.append(f"NOTE:{escaped_note}")
     lines.append("END:VCARD")
     return "\r\n".join(lines)
 
