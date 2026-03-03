@@ -188,7 +188,7 @@ def apply_resources(
     return result
 
 
-def run_setup(apply: bool = False, ui_guide: bool = False) -> int:
+def run_setup(apply: bool = False) -> int:
     """Top-level entry point for the setup command.
 
     Loads config, connects clients, plans resources, and optionally
@@ -196,8 +196,6 @@ def run_setup(apply: bool = False, ui_guide: bool = False) -> int:
 
     Args:
         apply: If True, create missing resources. If False, dry-run only.
-        ui_guide: If True, show Fastmail UI instructions (passed through
-            for Plan 03 sieve guidance).
 
     Returns:
         Exit code: 0 if no failures, 1 if any failed.
@@ -249,14 +247,14 @@ def run_setup(apply: bool = False, ui_guide: bool = False) -> int:
 
     if not apply:
         # Dry-run: show sieve guidance first, then resource plan
-        print(generate_sieve_guidance(settings, ui_guide=ui_guide))
+        print(generate_sieve_guidance(settings))
         print()
         print_plan(resource_plan, apply=False)
         return 0
 
     # Apply: create missing resources
     result = apply_resources(resource_plan, jmap, carddav)
-    print(generate_sieve_guidance(settings, ui_guide=ui_guide))
+    print(generate_sieve_guidance(settings))
     print()
     print_plan(result, apply=True)
 

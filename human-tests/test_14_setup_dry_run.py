@@ -89,7 +89,7 @@ print("=== Step 3: Run dry-run (setup without --apply) ===\n")
 
 captured = io.StringIO()
 with redirect_stdout(captured):
-    exit_code = run_setup(apply=False, ui_guide=False)
+    exit_code = run_setup(apply=False)
 
 output = captured.getvalue()
 print("  Captured output:")

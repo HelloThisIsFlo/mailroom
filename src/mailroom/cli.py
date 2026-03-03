@@ -27,12 +27,9 @@ def run() -> None:
 
 @cli.command()
 @click.option("--apply", is_flag=True, default=False, help="Apply changes (default is dry-run)")
-@click.option(
-    "--ui-guide", is_flag=True, default=False, help="Show Fastmail UI instructions instead of sieve snippets"
-)
-def setup(apply: bool, ui_guide: bool) -> None:
+def setup(apply: bool) -> None:
     """Provision Fastmail resources for configured triage categories."""
     from mailroom.setup.provisioner import run_setup
 
-    exit_code = run_setup(apply=apply, ui_guide=ui_guide)
+    exit_code = run_setup(apply=apply)
     sys.exit(exit_code)

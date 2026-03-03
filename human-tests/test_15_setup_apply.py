@@ -39,7 +39,7 @@ print("=== Step 1: First apply run (setup --apply) ===\n")
 
 captured_1 = io.StringIO()
 with redirect_stdout(captured_1):
-    exit_code_1 = run_setup(apply=True, ui_guide=False)
+    exit_code_1 = run_setup(apply=True)
 
 output_1 = captured_1.getvalue()
 print("  Captured output:")
@@ -126,7 +126,7 @@ print("=== Step 4: Idempotency test (second apply run) ===\n")
 
 captured_2 = io.StringIO()
 with redirect_stdout(captured_2):
-    exit_code_2 = run_setup(apply=True, ui_guide=False)
+    exit_code_2 = run_setup(apply=True)
 
 output_2 = captured_2.getvalue()
 print("  Captured output:")
