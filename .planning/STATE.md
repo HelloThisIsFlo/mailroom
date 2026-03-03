@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
-stopped_at: Phase 12 context gathered
-last_updated: "2026-03-03T16:49:37.095Z"
-last_activity: "2026-03-03 -- Completed 11-04 (Gap closure: case-insensitive CFG-02, remove ui_guide)"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-03T19:53:44Z"
+last_activity: "2026-03-03 -- Completed 12-01 (Batched label scanning with per-method error handling)"
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  completed_phases: 3
+  total_plans: 7
+  completed_plans: 7
   percent: 100
 ---
 
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 11 - Config Layer
+**Current focus:** Phase 12 - Label Scanning
 
 ## Current Position
 
-Phase: 11 of 13 (Config Layer) -- second of 4 v1.2 phases
-Plan: 4 of 4 (complete)
-Status: Phase 11 Complete
-Last activity: 2026-03-03 -- Completed 11-04 (Gap closure: case-insensitive CFG-02, remove ui_guide)
+Phase: 12 of 13 (Label Scanning) -- third of 4 v1.2 phases
+Plan: 1 of 1 (complete)
+Status: Phase 12 Complete
+Last activity: 2026-03-03 -- Completed 12-01 (Batched label scanning with per-method error handling)
 
-Progress: [██████████] 100% (4/4 plans complete in Phase 11)
+Progress: [██████████] 100% (1/1 plans complete in Phase 12)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6 (v1.2)
-- Average duration: 4min
-- Total execution time: 25min
+- Total plans completed: 7 (v1.2)
+- Average duration: 5min
+- Total execution time: 33min
 
 **By Phase:**
 
@@ -45,6 +45,7 @@ Progress: [██████████] 100% (4/4 plans complete in Phase 11)
 |-------|-------|-------|----------|
 | 10-tech-debt-cleanup | 2 | 3min | 2min |
 | 11-config-layer | 4 | 22min | 6min |
+| 12-label-scanning | 1 | 8min | 8min |
 
 *Updated after each plan completion*
 
@@ -72,6 +73,9 @@ Recent decisions for v1.2:
 - [11-03] Prominent IMPORTANT note at top of sieve guidance about "Continue to apply other rules"
 - [11-04] Case-insensitive Inbox check uses resolved_mailbox.lower() == "inbox" (single comparison point)
 - [11-04] Kept informational jmapquery mention in sieve guidance intro (explains why UI creation is needed)
+- [12-01] Error filtering stays as separate jmap.call() after batch -- cannot batch without result references
+- [12-01] Escalation threshold: 3 consecutive failures before ERROR level (~3 minutes at 60s poll interval)
+- [12-01] Pagination via follow-up query_emails() for labels with total > len(ids)
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-03T16:49:37.084Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-label-scanning/12-CONTEXT.md
+Last session: 2026-03-03T19:53:44Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: .planning/phases/12-label-scanning/12-01-SUMMARY.md

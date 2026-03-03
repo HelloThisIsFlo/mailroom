@@ -42,7 +42,7 @@ Full details: `milestones/v1.1-ROADMAP.md`
 
 - [x] **Phase 10: Tech Debt Cleanup** - Close v1.1 carry-forward items and expose public interfaces needed by config refactor (completed 2026-03-02)
 - [x] **Phase 11: Config Layer** - Separate inbox flag, make children fully independent categories with additive parent labels (completed 2026-03-02)
-- [ ] **Phase 12: Label Scanning** - Scan for triage labels via label mailbox queries with batched JMAP requests
+- [x] **Phase 12: Label Scanning** - Scan for triage labels via label mailbox queries with batched JMAP requests (completed 2026-03-03)
 - [ ] **Phase 13: Re-triage** - Move senders between contact groups with email re-filing and triage history
 
 ## Phase Details
@@ -120,5 +120,5 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 |-------|-----------|----------------|--------|-----------|
 | 10. Tech Debt Cleanup | 2/2 | Complete    | 2026-03-02 | - |
 | 11. Config Layer | 4/4 | Complete    | 2026-03-03 | - |
-| 12. Label Scanning | v1.2 | 0/1 | Not started | - |
+| 12. Label Scanning | 1/1 | Complete   | 2026-03-03 | - |
 | 13. Re-triage | v1.2 | 0/? | Not started | - |

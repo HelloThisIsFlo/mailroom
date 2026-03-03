@@ -28,9 +28,9 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 
 ### Scanning
 
-- [ ] **SCAN-01**: Triage labels discovered by querying label mailbox IDs directly (not limited to Screener mailbox)
-- [ ] **SCAN-02**: All label mailbox queries batched into single JMAP HTTP request
-- [ ] **SCAN-03**: Per-method errors in batched JMAP responses detected and handled (not silently dropped)
+- [x] **SCAN-01**: Triage labels discovered by querying label mailbox IDs directly (not limited to Screener mailbox)
+- [x] **SCAN-02**: All label mailbox queries batched into single JMAP HTTP request
+- [x] **SCAN-03**: Per-method errors in batched JMAP responses detected and handled (not silently dropped)
 
 ### Re-triage
 
@@ -89,9 +89,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CFG-06 | Phase 11 | Complete |
 | CFG-07 | Phase 11 | Complete |
 | CFG-08 | Phase 11 | Complete |
-| SCAN-01 | Phase 12 | Pending |
-| SCAN-02 | Phase 12 | Pending |
-| SCAN-03 | Phase 12 | Pending |
+| SCAN-01 | Phase 12 | Complete |
+| SCAN-02 | Phase 12 | Complete |
+| SCAN-03 | Phase 12 | Complete |
 | RTRI-01 | Phase 13 | Pending |
 | RTRI-02 | Phase 13 | Pending |
 | RTRI-03 | Phase 13 | Pending |
