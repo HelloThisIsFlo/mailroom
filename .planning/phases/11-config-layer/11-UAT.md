@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 11-config-layer
 source: 11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md
 started: 2026-03-02T20:00:00Z
-updated: 2026-03-03T00:10:00Z
+updated: 2026-03-03T12:00:00Z
 ---
 
 ## Current Test
@@ -63,7 +63,7 @@ skipped: 0
 ## Gaps
 
 - truth: "CFG-02 catches destination_mailbox: Inbox case-insensitively with clear error"
-  status: failed
+  status: resolved
   reason: "User reported: error message buried in traceback; lowercase 'inbox' not caught by CFG-02, fails later with confusing 'mailboxes not found' error instead"
   severity: minor
   test: 4
@@ -82,7 +82,7 @@ skipped: 0
   debug_session: ".planning/debug/cfg02-case-sensitive.md"
 
 - truth: "Sieve guidance output is clean and focused on UI instructions"
-  status: failed
+  status: resolved
   reason: "User reported: (1) --ui-guide option outdated, should be removed. (2) Commented sieve equivalent code blocks are clutter, should be removed."
   severity: minor
   test: 8
