@@ -557,7 +557,7 @@ class TestCreateContact:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com", "Jane Smith")
+        client.create_contact("jane@example.com", "Jane Smith", group_name="Imbox")
 
         # The 4th request (after 3 PROPFIND) should be the PUT
         requests = httpx_mock.get_requests()
@@ -570,7 +570,9 @@ class TestCreateContact:
         assert card.version.value == "3.0"
         assert card.fn.value == "Jane Smith"
         assert card.email.value == "jane@example.com"
-        assert "Added by Mailroom on" in card.note.value
+        today = date.today().isoformat()
+        expected_note = f"\u2014 Mailroom \u2014\nTriaged to Imbox on {today}"
+        assert card.note.value == expected_note
         # UID should be a valid UUID
         uuid.UUID(card.uid.value)
 
@@ -585,7 +587,7 @@ class TestCreateContact:
             headers={"etag": '"new-etag"'},
         )
 
-        result = client.create_contact("jane@example.com", "Jane Smith")
+        result = client.create_contact("jane@example.com", "Jane Smith", group_name="Imbox")
 
         assert "href" in result
         assert "etag" in result
@@ -605,7 +607,7 @@ class TestCreateContact:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com", "Jane Smith")
+        client.create_contact("jane@example.com", "Jane Smith", group_name="Imbox")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -622,7 +624,7 @@ class TestCreateContact:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com")
+        client.create_contact("jane@example.com", group_name="Feed")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -810,6 +812,204 @@ class TestAddToGroup:
         assert len(put_requests) == 0
 
 
+# --- Remove from Group Tests ---
+
+
+class TestRemoveFromGroup:
+    """Tests for CardDAVClient.remove_from_group()."""
+
+    def test_remove_from_group_removes_member(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """PUT body no longer contains the removed member, preserves others."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing_members = ["contact-1", "contact-2", "contact-3"]
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=existing_members
+        )
+        # Mock GET for group vCard
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        # Mock PUT success
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.remove_from_group("Imbox", "contact-2")
+
+        assert result == '"etag-imbox-2"'
+
+        # Check the PUT body
+        requests = httpx_mock.get_requests()
+        put_req = [r for r in requests if r.method == "PUT"][0]
+        put_body = put_req.content.decode("utf-8")
+
+        # Removed member should be gone
+        assert "urn:uuid:contact-2" not in put_body
+        # Other members should remain
+        assert "urn:uuid:contact-1" in put_body
+        assert "urn:uuid:contact-3" in put_body
+
+    def test_remove_from_group_idempotent(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Removing a non-member returns current ETag without PUT."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=["other-uid"]
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+
+        result = client.remove_from_group("Imbox", "not-a-member-uid")
+
+        assert result == '"etag-imbox-1"'
+
+        # No PUT should have been sent
+        requests = httpx_mock.get_requests()
+        put_requests = [r for r in requests if r.method == "PUT"]
+        assert len(put_requests) == 0
+
+    def test_remove_from_group_retries_on_412(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """On 412, re-fetches group and retries PUT successfully."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=["target-uid"]
+        )
+
+        # Attempt 1: GET -> PUT returns 412
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-v1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=412,
+        )
+        # Attempt 2: GET (fresh) -> PUT success
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-v2"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-v3"'},
+        )
+
+        result = client.remove_from_group("Imbox", "target-uid")
+
+        assert result == '"etag-v3"'
+
+        # Count PUTs: should be exactly 2
+        requests = httpx_mock.get_requests()
+        put_requests = [r for r in requests if r.method == "PUT"]
+        assert len(put_requests) == 2
+
+    def test_remove_from_group_raises_after_max_retries(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """After exhausting retries, raises RuntimeError."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=["target-uid"]
+        )
+
+        # 3 attempts: GET -> PUT(412) each time
+        for etag_n in range(1, 4):
+            httpx_mock.add_response(
+                url=GROUP_URL,
+                status_code=200,
+                content=group_body.encode("utf-8"),
+                headers={"etag": f'"etag-v{etag_n}"'},
+            )
+            httpx_mock.add_response(
+                url=GROUP_URL,
+                status_code=412,
+            )
+
+        with pytest.raises(RuntimeError, match="retries"):
+            client.remove_from_group("Imbox", "target-uid")
+
+    def test_remove_from_group_last_member(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Removing the last member produces a valid vCard with no member entries."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=["last-uid"]
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.remove_from_group("Imbox", "last-uid")
+
+        assert result == '"etag-imbox-2"'
+
+        # Verify PUT body has no member entries
+        requests = httpx_mock.get_requests()
+        put_req = [r for r in requests if r.method == "PUT"][0]
+        put_body = put_req.content.decode("utf-8")
+        assert "X-ADDRESSBOOKSERVER-MEMBER" not in put_body
+        # Should still be a valid group vCard
+        assert "X-ADDRESSBOOKSERVER-KIND:group" in put_body
+
+    def test_remove_from_group_returns_etag(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Successful removal returns the new ETag."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        group_body = _group_vcard(
+            "Imbox", "uid-imbox", members=["target-uid"]
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-old"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL,
+            status_code=204,
+            headers={"etag": '"etag-new"'},
+        )
+
+        result = client.remove_from_group("Imbox", "target-uid")
+
+        assert result == '"etag-new"'
+
+
 # --- Upsert Contact Tests ---
 
 
@@ -973,7 +1173,7 @@ class TestUpsertContact:
         card = vobject.readOne(updated_body)
         assert card.fn.value == "Jane Smith"  # Not overwritten
         assert "Personal contact" in card.note.value  # Original preserved
-        assert "Updated by Mailroom on" in card.note.value  # Appended
+        assert "Re-triaged to Imbox on" in card.note.value  # Triage history appended
 
     def test_upsert_existing_contact_merge_cautious(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
@@ -1041,7 +1241,7 @@ class TestUpsertContact:
         # Original fields preserved
         assert card.fn.value == "Jane Smith"
         assert "My friend Jane" in card.note.value  # Original note preserved
-        assert "Updated by Mailroom on" in card.note.value  # Appended
+        assert "Re-triaged to Imbox on" in card.note.value  # Triage history appended
 
         # Both emails present
         emails = [e.value for e in card.contents.get("email", [])]
@@ -1065,7 +1265,7 @@ class TestCreateContactCompany:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("acme@example.com", "Acme Corp", contact_type="company")
+        client.create_contact("acme@example.com", "Acme Corp", contact_type="company", group_name="Feed")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -1092,7 +1292,7 @@ class TestCreateContactCompany:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("support@acme.com", None, contact_type="company")
+        client.create_contact("support@acme.com", None, contact_type="company", group_name="Feed")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -1104,24 +1304,25 @@ class TestCreateContactCompany:
         assert len(org_list) == 1
         assert org_list[0].value == ["support"]
 
-    def test_company_vcard_includes_note(
+    def test_company_vcard_includes_triage_note(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Company vCard includes NOTE 'Added by Mailroom on {date}'."""
+        """Company vCard includes NOTE with Mailroom triage history format."""
         _connect_client(client, httpx_mock)
         httpx_mock.add_response(
             status_code=201,
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("acme@example.com", "Acme Corp", contact_type="company")
+        client.create_contact("acme@example.com", "Acme Corp", contact_type="company", group_name="Feed")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
         vcard_body = put_req.content.decode("utf-8")
         card = vobject.readOne(vcard_body)
 
-        expected_note = f"Added by Mailroom on {date.today().isoformat()}"
+        today = date.today().isoformat()
+        expected_note = f"\u2014 Mailroom \u2014\nTriaged to Feed on {today}"
         assert card.note.value == expected_note
 
 
@@ -1141,7 +1342,7 @@ class TestCreateContactPerson:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com", "Jane Smith", contact_type="person")
+        client.create_contact("jane@example.com", "Jane Smith", contact_type="person", group_name="Person")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -1164,7 +1365,7 @@ class TestCreateContactPerson:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com", "Jane", contact_type="person")
+        client.create_contact("jane@example.com", "Jane", contact_type="person", group_name="Person")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -1184,7 +1385,7 @@ class TestCreateContactPerson:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jsmith@example.com", None, contact_type="person")
+        client.create_contact("jsmith@example.com", None, contact_type="person", group_name="Person")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -1195,24 +1396,25 @@ class TestCreateContactPerson:
         assert card.n.value.given == "jsmith"
         assert card.n.value.family == ""
 
-    def test_person_vcard_includes_note(
+    def test_person_vcard_includes_triage_note(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Person vCard includes NOTE 'Added by Mailroom on {date}'."""
+        """Person vCard includes NOTE with Mailroom triage history format."""
         _connect_client(client, httpx_mock)
         httpx_mock.add_response(
             status_code=201,
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com", "Jane Smith", contact_type="person")
+        client.create_contact("jane@example.com", "Jane Smith", contact_type="person", group_name="Person")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
         vcard_body = put_req.content.decode("utf-8")
         card = vobject.readOne(vcard_body)
 
-        expected_note = f"Added by Mailroom on {date.today().isoformat()}"
+        today = date.today().isoformat()
+        expected_note = f"\u2014 Mailroom \u2014\nTriaged to Person on {today}"
         assert card.note.value == expected_note
 
     def test_person_vcard_no_org(
@@ -1225,7 +1427,7 @@ class TestCreateContactPerson:
             headers={"etag": '"new-etag"'},
         )
 
-        client.create_contact("jane@example.com", "Jane Smith", contact_type="person")
+        client.create_contact("jane@example.com", "Jane Smith", contact_type="person", group_name="Person")
 
         requests = httpx_mock.get_requests()
         put_req = requests[3]
@@ -1239,12 +1441,12 @@ class TestCreateContactPerson:
 
 
 class TestUpsertNoteField:
-    """Tests for NOTE append behavior in upsert_contact."""
+    """Tests for NOTE triage history behavior in upsert_contact."""
 
-    def test_upsert_existing_no_note_adds_note(
+    def test_upsert_existing_no_note_adds_retriage_note(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Existing contact with no note: adds 'Added by Mailroom on {date}'."""
+        """Existing contact with no note: adds Mailroom header + Re-triaged entry."""
         _setup_client_with_groups(client, httpx_mock)
 
         # Existing contact without a note
@@ -1288,13 +1490,14 @@ class TestUpsertNoteField:
         updated_body = contact_puts[0].content.decode("utf-8")
         card = vobject.readOne(updated_body)
 
-        expected_note = f"Added by Mailroom on {date.today().isoformat()}"
+        today = date.today().isoformat()
+        expected_note = f"\u2014 Mailroom \u2014\nRe-triaged to Imbox on {today}"
         assert card.note.value == expected_note
 
-    def test_upsert_existing_with_note_appends(
+    def test_upsert_existing_old_format_note_migrates(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
     ) -> None:
-        """Existing contact with note: appends 'Updated by Mailroom on {date}'."""
+        """Existing contact with old-format note: preserves old note, adds Mailroom section."""
         _setup_client_with_groups(client, httpx_mock)
 
         existing = _contact_vcard(
@@ -1338,8 +1541,68 @@ class TestUpsertNoteField:
         updated_body = contact_puts[0].content.decode("utf-8")
         card = vobject.readOne(updated_body)
 
-        expected_suffix = f"\n\nUpdated by Mailroom on {date.today().isoformat()}"
-        assert card.note.value == f"Personal contact{expected_suffix}"
+        today = date.today().isoformat()
+        # Old note preserved, Mailroom header + re-triage entry appended
+        assert card.note.value == (
+            f"Personal contact\n\n"
+            f"\u2014 Mailroom \u2014\n"
+            f"Re-triaged to Imbox on {today}"
+        )
+
+    def test_upsert_existing_new_format_note_appends(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact with new-format note: appends Re-triaged entry."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        today = date.today().isoformat()
+        existing_note = f"\u2014 Mailroom \u2014\nTriaged to Feed on {today}"
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note=existing_note,
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock the contact update PUT
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        # Mock add_to_group: GET + PUT
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        expected_note = (
+            f"\u2014 Mailroom \u2014\n"
+            f"Triaged to Feed on {today}\n"
+            f"Re-triaged to Imbox on {today}"
+        )
+        assert card.note.value == expected_note
 
     def test_upsert_existing_with_note_preserves_original(
         self, client: CardDAVClient, httpx_mock: HTTPXMock
