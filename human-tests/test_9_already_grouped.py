@@ -1,24 +1,24 @@
-"""Human test 9: Already-Grouped Sender Conflict (WRITES @MailroomError + contacts).
+"""Human test 9: Already-Grouped Sender Conflict (OUTDATED).
 
-Tests that when a sender's contact is already in a different group than the
-triage label targets, poll() applies @MailroomError and does NOT process
-(move/upsert) that sender.
+This test validated the already-grouped error behavior (@MailroomError),
+which was replaced by re-triage in Phase 13. The already-grouped error path
+no longer exists -- senders in a different group are now re-triaged
+(moved to the new group with full email label reconciliation).
 
-This test automates the setup:
-  1. Finds a sender in Screener with a triage label
-  2. Creates or finds their contact in CardDAV
-  3. Adds the contact to a DIFFERENT group than the triage label targets
-  4. Runs poll()
-  5. Verifies @MailroomError was applied, email stayed in Screener
-
-Prerequisites:
-  - Tests 1-6 pass (JMAP auth, queries, labels, CardDAV auth, contacts, groups)
-  - At least one email in Screener has a triage label (@ToImbox, @ToFeed, etc.)
-
-Cleanup note:
-  After the test, you may want to remove the test contact from the wrong group
-  and remove the @MailroomError label in Fastmail to restore clean state.
+See test_17_retriage.py for the replacement test.
 """
+
+print("\n" + "=" * 60)
+print("TEST 9: OUTDATED REQUIREMENT")
+print("=" * 60)
+print("\nThis test validated the already-grouped error behavior,")
+print("which was replaced by re-triage in Phase 13.")
+print("\nRun test_17_retriage.py instead.")
+print("=" * 60 + "\n")
+import sys
+sys.exit(0)
+
+# --- Original test code below (preserved for reference) ---
 
 import sys
 from pathlib import Path
