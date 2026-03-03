@@ -230,10 +230,9 @@ class JMAPClient:
             )
             data = responses[0][1]
             ids = data["ids"]
-            total = data["total"]
             all_ids.extend(ids)
 
-            if len(all_ids) >= total:
+            if len(ids) < limit:
                 break
             position = len(all_ids)
 
@@ -279,10 +278,9 @@ class JMAPClient:
             )
             data = responses[0][1]
             ids = data["ids"]
-            total = data["total"]
             all_ids.extend(ids)
 
-            if len(all_ids) >= total:
+            if len(ids) < limit:
                 break
             position = len(all_ids)
 
