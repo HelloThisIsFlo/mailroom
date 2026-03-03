@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: in-progress
-stopped_at: "Completed 13-01-PLAN.md"
-last_updated: "2026-03-03T23:28:10.876Z"
-last_activity: 2026-03-03 -- Completed 13-01 (Client layer methods for re-triage)
+stopped_at: "Completed 13-02-PLAN.md"
+last_updated: "2026-03-03T23:35:03Z"
+last_activity: 2026-03-03 -- Completed 13-02 (Re-triage workflow logic)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 13 of 13 (Re-triage) -- fourth of 4 v1.2 phases
-Plan: 2 of 3 (next)
+Plan: 3 of 3 (next)
 Status: Phase 13 In Progress
-Last activity: 2026-03-03 -- Completed 13-01 (Client layer methods for re-triage)
+Last activity: 2026-03-03 -- Completed 13-02 (Re-triage workflow logic)
 
-Progress: [███░░░░░░░] 33% (1/3 plans complete in Phase 13)
+Progress: [██████░░░░] 67% (2/3 plans complete in Phase 13)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8 (v1.2)
+- Total plans completed: 9 (v1.2)
 - Average duration: 5min
-- Total execution time: 39min
+- Total execution time: 43min
 
 **By Phase:**
 
@@ -46,7 +46,7 @@ Progress: [███░░░░░░░] 33% (1/3 plans complete in Phase 13)
 | 10-tech-debt-cleanup | 2 | 3min | 2min |
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
-| 13-re-triage | 1 | 6min | 6min |
+| 13-re-triage | 2 | 10min | 5min |
 
 *Updated after each plan completion*
 
@@ -81,6 +81,10 @@ Recent decisions for v1.2:
 - [13-01] Triage history uses em-dash Mailroom header for programmatic detection
 - [13-01] Old-format notes preserved as historical context above Mailroom section
 - [13-01] get_email_mailbox_ids returns sets for O(1) membership checks
+- [13-02] Re-triage replaces already-grouped error path (no @MailroomError for grouped senders)
+- [13-02] Same-group re-triage runs full reconciliation for self-healing
+- [13-02] Chain diff uses set operations on contact_group names
+- [13-02] Inbox explicitly excluded from managed label removal set
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-03T23:28:00.000Z
-Stopped at: Completed 13-01-PLAN.md
-Resume file: .planning/phases/13-re-triage/13-02-PLAN.md
+Last session: 2026-03-03T23:35:03Z
+Stopped at: Completed 13-02-PLAN.md
+Resume file: .planning/phases/13-re-triage/13-03-PLAN.md

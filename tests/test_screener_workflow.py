@@ -689,7 +689,7 @@ class TestProcessSenderMultipleTriggering:
 
 
 class TestProcessSenderStepOrder:
-    """Verify strict step ordering: already-grouped check -> upsert -> sweep -> remove label."""
+    """Verify strict step ordering for initial triage: detect retriage -> upsert -> sweep -> remove label."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
