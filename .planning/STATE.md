@@ -2,13 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: unknown
-last_updated: "2026-03-02T19:48:52.552Z"
+status: completed
+stopped_at: Completed 11-04-PLAN.md
+last_updated: "2026-03-03T15:30:34.335Z"
+last_activity: "2026-03-03 -- Completed 11-04 (Gap closure: case-insensitive CFG-02, remove ui_guide)"
 progress:
-  total_phases: 2
+  total_phases: 4
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 6
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -23,25 +26,25 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 11 of 13 (Config Layer) -- second of 4 v1.2 phases
-Plan: 3 of 3 (complete)
+Plan: 4 of 4 (complete)
 Status: Phase 11 Complete
-Last activity: 2026-03-02 -- Completed 11-03 (Sieve guidance: all-category display, syntax highlighting)
+Last activity: 2026-03-03 -- Completed 11-04 (Gap closure: case-insensitive CFG-02, remove ui_guide)
 
-Progress: [██████████] 100% (3/3 plans complete in Phase 11)
+Progress: [██████████] 100% (4/4 plans complete in Phase 11)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5 (v1.2)
+- Total plans completed: 6 (v1.2)
 - Average duration: 4min
-- Total execution time: 21min
+- Total execution time: 25min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 10-tech-debt-cleanup | 2 | 3min | 2min |
-| 11-config-layer | 3 | 18min | 6min |
+| 11-config-layer | 4 | 22min | 6min |
 
 *Updated after each plan completion*
 
@@ -67,6 +70,8 @@ Recent decisions for v1.2:
 - [11-02] No refactor phase needed -- additive chain implementation is clean and self-contained
 - [11-03] Removed _highlight_folder -- all mailbox names get unconditional CYAN highlighting
 - [11-03] Prominent IMPORTANT note at top of sieve guidance about "Continue to apply other rules"
+- [11-04] Case-insensitive Inbox check uses resolved_mailbox.lower() == "inbox" (single comparison point)
+- [11-04] Kept informational jmapquery mention in sieve guidance intro (explains why UI creation is needed)
 
 ### Pending Todos
 
@@ -80,6 +85,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: Completed 11-03-PLAN.md (Sieve guidance: all-category display, syntax highlighting)
-Resume file: N/A
+Last session: 2026-03-03T15:30:34.333Z
+Stopped at: Completed 11-04-PLAN.md
+Resume file: None
