@@ -239,6 +239,55 @@ class JMAPClient:
 
         return all_ids
 
+    def query_emails_by_sender(
+        self,
+        sender: str,
+        limit: int = 100,
+    ) -> list[str]:
+        """Query email IDs from a sender across all mailboxes.
+
+        Unlike query_emails(), this uses only a {"from": sender} filter
+        without "inMailbox", so it searches across all mailboxes.
+        Handles pagination automatically when total exceeds the page size.
+
+        Args:
+            sender: Sender email address to filter by.
+            limit: Maximum emails per page (used for pagination).
+
+        Returns:
+            List of email ID strings.
+        """
+        email_filter: dict = {"from": sender}
+
+        all_ids: list[str] = []
+        position = 0
+
+        while True:
+            responses = self.call(
+                [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": self.account_id,
+                            "filter": email_filter,
+                            "limit": limit,
+                            "position": position,
+                        },
+                        "q0",
+                    ]
+                ]
+            )
+            data = responses[0][1]
+            ids = data["ids"]
+            total = data["total"]
+            all_ids.extend(ids)
+
+            if len(all_ids) >= total:
+                break
+            position = len(all_ids)
+
+        return all_ids
+
     def get_email_senders(
         self, email_ids: list[str]
     ) -> dict[str, tuple[str, str | None]]:
@@ -279,6 +328,47 @@ class JMAPClient:
                 if name and not name.strip():
                     name = None
                 result[email["id"]] = (sender_email, name)
+
+        return result
+
+    def get_email_mailbox_ids(
+        self, email_ids: list[str]
+    ) -> dict[str, set[str]]:
+        """Get mailbox membership for each email ID.
+
+        Uses Email/get with properties=["id", "mailboxIds"] to determine
+        which mailboxes each email belongs to. Processes in BATCH_SIZE
+        chunks to handle large email lists.
+
+        Args:
+            email_ids: List of email IDs to look up.
+
+        Returns:
+            Dict mapping email_id to a set of mailbox ID strings.
+        """
+        result: dict[str, set[str]] = {}
+
+        for chunk_start in range(0, len(email_ids), BATCH_SIZE):
+            chunk = email_ids[chunk_start : chunk_start + BATCH_SIZE]
+
+            responses = self.call(
+                [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": self.account_id,
+                            "ids": chunk,
+                            "properties": ["id", "mailboxIds"],
+                        },
+                        "g0",
+                    ]
+                ]
+            )
+            email_list = responses[0][1]["list"]
+
+            for email in email_list:
+                mailbox_ids_map = email.get("mailboxIds", {})
+                result[email["id"]] = set(mailbox_ids_map.keys())
 
         return result
 
