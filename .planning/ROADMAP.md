@@ -89,10 +89,10 @@ Plans:
   1. Emails with triage labels are discovered regardless of which mailbox they reside in (not limited to Screener)
   2. All label mailbox queries execute in a single JMAP HTTP round-trip (batched request)
   3. A per-method error in a batched JMAP response is detected and logged, not silently dropped
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — Batched _collect_triaged() with per-method error handling and escalating log severity
 
 ### Phase 13: Re-triage
 **Goal**: Applying a triage label to an already-grouped sender moves them to the new group with email re-filing and auditable triage history
@@ -120,5 +120,5 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 |-------|-----------|----------------|--------|-----------|
 | 10. Tech Debt Cleanup | 2/2 | Complete    | 2026-03-02 | - |
 | 11. Config Layer | 4/4 | Complete    | 2026-03-03 | - |
-| 12. Label Scanning | v1.2 | 0/? | Not started | - |
+| 12. Label Scanning | v1.2 | 0/1 | Not started | - |
 | 13. Re-triage | v1.2 | 0/? | Not started | - |
