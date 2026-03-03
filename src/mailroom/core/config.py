@@ -190,7 +190,7 @@ def _validate_categories(categories: list[TriageCategory]) -> list[str]:
             if cat.destination_mailbox is not None
             else derive_destination_mailbox(cat.name)
         )
-        if resolved_mailbox == "Inbox":
+        if resolved_mailbox.lower() == "inbox":
             errors.append(
                 f"Category '{cat.name}' has destination_mailbox: Inbox. "
                 f"Use add_to_inbox: true instead to make emails appear in Inbox."

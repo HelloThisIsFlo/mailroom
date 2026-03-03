@@ -20,6 +20,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import structlog
 
+from pydantic import ValidationError
+
 from mailroom.clients.carddav import CardDAVClient
 from mailroom.clients.jmap import JMAPClient
 from mailroom.core.config import MailroomSettings
@@ -100,7 +102,11 @@ def main() -> None:
     # --- Startup sequence (crashes on failure) ---
 
     # 1. Load config
-    settings = MailroomSettings()
+    try:
+        settings = MailroomSettings()
+    except ValidationError as exc:
+        print(f"Configuration error: {exc}", file=sys.stderr)
+        sys.exit(1)
     configure_logging(settings.logging.level)
     log = structlog.get_logger(component="main")
 
