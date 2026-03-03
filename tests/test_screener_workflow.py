@@ -2032,6 +2032,403 @@ class TestRootCategoryAddToInbox:
 
 
 # =============================================================================
+# Plan 12-01: Batched label scanning with per-method error handling
+# =============================================================================
+
+
+def _make_batched_call_side_effect(
+    label_emails: dict[str, list[str]],
+    mailbox_ids: dict[str, str],
+    error_labels: dict[str, dict] | None = None,
+):
+    """Build a jmap.call side_effect that handles batched Email/query, Email/get, and Email/set.
+
+    Args:
+        label_emails: Mapping of label mailbox ID -> list of email IDs returned.
+        mailbox_ids: The mock_mailbox_ids dict (name -> id).
+        error_labels: If given, mapping of label mailbox ID -> error dict
+            (e.g., {"type": "serverFail", "description": "..."}).
+            These labels return ["error", {...}, call_id] instead of Email/query.
+    """
+    error_labels = error_labels or {}
+
+    def side_effect(method_calls):
+        first_method = method_calls[0][0]
+
+        # Batched Email/query for discovery
+        if first_method == "Email/query":
+            responses = []
+            for mc in method_calls:
+                label_id = mc[1]["filter"]["inMailbox"]
+                call_id = mc[2]
+                if label_id in error_labels:
+                    responses.append(["error", error_labels[label_id], call_id])
+                else:
+                    ids = label_emails.get(label_id, [])
+                    responses.append(
+                        ["Email/query", {"ids": ids, "total": len(ids)}, call_id]
+                    )
+            return responses
+
+        # Email/get for error filtering or sender fetching
+        if first_method == "Email/get":
+            ids = method_calls[0][1].get("ids", [])
+            props = method_calls[0][1].get("properties", [])
+            # Sender fetch: properties include "from"
+            if "from" in props:
+                raise AssertionError("Sender fetch should use get_email_senders, not call()")
+            # Error filtering: return emails with their mailbox IDs
+            email_list = []
+            for eid in ids:
+                # Find which label mailbox this email belongs to
+                mbox_ids = {}
+                for label_mbid, eids in label_emails.items():
+                    if eid in eids:
+                        mbox_ids[label_mbid] = True
+                email_list.append({"id": eid, "mailboxIds": mbox_ids})
+            return [["Email/get", {"list": email_list}, "g0"]]
+
+        # Email/set for error/warning labeling
+        if first_method == "Email/set":
+            return [["Email/set", {"updated": {}}, method_calls[0][2]]]
+
+        return []
+
+    return side_effect
+
+
+class TestBatchedCollectTriaged:
+    """_collect_triaged() uses batched jmap.call() with Email/query per label (SCAN-01, SCAN-02)."""
+
+    def test_calls_jmap_call_once_for_discovery(self, workflow, jmap, mock_mailbox_ids):
+        """_collect_triaged() calls jmap.call() exactly once for Email/query discovery."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        workflow._collect_triaged()
+        # First call should be the batched Email/query
+        query_calls = [
+            c for c in jmap.call.call_args_list
+            if c.args[0][0][0] == "Email/query"
+        ]
+        assert len(query_calls) == 1
+
+    def test_does_not_call_query_emails_for_discovery(self, workflow, jmap, mock_mailbox_ids):
+        """_collect_triaged() does NOT use jmap.query_emails() for discovery."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        workflow._collect_triaged()
+        jmap.query_emails.assert_not_called()
+
+    def test_batch_has_one_query_per_label(self, workflow, jmap, mock_mailbox_ids):
+        """Batch contains exactly N Email/query calls (one per triage label)."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        workflow._collect_triaged()
+        batch_call = jmap.call.call_args_list[0]
+        method_calls = batch_call.args[0]
+        assert len(method_calls) == 7  # 7 triage labels in v1.2 defaults
+        for mc in method_calls:
+            assert mc[0] == "Email/query"
+
+    def test_each_query_uses_inmailbox_filter(self, workflow, jmap, mock_mailbox_ids):
+        """Each Email/query uses inMailbox filter with the label's mailbox ID."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        workflow._collect_triaged()
+        batch_call = jmap.call.call_args_list[0]
+        method_calls = batch_call.args[0]
+        queried_mailbox_ids = {mc[1]["filter"]["inMailbox"] for mc in method_calls}
+        assert "mb-toimbox" in queried_mailbox_ids
+        assert "mb-tofeed" in queried_mailbox_ids
+        assert "mb-topapertrl" in queried_mailbox_ids
+        assert "mb-tojail" in queried_mailbox_ids
+        assert "mb-toperson" in queried_mailbox_ids
+        assert "mb-tobillboard" in queried_mailbox_ids
+        assert "mb-totruck" in queried_mailbox_ids
+
+    def test_each_query_has_limit_100(self, workflow, jmap, mock_mailbox_ids):
+        """Each Email/query has limit: 100."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        workflow._collect_triaged()
+        batch_call = jmap.call.call_args_list[0]
+        method_calls = batch_call.args[0]
+        for mc in method_calls:
+            assert mc[1]["limit"] == 100
+
+    def test_each_query_has_unique_call_id(self, workflow, jmap, mock_mailbox_ids):
+        """Each Email/query has a unique call-id (q0, q1, ...)."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        workflow._collect_triaged()
+        batch_call = jmap.call.call_args_list[0]
+        method_calls = batch_call.args[0]
+        call_ids = [mc[2] for mc in method_calls]
+        assert len(call_ids) == len(set(call_ids))  # all unique
+        for i, cid in enumerate(call_ids):
+            assert cid == f"q{i}"
+
+    def test_successful_batch_returns_emails_grouped_by_sender(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """Successful batch returns emails grouped by sender (same structure as before)."""
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"], "mb-tofeed": ["email-2"]},
+            mock_mailbox_ids,
+        )
+        jmap.get_email_senders.return_value = {
+            "email-1": ("alice@example.com", "Alice"),
+            "email-2": ("bob@example.com", "Bob"),
+        }
+        triaged, sender_names = workflow._collect_triaged()
+        assert "alice@example.com" in triaged
+        assert "bob@example.com" in triaged
+        assert triaged["alice@example.com"] == [("email-1", "@ToImbox")]
+        assert triaged["bob@example.com"] == [("email-2", "@ToFeed")]
+
+    def test_single_sender_fetch_for_all_labels(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """Single get_email_senders call with ALL email IDs from ALL labels."""
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"], "mb-tofeed": ["email-2"]},
+            mock_mailbox_ids,
+        )
+        jmap.get_email_senders.return_value = {
+            "email-1": ("alice@example.com", "Alice"),
+            "email-2": ("bob@example.com", "Bob"),
+        }
+        workflow._collect_triaged()
+        jmap.get_email_senders.assert_called_once()
+        called_ids = jmap.get_email_senders.call_args.args[0]
+        assert set(called_ids) == {"email-1", "email-2"}
+
+    def test_all_empty_returns_empty_without_sender_fetch(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """When all labels return empty, returns ({}, {}) without calling get_email_senders."""
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
+        triaged, sender_names = workflow._collect_triaged()
+        assert triaged == {}
+        assert sender_names == {}
+        jmap.get_email_senders.assert_not_called()
+
+    def test_error_filtering_is_separate_call(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """Error filtering (@MailroomError check) is a separate jmap.call() after batch."""
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"]},
+            mock_mailbox_ids,
+        )
+        jmap.get_email_senders.return_value = {
+            "email-1": ("alice@example.com", "Alice"),
+        }
+        workflow._collect_triaged()
+        # Should have 2 jmap.call() invocations: 1 batch + 1 error filter
+        assert jmap.call.call_count == 2
+        # First call: batched Email/query
+        assert jmap.call.call_args_list[0].args[0][0][0] == "Email/query"
+        # Second call: Email/get for error filtering
+        assert jmap.call.call_args_list[1].args[0][0][0] == "Email/get"
+
+
+class TestBatchedPerMethodError:
+    """Per-method error detection in batched responses (SCAN-03)."""
+
+    def test_one_label_fails_others_still_process(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """When one label returns error, that label is skipped but others process normally."""
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"]},
+            mock_mailbox_ids,
+            error_labels={"mb-tofeed": {"type": "serverFail", "description": "Temporary"}},
+        )
+        jmap.get_email_senders.return_value = {
+            "email-1": ("alice@example.com", "Alice"),
+        }
+        triaged, sender_names = workflow._collect_triaged()
+        assert "alice@example.com" in triaged
+        assert triaged["alice@example.com"] == [("email-1", "@ToImbox")]
+
+    def test_failed_label_logged_at_warning_on_first_failure(
+        self, workflow, jmap, mock_mailbox_ids, caplog
+    ):
+        """First failure for a label is logged at WARNING level."""
+        import logging
+
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {},
+            mock_mailbox_ids,
+            error_labels={"mb-tofeed": {"type": "serverFail", "description": "Temp"}},
+        )
+        with caplog.at_level(logging.WARNING):
+            workflow._collect_triaged()
+        assert any("label_query_failed" in r.message or "label_query_failed" in str(r) for r in caplog.records)
+
+    def test_three_consecutive_failures_logged_at_error(
+        self, workflow, jmap, mock_mailbox_ids, caplog
+    ):
+        """After 3 consecutive failures for the same label, logged at ERROR level."""
+        import logging
+
+        side_effect = _make_batched_call_side_effect(
+            {},
+            mock_mailbox_ids,
+            error_labels={"mb-tofeed": {"type": "serverFail", "description": "Persistent"}},
+        )
+        jmap.call.side_effect = side_effect
+
+        # First 2 polls: WARNING
+        workflow._collect_triaged()
+        workflow._collect_triaged()
+
+        # Third poll: should escalate to ERROR
+        with caplog.at_level(logging.ERROR):
+            workflow._collect_triaged()
+        assert any(
+            "label_query_persistent_failure" in r.message or "label_query_persistent_failure" in str(r)
+            for r in caplog.records
+        )
+
+    def test_counter_resets_on_success(
+        self, workflow, jmap, mock_mailbox_ids, caplog
+    ):
+        """Counter resets to 0 when a previously-failing label succeeds."""
+        import logging
+
+        # First 2 polls: Feed fails
+        fail_side_effect = _make_batched_call_side_effect(
+            {},
+            mock_mailbox_ids,
+            error_labels={"mb-tofeed": {"type": "serverFail", "description": "Temp"}},
+        )
+        jmap.call.side_effect = fail_side_effect
+        workflow._collect_triaged()
+        workflow._collect_triaged()
+
+        # Third poll: Feed succeeds
+        success_side_effect = _make_batched_call_side_effect(
+            {},
+            mock_mailbox_ids,
+        )
+        jmap.call.side_effect = success_side_effect
+        workflow._collect_triaged()
+
+        # Fourth poll: Feed fails again -- should be WARNING (count=1), not ERROR
+        caplog.clear()
+        jmap.call.side_effect = fail_side_effect
+        with caplog.at_level(logging.WARNING):
+            workflow._collect_triaged()
+        # Should NOT have ERROR level log
+        error_records = [
+            r for r in caplog.records
+            if r.levelno >= logging.ERROR
+            and ("label_query" in r.message or "label_query" in str(r))
+        ]
+        assert len(error_records) == 0
+
+    def test_all_labels_fail_returns_empty(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """When ALL labels fail, _collect_triaged() returns ({}, {})."""
+        error_labels = {
+            "mb-toimbox": {"type": "serverFail", "description": "Fail"},
+            "mb-tofeed": {"type": "serverFail", "description": "Fail"},
+            "mb-topapertrl": {"type": "serverFail", "description": "Fail"},
+            "mb-tojail": {"type": "serverFail", "description": "Fail"},
+            "mb-toperson": {"type": "serverFail", "description": "Fail"},
+            "mb-tobillboard": {"type": "serverFail", "description": "Fail"},
+            "mb-totruck": {"type": "serverFail", "description": "Fail"},
+        }
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {},
+            mock_mailbox_ids,
+            error_labels=error_labels,
+        )
+        triaged, sender_names = workflow._collect_triaged()
+        assert triaged == {}
+        assert sender_names == {}
+        jmap.get_email_senders.assert_not_called()
+
+
+class TestBatchedPagination:
+    """Pagination edge case: total > len(ids) triggers follow-up query."""
+
+    def test_pagination_follow_up_for_large_label(
+        self, workflow, jmap, mock_mailbox_ids
+    ):
+        """When a label's total > len(ids), follow-up paginated query made for that label."""
+
+        call_count = {"n": 0}
+
+        def side_effect(method_calls):
+            call_count["n"] += 1
+            first_method = method_calls[0][0]
+
+            if first_method == "Email/query":
+                if call_count["n"] == 1:
+                    # Batched query: mb-toimbox returns 2 ids but total=5
+                    responses = []
+                    for mc in method_calls:
+                        label_id = mc[1]["filter"]["inMailbox"]
+                        call_id = mc[2]
+                        if label_id == "mb-toimbox":
+                            responses.append(
+                                ["Email/query", {"ids": ["e1", "e2"], "total": 5}, call_id]
+                            )
+                        else:
+                            responses.append(
+                                ["Email/query", {"ids": [], "total": 0}, call_id]
+                            )
+                    return responses
+
+            if first_method == "Email/get":
+                ids = method_calls[0][1].get("ids", [])
+                return [["Email/get", {"list": [
+                    {"id": eid, "mailboxIds": {"mb-toimbox": True}} for eid in ids
+                ]}, "g0"]]
+
+            return []
+
+        jmap.call.side_effect = side_effect
+        # Follow-up query for pagination
+        jmap.query_emails.return_value = ["e1", "e2", "e3", "e4", "e5"]
+        jmap.get_email_senders.return_value = {
+            f"e{i}": (f"alice@example.com", "Alice") for i in range(1, 6)
+        }
+        triaged, _ = workflow._collect_triaged()
+        # Should have called query_emails for the pagination follow-up
+        jmap.query_emails.assert_called_once()
+        # All 5 emails should be in the result
+        assert len(triaged.get("alice@example.com", [])) == 5
+
+
+class TestBatchedExistingBehaviorPreserved:
+    """Existing behavior preserved after batching refactor."""
+
+    def test_process_sender_still_uses_query_emails_for_sweep(
+        self, workflow, jmap, carddav
+    ):
+        """_process_sender sweep still uses jmap.query_emails() (not batched call)."""
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "sweep-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+        workflow._process_sender(
+            "alice@example.com", [("email-1", "@ToImbox")]
+        )
+        jmap.query_emails.assert_called_once_with("mb-screener", sender="alice@example.com")
+
+
+# =============================================================================
 # Helper functions
 # =============================================================================
 
