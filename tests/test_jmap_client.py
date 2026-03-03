@@ -1169,3 +1169,296 @@ class TestBatchMoveEmails:
                 remove_mailbox_id="mb-screener",
                 add_mailbox_ids=["mb-tofeed"],
             )
+
+
+# --- Query Emails By Sender Tests ---
+
+
+class TestQueryEmailsBySender:
+    """Tests for JMAPClient.query_emails_by_sender()."""
+
+    def _setup_connected_client(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Helper: connect the client with a mocked session."""
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=FASTMAIL_SESSION_RESPONSE,
+        )
+        client.connect()
+
+    def test_query_returns_ids(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """query_emails_by_sender returns list of email IDs."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": "u1234",
+                            "ids": ["e1", "e2", "e3"],
+                            "total": 3,
+                            "position": 0,
+                        },
+                        "q0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.query_emails_by_sender("alice@example.com")
+
+        assert result == ["e1", "e2", "e3"]
+
+    def test_query_paginates(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Paginates automatically when total > returned IDs."""
+        self._setup_connected_client(client, httpx_mock)
+
+        # Page 1: 100 IDs out of 150 total
+        page1_ids = [f"e{i}" for i in range(100)]
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": "u1234",
+                            "ids": page1_ids,
+                            "total": 150,
+                            "position": 0,
+                        },
+                        "q0",
+                    ]
+                ]
+            },
+        )
+
+        # Page 2: remaining 50 IDs
+        page2_ids = [f"e{i}" for i in range(100, 150)]
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": "u1234",
+                            "ids": page2_ids,
+                            "total": 150,
+                            "position": 100,
+                        },
+                        "q0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.query_emails_by_sender("alice@example.com", limit=100)
+
+        assert len(result) == 150
+        assert result == page1_ids + page2_ids
+
+    def test_query_empty_result(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Returns empty list when no emails found for sender."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": "u1234",
+                            "ids": [],
+                            "total": 0,
+                            "position": 0,
+                        },
+                        "q0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.query_emails_by_sender("nobody@example.com")
+
+        assert result == []
+
+    def test_query_uses_from_only_filter(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Filter uses 'from' only, no 'inMailbox' (queries all mailboxes)."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/query",
+                        {
+                            "accountId": "u1234",
+                            "ids": ["e1"],
+                            "total": 1,
+                            "position": 0,
+                        },
+                        "q0",
+                    ]
+                ]
+            },
+        )
+
+        client.query_emails_by_sender("alice@example.com")
+
+        # Verify the request filter
+        requests = httpx_mock.get_requests()
+        api_request = requests[-1]
+        import json
+
+        payload = json.loads(api_request.read())
+        method_call = payload["methodCalls"][0]
+        assert method_call[0] == "Email/query"
+        filt = method_call[1]["filter"]
+        assert filt["from"] == "alice@example.com"
+        assert "inMailbox" not in filt
+
+
+# --- Get Email Mailbox IDs Tests ---
+
+
+class TestGetEmailMailboxIds:
+    """Tests for JMAPClient.get_email_mailbox_ids()."""
+
+    def _setup_connected_client(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Helper: connect the client with a mocked session."""
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=FASTMAIL_SESSION_RESPONSE,
+        )
+        client.connect()
+
+    def test_returns_mailbox_sets(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Returns dict mapping email_id to set of mailbox IDs."""
+        self._setup_connected_client(client, httpx_mock)
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": "u1234",
+                            "list": [
+                                {
+                                    "id": "e1",
+                                    "mailboxIds": {
+                                        "mb-inbox": True,
+                                        "mb-feed": True,
+                                    },
+                                },
+                                {
+                                    "id": "e2",
+                                    "mailboxIds": {
+                                        "mb-screener": True,
+                                    },
+                                },
+                            ],
+                        },
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.get_email_mailbox_ids(["e1", "e2"])
+
+        assert result == {
+            "e1": {"mb-inbox", "mb-feed"},
+            "e2": {"mb-screener"},
+        }
+
+    def test_batches_large_lists(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Lists > BATCH_SIZE are chunked into multiple Email/get calls."""
+        self._setup_connected_client(client, httpx_mock)
+
+        # 150 emails -> should make 2 calls (100 + 50)
+        email_ids = [f"e{i}" for i in range(150)]
+
+        # Response for chunk 1 (100 emails)
+        chunk1_list = [
+            {"id": f"e{i}", "mailboxIds": {"mb-feed": True}}
+            for i in range(100)
+        ]
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {"accountId": "u1234", "list": chunk1_list},
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        # Response for chunk 2 (50 emails)
+        chunk2_list = [
+            {"id": f"e{i}", "mailboxIds": {"mb-feed": True}}
+            for i in range(100, 150)
+        ]
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    [
+                        "Email/get",
+                        {"accountId": "u1234", "list": chunk2_list},
+                        "g0",
+                    ]
+                ]
+            },
+        )
+
+        result = client.get_email_mailbox_ids(email_ids)
+
+        assert len(result) == 150
+
+        # Verify 2 API calls were made (session + 2 batch calls)
+        api_requests = [
+            r
+            for r in httpx_mock.get_requests()
+            if str(r.url) == "https://api.fastmail.com/jmap/api/"
+        ]
+        assert len(api_requests) == 2
+
+    def test_empty_input(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Empty email_ids list returns empty dict without API calls."""
+        self._setup_connected_client(client, httpx_mock)
+
+        result = client.get_email_mailbox_ids([])
+
+        assert result == {}
+
+        # No API calls should be made (only the session call)
+        api_requests = [
+            r
+            for r in httpx_mock.get_requests()
+            if str(r.url) == "https://api.fastmail.com/jmap/api/"
+        ]
+        assert len(api_requests) == 0
