@@ -758,8 +758,8 @@ class TestProcessSenderStepOrder:
         assert call_order[-1] == "remove_label"
 
 
-class TestAlreadyGroupedDifferentGroup:
-    """Sender already in 'Feed' group, triaged to @ToImbox: error label applied, processing stops."""
+class TestRetriageDifferentGroup:
+    """Sender already in 'Feed' group, triaged to @ToImbox: re-triage moves to new group."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -771,57 +771,75 @@ class TestAlreadyGroupedDifferentGroup:
                 "vcard_data": _make_vcard("bob@example.com", "contact-uid-456"),
             }
         ]
-        # The contact is in Feed group (not Imbox)
-        carddav._groups = {
-            "Imbox": {"href": "/group-imbox.vcf", "etag": '"etag-g1"', "uid": "g-imbox-uid"},
-            "Feed": {"href": "/group-feed.vcf", "etag": '"etag-g2"', "uid": "g-feed-uid"},
-            "Paper Trail": {"href": "/group-pt.vcf", "etag": '"etag-g3"', "uid": "g-pt-uid"},
-            "Jail": {"href": "/group-jail.vcf", "etag": '"etag-g4"', "uid": "g-jail-uid"},
-        }
-        # Mock check_membership to return "Feed" (the group the contact is already in)
+        # check_membership returns "Feed" (the group the contact is already in)
         carddav.check_membership.return_value = "Feed"
+        # upsert_contact succeeds
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "contact-uid-456",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+        # query_emails_by_sender returns some emails for reconciliation
+        jmap.query_emails_by_sender.return_value = ["email-10", "email-11"]
+        # get_email_mailbox_ids for checking Screener presence
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-10": {"mb-feed"},
+            "email-11": {"mb-feed"},
+        }
 
-    def test_error_label_applied(self, workflow, jmap):
-        """@MailroomError applied to all triggering emails."""
+    def test_no_error_label_applied(self, workflow, jmap):
+        """@MailroomError is NOT applied for re-triage (re-triage replaces error behavior)."""
         workflow._process_sender(
             "bob@example.com",
             [("email-1", "@ToImbox"), ("email-2", "@ToImbox")],
         )
-        # Error label should be applied via jmap.call
+        # No Email/set calls for error labeling
         email_set_calls = [
             c
             for c in jmap.call.call_args_list
-            if any("Email/set" in mc[0] for mc in c.args[0])
+            if any(mc[0] == "Email/set" and "mb-error" in str(mc[1].get("update", {}))
+                   for mc in c.args[0])
         ]
-        assert len(email_set_calls) >= 1
+        assert len(email_set_calls) == 0
 
-    def test_upsert_not_called(self, workflow, carddav):
-        """upsert_contact NOT called when sender already in different group."""
+    def test_upsert_called(self, workflow, carddav):
+        """upsert_contact IS called during re-triage."""
         workflow._process_sender(
             "bob@example.com",
             [("email-1", "@ToImbox")],
         )
-        carddav.upsert_contact.assert_not_called()
+        carddav.upsert_contact.assert_called_once()
 
-    def test_sweep_not_called(self, workflow, jmap):
-        """No sweep performed when sender already in different group."""
+    def test_group_reassignment_happens(self, workflow, carddav):
+        """add_to_group and remove_from_group called for group reassignment."""
         workflow._process_sender(
             "bob@example.com",
             [("email-1", "@ToImbox")],
         )
-        jmap.batch_move_emails.assert_not_called()
+        # Feed->Imbox: add to Imbox, remove from Feed
+        carddav.add_to_group.assert_called()
+        carddav.remove_from_group.assert_called()
 
-    def test_triage_label_not_removed(self, workflow, jmap):
-        """Triage label NOT removed (manual resolution needed)."""
+    def test_email_reconciliation_happens(self, workflow, jmap):
+        """query_emails_by_sender and Email/set called for email reconciliation."""
         workflow._process_sender(
             "bob@example.com",
             [("email-1", "@ToImbox")],
         )
-        jmap.remove_label.assert_not_called()
+        jmap.query_emails_by_sender.assert_called_once_with("bob@example.com")
+
+    def test_triage_label_removed(self, workflow, jmap):
+        """Triage label IS removed after re-triage (not left for manual resolution)."""
+        workflow._process_sender(
+            "bob@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        jmap.remove_label.assert_called_once_with("email-1", "mb-toimbox")
 
 
-class TestAlreadyGroupedSameGroup:
-    """Sender already in 'Imbox' group, triaged to @ToImbox again: processes normally (idempotent)."""
+class TestRetriageSameGroup:
+    """Sender already in 'Imbox' group, triaged to @ToImbox again: re-triage with self-healing."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -832,36 +850,42 @@ class TestAlreadyGroupedSameGroup:
                 "vcard_data": _make_vcard("alice@example.com", "contact-uid-789"),
             }
         ]
-        # check_membership returns None (same group = safe)
-        carddav.check_membership.return_value = None
+        # check_membership returns "Imbox" (same group as target)
+        carddav.check_membership.return_value = "Imbox"
         carddav.upsert_contact.return_value = {
             "action": "existing",
             "uid": "contact-uid-789",
             "group": "Imbox",
             "name_mismatch": False,
         }
-
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        # query_emails_by_sender for reconciliation
+        jmap.query_emails_by_sender.return_value = ["email-1", "email-2"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-imbox"},
+            "email-2": {"mb-imbox"},
+        }
 
     def test_upsert_called(self, workflow, carddav):
-        """upsert_contact still called (idempotent add to same group)."""
+        """upsert_contact called during same-group re-triage."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
         carddav.upsert_contact.assert_called_once()
 
-    def test_sweep_called(self, workflow, jmap):
-        """Sweep still performed."""
+    def test_no_group_add_or_remove(self, workflow, carddav):
+        """Same-group re-triage: chain diff is empty, NO add/remove calls."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.batch_move_emails.assert_called_once()
+        carddav.add_to_group.assert_not_called()
+        carddav.remove_from_group.assert_not_called()
+
+    def test_email_reconciliation_called(self, workflow, jmap):
+        """Email reconciliation runs for self-healing even in same-group re-triage."""
+        workflow._process_sender(
+            "alice@example.com", [("email-1", "@ToImbox")]
+        )
+        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
 
     def test_triage_label_removed(self, workflow, jmap):
         """Triage label removed normally."""
@@ -871,13 +895,12 @@ class TestAlreadyGroupedSameGroup:
         jmap.remove_label.assert_called_once()
 
 
-class TestAlreadyGroupedNewSender:
-    """New sender (not in contacts): check_membership returns None, processing continues."""
+class TestRetriageNewSender:
+    """New sender (not in contacts): _detect_retriage returns (None, None), initial triage flow."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
         carddav.search_by_email.return_value = []
-        carddav.check_membership.return_value = None
         carddav.upsert_contact.return_value = {
             "action": "created",
             "uid": "brand-new-uid",
@@ -906,6 +929,13 @@ class TestAlreadyGroupedNewSender:
             "newbie@example.com", [("email-1", "@ToImbox")]
         )
         carddav.upsert_contact.assert_called_once()
+
+    def test_no_email_reconciliation(self, workflow, jmap):
+        """New sender uses initial triage (Screener sweep), not email reconciliation."""
+        workflow._process_sender(
+            "newbie@example.com", [("email-1", "@ToImbox")]
+        )
+        jmap.query_emails_by_sender.assert_not_called()
 
 
 class TestCardDAVFailureDuringUpsert:
@@ -1869,6 +1899,331 @@ class TestRootCategoryAddToInbox:
         result = workflow._get_destination_mailbox_ids("@ToJail")
         assert "mb-inbox" not in result
         assert result == ["mb-jail"]
+
+
+# =============================================================================
+# Plan 13-02: Re-triage tests
+# =============================================================================
+
+
+class TestRetriageGroupChainDiff:
+    """Verify shared groups are untouched, only diff groups are added/removed."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        # Sender currently in Billboard (parent: Paper Trail)
+        # Re-triaging to Truck (parent: Paper Trail)
+        # Shared: Paper Trail, Diff: remove Billboard, add Truck
+        carddav.search_by_email.return_value = [
+            {
+                "href": "/contact-chain.vcf",
+                "etag": '"etag-chain"',
+                "vcard_data": _make_vcard("chain@example.com", "chain-uid"),
+            }
+        ]
+        carddav.check_membership.return_value = "Billboard"
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "chain-uid",
+            "group": "Truck",
+            "name_mismatch": False,
+        }
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-billboard", "mb-papertrl"},
+        }
+
+    def test_shared_group_not_touched(self, workflow, carddav):
+        """Paper Trail is in both old and new chain -- not added or removed."""
+        workflow._process_sender(
+            "chain@example.com",
+            [("email-1", "@ToTruck")],
+        )
+        # Paper Trail should NOT appear in add_to_group or remove_from_group calls
+        add_groups = [c.args[0] for c in carddav.add_to_group.call_args_list]
+        remove_groups = [c.args[0] for c in carddav.remove_from_group.call_args_list]
+        assert "Paper Trail" not in add_groups
+        assert "Paper Trail" not in remove_groups
+
+    def test_new_group_added(self, workflow, carddav):
+        """Truck (new-only) is added."""
+        workflow._process_sender(
+            "chain@example.com",
+            [("email-1", "@ToTruck")],
+        )
+        add_groups = [c.args[0] for c in carddav.add_to_group.call_args_list]
+        assert "Truck" in add_groups
+
+    def test_old_group_removed(self, workflow, carddav):
+        """Billboard (old-only) is removed."""
+        workflow._process_sender(
+            "chain@example.com",
+            [("email-1", "@ToTruck")],
+        )
+        remove_groups = [c.args[0] for c in carddav.remove_from_group.call_args_list]
+        assert "Billboard" in remove_groups
+
+
+class TestRetriageAddBeforeRemove:
+    """Verify add_to_group called before remove_from_group (safe order)."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        # Feed -> Imbox: add Imbox, remove Feed
+        carddav.search_by_email.return_value = [
+            {
+                "href": "/contact-order.vcf",
+                "etag": '"etag-order"',
+                "vcard_data": _make_vcard("order@example.com", "order-uid"),
+            }
+        ]
+        carddav.check_membership.return_value = "Feed"
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "order-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-feed"},
+        }
+
+    def test_add_before_remove(self, workflow, carddav):
+        """add_to_group is called before remove_from_group."""
+        call_order = []
+        carddav.add_to_group.side_effect = lambda *a, **kw: call_order.append("add")
+        carddav.remove_from_group.side_effect = lambda *a, **kw: call_order.append("remove")
+
+        workflow._process_sender(
+            "order@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        assert "add" in call_order
+        assert "remove" in call_order
+        assert call_order.index("add") < call_order.index("remove")
+
+
+class TestRetriageLabelReconciliation:
+    """Verify all managed labels stripped, new labels applied, Inbox not removed."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        # Sender in Feed, re-triaging to Imbox
+        carddav.search_by_email.return_value = [
+            {
+                "href": "/contact-recon.vcf",
+                "etag": '"etag-recon"',
+                "vcard_data": _make_vcard("recon@example.com", "recon-uid"),
+            }
+        ]
+        carddav.check_membership.return_value = "Feed"
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "recon-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+        # Two emails: one in Feed, one in Feed+Inbox
+        jmap.query_emails_by_sender.return_value = ["email-1", "email-2"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-feed"},
+            "email-2": {"mb-feed", "mb-inbox"},
+        }
+
+    def test_managed_labels_stripped_new_labels_applied(self, workflow, jmap):
+        """Email/set patches remove all managed labels + Screener, add new destination."""
+        workflow._process_sender(
+            "recon@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        # Find the Email/set call for reconciliation
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        # Check patches for email-1
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-1" in update:
+                        patch = update["email-1"]
+                        # Managed labels should be set to None (removed)
+                        assert patch.get("mailboxIds/mb-feed") is None
+                        # New destination should be True (added)
+                        assert patch.get("mailboxIds/mb-imbox") is True
+
+    def test_inbox_never_removed(self, workflow, jmap):
+        """Inbox is NEVER set to None in reconciliation patches."""
+        workflow._process_sender(
+            "recon@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        for c in jmap.call.call_args_list:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    for eid, patch in update.items():
+                        assert patch.get("mailboxIds/mb-inbox") is not None or "mailboxIds/mb-inbox" not in patch
+
+
+class TestRetriageInboxScreenerOnly:
+    """Verify Inbox added only to emails in Screener when add_to_inbox=true."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        # Sender in Feed, re-triaging to Imbox (add_to_inbox=True)
+        carddav.search_by_email.return_value = [
+            {
+                "href": "/contact-inbox.vcf",
+                "etag": '"etag-inbox"',
+                "vcard_data": _make_vcard("inbox@example.com", "inbox-uid"),
+            }
+        ]
+        carddav.check_membership.return_value = "Feed"
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "inbox-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+        # email-1 is in Screener, email-2 is not
+        jmap.query_emails_by_sender.return_value = ["email-1", "email-2"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-feed", "mb-screener"},
+            "email-2": {"mb-feed"},
+        }
+
+    def test_inbox_added_to_screener_email_only(self, workflow, jmap):
+        """Inbox added to email-1 (in Screener) but NOT email-2 (not in Screener)."""
+        workflow._process_sender(
+            "inbox@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-1" in update:
+                        assert update["email-1"].get("mailboxIds/mb-inbox") is True
+                    if "email-2" in update:
+                        assert "mailboxIds/mb-inbox" not in update["email-2"] or update["email-2"].get("mailboxIds/mb-inbox") is not True
+
+
+class TestRetriageStructuredLogging:
+    """Verify group_reassigned log event fields."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = [
+            {
+                "href": "/contact-log.vcf",
+                "etag": '"etag-log"',
+                "vcard_data": _make_vcard("log@example.com", "log-uid"),
+            }
+        ]
+        carddav.check_membership.return_value = "Feed"
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "log-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-feed"},
+        }
+
+    def test_group_reassigned_log_event(self, workflow):
+        """group_reassigned event logged with old_group, new_group, same_group fields."""
+        import structlog.testing
+
+        with structlog.testing.capture_logs() as logs:
+            workflow._process_sender(
+                "log@example.com",
+                [("email-1", "@ToImbox")],
+            )
+        reassigned = [l for l in logs if l.get("event") == "group_reassigned"]
+        assert len(reassigned) == 1
+        assert reassigned[0]["old_group"] == "Feed"
+        assert reassigned[0]["new_group"] == "Imbox"
+        assert reassigned[0]["same_group"] is False
+
+    def test_same_group_log_event(self, workflow, carddav, jmap):
+        """same_group=True when old and new group are the same."""
+        import structlog.testing
+
+        carddav.check_membership.return_value = "Imbox"
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-imbox"},
+        }
+        with structlog.testing.capture_logs() as logs:
+            workflow._process_sender(
+                "log@example.com",
+                [("email-1", "@ToImbox")],
+            )
+        reassigned = [l for l in logs if l.get("event") == "group_reassigned"]
+        assert len(reassigned) == 1
+        assert reassigned[0]["same_group"] is True
+
+
+class TestRetriageInitialTriageUnchanged:
+    """Verify new sender follows the old initial triage path exactly."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "initial-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        def query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "new@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = query_side_effect
+
+    def test_initial_triage_uses_screener_sweep(self, workflow, jmap):
+        """New sender uses query_emails for Screener sweep (not query_emails_by_sender)."""
+        workflow._process_sender(
+            "new@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        jmap.query_emails.assert_called_once_with("mb-screener", sender="new@example.com")
+        jmap.query_emails_by_sender.assert_not_called()
+
+    def test_initial_triage_uses_batch_move(self, workflow, jmap):
+        """New sender uses batch_move_emails for Screener sweep."""
+        workflow._process_sender(
+            "new@example.com",
+            [("email-1", "@ToImbox")],
+        )
+        jmap.batch_move_emails.assert_called_once()
+
+    def test_initial_triage_logs_triage_complete(self, workflow):
+        """New sender logs triage_complete (not group_reassigned)."""
+        import structlog.testing
+
+        with structlog.testing.capture_logs() as logs:
+            workflow._process_sender(
+                "new@example.com",
+                [("email-1", "@ToImbox")],
+            )
+        triage_events = [l for l in logs if l.get("event") == "triage_complete"]
+        reassigned_events = [l for l in logs if l.get("event") == "group_reassigned"]
+        assert len(triage_events) == 1
+        assert len(reassigned_events) == 0
 
 
 # =============================================================================
