@@ -1,4 +1,4 @@
-"""ScreenerWorkflow: poll cycle orchestration with conflict detection, error labeling, and per-sender triage processing."""
+"""ScreenerWorkflow: poll cycle orchestration with conflict detection, error labeling, re-triage, and per-sender triage processing."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import structlog
 import vobject
 
 from mailroom.clients.carddav import CardDAVClient
-from mailroom.clients.jmap import JMAPClient
-from mailroom.core.config import MailroomSettings, get_parent_chain
+from mailroom.clients.jmap import BATCH_SIZE, JMAPClient
+from mailroom.core.config import MailroomSettings, ResolvedCategory, get_parent_chain
 
 
 class ScreenerWorkflow:
@@ -362,18 +362,19 @@ class ScreenerWorkflow:
         emails: list[tuple[str, str]],
         sender_names: dict[str, str | None] | None = None,
     ) -> None:
-        """Process a single sender's triage.
+        """Process a single sender's triage (initial or re-triage).
 
         Steps execute in strict order. If any step fails, the exception
         propagates and the triage label is NOT removed (retry on next poll
         per TRIAGE-06).
 
         1. Extract label and group from emails
-        2. Already-grouped check (TRIAGE-05 conflict detection)
-        3. Upsert contact into group (TRIAGE-02)
-        4. Sweep all Screener emails from sender (TRIAGE-03)
-        5. Move swept emails to destination (TRIAGE-03 + TRIAGE-04)
-        6. Remove triage label from triggering emails -- LAST STEP
+        2. Detect re-triage via _detect_retriage
+        3. Upsert contact into group (CardDAV)
+        4. Contact group management (re-triage: chain diff; initial: ancestor groups)
+        5. Email label management (re-triage: full reconciliation; initial: Screener sweep)
+        6. Structured logging
+        7. Remove triage label from triggering emails -- LAST STEP
         """
         label_name = emails[0][1]  # All emails have the same label (conflict-free)
         email_ids = [eid for eid, _ in emails]
@@ -383,17 +384,9 @@ class ScreenerWorkflow:
 
         log = self._log.bind(sender=sender, label=label_name, group=group_name)
 
-        # Step 1: Already-grouped check
-        existing_group = self._check_already_grouped(sender, group_name)
-        if existing_group is not None:
-            # Sender is in a DIFFERENT group -- apply @MailroomError and return
-            log.warning(
-                "already_grouped",
-                existing_group=existing_group,
-                target_group=group_name,
-            )
-            self._apply_error_label(sender, emails)
-            return
+        # Step 1: Detect re-triage
+        contact_uid, old_group = self._detect_retriage(sender)
+        is_retriage = contact_uid is not None and old_group is not None
 
         # Step 2: Upsert contact into group (CardDAV)
         display_name = (sender_names or {}).get(sender)
@@ -402,39 +395,66 @@ class ScreenerWorkflow:
         )
         log.info("contact_upserted", action=result["action"], uid=result["uid"])
 
-        # Step 2a: Additive contact groups -- add to all ancestor groups
+        # Step 3: Contact group management
         resolved_map = {c.name: c for c in self._settings.resolved_categories}
-        chain = get_parent_chain(category.name, resolved_map)
-        if len(chain) > 1 and "uid" in result:
-            contact_uid = result["uid"]
-            for ancestor in chain[1:]:
-                self._carddav.add_to_group(ancestor.contact_group, contact_uid)
-                log.info("ancestor_group_added", group=ancestor.contact_group)
 
-        # Step 2b: Apply warning label if name mismatch detected
+        if is_retriage:
+            # Find the old category from old_group
+            old_category = next(
+                c for c in self._settings.resolved_categories
+                if c.contact_group == old_group
+            )
+            uid = contact_uid or result["uid"]
+            self._reassign_contact_groups(uid, old_category, category)
+        else:
+            # Initial triage: add to ancestor groups
+            chain = get_parent_chain(category.name, resolved_map)
+            if len(chain) > 1 and "uid" in result:
+                uid = result["uid"]
+                for ancestor in chain[1:]:
+                    self._carddav.add_to_group(ancestor.contact_group, uid)
+                    log.info("ancestor_group_added", group=ancestor.contact_group)
+
+        # Step 3a: Apply warning label if name mismatch detected
         if result.get("name_mismatch", False) and self._settings.labels.warnings_enabled:
             self._apply_warning_label(sender, email_ids)
 
-        # Step 3: Sweep all Screener emails from this sender (JMAP)
-        screener_id = self._mailbox_ids[self._settings.triage.screener_mailbox]
-        sender_emails = self._jmap.query_emails(screener_id, sender=sender)
+        # Step 4: Email label management
+        if is_retriage:
+            emails_reconciled = self._reconcile_email_labels(
+                sender, category, category.add_to_inbox
+            )
+        else:
+            # Initial triage: sweep Screener emails
+            screener_id = self._mailbox_ids[self._settings.triage.screener_mailbox]
+            sender_emails = self._jmap.query_emails(screener_id, sender=sender)
+            emails_reconciled = 0
+            if sender_emails:
+                add_ids = self._get_destination_mailbox_ids(label_name)
+                self._jmap.batch_move_emails(sender_emails, screener_id, add_ids)
+                log.info("emails_swept", count=len(sender_emails))
 
-        # Step 4: Move swept emails to destination
-        if sender_emails:
-            add_ids = self._get_destination_mailbox_ids(label_name)
-            self._jmap.batch_move_emails(sender_emails, screener_id, add_ids)
-            log.info("emails_swept", count=len(sender_emails))
+        # Step 5: Structured logging
+        if is_retriage:
+            same_group = old_group == group_name
+            log.info(
+                "group_reassigned",
+                old_group=old_group,
+                new_group=group_name,
+                same_group=same_group,
+                emails_reconciled=emails_reconciled,
+            )
+        else:
+            log.info(
+                "triage_complete",
+                sender=sender,
+                emails_moved=len(sender_emails),
+            )
 
-        # Step 5: Remove triage label from triggering emails -- LAST STEP
+        # Step 6: Remove triage label from triggering emails -- LAST STEP
         label_id = self._mailbox_ids[label_name]
         for email_id in email_ids:
             self._jmap.remove_label(email_id, label_id)
-
-        log.info(
-            "triage_complete",
-            sender=sender,
-            emails_moved=len(sender_emails),
-        )
 
     def _get_destination_mailbox_ids(self, label_name: str) -> list[str]:
         """Return mailbox IDs for additive filing (child + all ancestors).
@@ -457,29 +477,143 @@ class ScreenerWorkflow:
 
         return ids
 
-    def _check_already_grouped(
+    def _detect_retriage(
         self,
         sender: str,
-        target_group: str,
-    ) -> str | None:
-        """Check if sender is already a member of a contact group different from the target.
+    ) -> tuple[str | None, str | None]:
+        """Detect if sender is already in a contact group (re-triage scenario).
 
         - Searches CardDAV for the sender's contact.
-        - If no contact found: returns None (new sender, safe to proceed).
-        - If contact found: checks group membership via CardDAVClient.check_membership.
-        - If contact is in a non-target group: returns that group name (conflict).
-        - If contact is in the target group or no group: returns None (safe).
+        - If no contact found: returns (None, None) -- new sender.
+        - If contact found but not in any group: returns (contact_uid, None).
+        - If contact found and in a group: returns (contact_uid, group_name).
 
         Transient CardDAV failures propagate up to _process_sender's try/except
         boundary (retry on next poll per TRIAGE-06).
         """
         results = self._carddav.search_by_email(sender)
         if not results:
-            return None
+            return None, None
 
         # Extract contact UID from vCard
         card = vobject.readOne(results[0]["vcard_data"])
         contact_uid = card.uid.value
 
-        # Check if this contact is in any group other than the target
-        return self._carddav.check_membership(contact_uid, exclude_group=target_group)
+        # Check if this contact is in ANY group (no exclude_group)
+        group_name = self._carddav.check_membership(contact_uid)
+        return contact_uid, group_name
+
+    def _reassign_contact_groups(
+        self,
+        contact_uid: str,
+        old_category: ResolvedCategory,
+        new_category: ResolvedCategory,
+    ) -> None:
+        """Reassign contact groups using chain diff.
+
+        Computes old and new parent chains, then:
+        1. Add to new-only groups FIRST (safe partial-failure order)
+        2. Remove from old-only groups
+        Shared groups are left untouched.
+        """
+        resolved_map = {c.name: c for c in self._settings.resolved_categories}
+        old_chain = get_parent_chain(old_category.name, resolved_map)
+        new_chain = get_parent_chain(new_category.name, resolved_map)
+        old_groups = {c.contact_group for c in old_chain}
+        new_groups = {c.contact_group for c in new_chain}
+
+        # Add to new-only groups FIRST
+        for group in new_groups - old_groups:
+            self._carddav.add_to_group(group, contact_uid)
+
+        # Then remove from old-only groups
+        for group in old_groups - new_groups:
+            self._carddav.remove_from_group(group, contact_uid)
+
+    def _reconcile_email_labels(
+        self,
+        sender: str,
+        category: ResolvedCategory,
+        add_to_inbox: bool,
+    ) -> int:
+        """Reconcile all email labels for a re-triaged sender.
+
+        Strips ALL managed destination labels + Screener label from every email,
+        then applies new additive labels (child + parent chain destinations).
+        Inbox is NEVER removed. Inbox is added ONLY to emails currently in
+        Screener when add_to_inbox is True.
+
+        Returns count of emails reconciled.
+        """
+        # Compute managed mailbox IDs (all destination_mailbox from every category)
+        managed_mailbox_names = {
+            c.destination_mailbox for c in self._settings.resolved_categories
+        }
+        managed_mailbox_ids = {
+            self._mailbox_ids[name] for name in managed_mailbox_names
+        }
+        screener_id = self._mailbox_ids[self._settings.triage.screener_mailbox]
+        inbox_id = self._mailbox_ids["Inbox"]
+
+        # Fetch all sender emails across all mailboxes
+        all_email_ids = self._jmap.query_emails_by_sender(sender)
+        if not all_email_ids:
+            return 0
+
+        # Get per-email mailbox membership for Screener presence check
+        email_mailboxes = self._jmap.get_email_mailbox_ids(all_email_ids)
+
+        # Compute new destination IDs using parent chain
+        resolved_map = {c.name: c for c in self._settings.resolved_categories}
+        chain = get_parent_chain(category.name, resolved_map)
+        new_dest_ids = [self._mailbox_ids[c.destination_mailbox] for c in chain]
+
+        # Build per-email patches and execute in BATCH_SIZE chunks
+        for chunk_start in range(0, len(all_email_ids), BATCH_SIZE):
+            chunk = all_email_ids[chunk_start : chunk_start + BATCH_SIZE]
+
+            update: dict = {}
+            for email_id in chunk:
+                patch: dict = {}
+
+                # Remove all managed labels + Screener (but NEVER Inbox)
+                for managed_id in managed_mailbox_ids:
+                    if managed_id != inbox_id:
+                        patch[f"mailboxIds/{managed_id}"] = None
+                patch[f"mailboxIds/{screener_id}"] = None
+
+                # Add new destination labels
+                for dest_id in new_dest_ids:
+                    patch[f"mailboxIds/{dest_id}"] = True
+
+                # Inbox handling: add ONLY if email is in Screener AND add_to_inbox
+                current_mailboxes = email_mailboxes.get(email_id, set())
+                if add_to_inbox and screener_id in current_mailboxes:
+                    patch[f"mailboxIds/{inbox_id}"] = True
+
+                update[email_id] = patch
+
+            responses = self._jmap.call(
+                [
+                    [
+                        "Email/set",
+                        {
+                            "accountId": self._jmap.account_id,
+                            "update": update,
+                        },
+                        "r0",
+                    ]
+                ]
+            )
+            data = responses[0][1]
+            not_updated = data.get("notUpdated")
+            if not_updated:
+                errors = [
+                    f"{eid}: {err.get('description', 'unknown error')}"
+                    for eid, err in not_updated.items()
+                ]
+                raise RuntimeError(
+                    f"Failed to reconcile email labels: {', '.join(errors)}"
+                )
+
+        return len(all_email_ids)
