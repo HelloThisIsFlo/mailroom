@@ -8,18 +8,36 @@ import vobject
 from mailroom.workflows.screener import ScreenerWorkflow
 
 
+def _default_call_side_effect(method_calls):
+    """Default jmap.call() handler: batched Email/query returns empty, Email/get returns empty."""
+    first_method = method_calls[0][0]
+    if first_method == "Email/query":
+        return [
+            ["Email/query", {"ids": [], "total": 0}, mc[2]]
+            for mc in method_calls
+        ]
+    if first_method == "Email/get":
+        ids = method_calls[0][1].get("ids", [])
+        return [["Email/get", {"list": [
+            {"id": eid, "mailboxIds": {}} for eid in ids
+        ]}, "g0"]]
+    if first_method == "Email/set":
+        return [["Email/set", {"updated": {}}, method_calls[0][2]]]
+    return []
+
+
 @pytest.fixture
 def jmap(mock_mailbox_ids):
     """Mock JMAPClient with sensible defaults."""
     client = MagicMock()
     client.account_id = "acc-001"
 
-    # Default: no emails in any triage label
+    # Default: no emails in any triage label (used by _process_sender sweep)
     client.query_emails.return_value = []
     client.get_email_senders.return_value = {}
 
-    # Default: Email/get returns empty list (no emails to check for error label)
-    client.call.return_value = [["Email/get", {"list": []}, "g0"]]
+    # Default: handles batched Email/query (empty), Email/get, Email/set
+    client.call.side_effect = _default_call_side_effect
 
     return client
 
@@ -50,9 +68,11 @@ class TestPollNoEmails:
 
     def test_queries_all_triage_labels(self, workflow, jmap):
         workflow.poll()
-        # Should query each of the 7 triage labels (v1.2 defaults)
-        assert jmap.query_emails.call_count == 7
-        queried_ids = [c.args[0] for c in jmap.query_emails.call_args_list]
+        # Batched: single jmap.call() with 7 Email/query method calls
+        batch_call = jmap.call.call_args_list[0]
+        method_calls = batch_call.args[0]
+        assert len(method_calls) == 7
+        queried_ids = {mc[1]["filter"]["inMailbox"] for mc in method_calls}
         assert "mb-toimbox" in queried_ids
         assert "mb-tofeed" in queried_ids
         assert "mb-topapertrl" in queried_ids
@@ -70,18 +90,11 @@ class TestPollSingleSenderSingleLabel:
     """1 sender, 1 label, 1 email -> clean sender processed."""
 
     @pytest.fixture(autouse=True)
-    def setup_one_email(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup_one_email(self, jmap, mock_mailbox_ids):
         jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
-        # Email/get: email-1 does NOT have error label
-        jmap.call.return_value = [
-            ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
-        ]
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"]}, mock_mailbox_ids
+        )
 
     def test_returns_zero_because_stub_raises(self, workflow):
         """_process_sender stub raises NotImplementedError, caught by poll -> returns 0."""
@@ -105,45 +118,15 @@ class TestPollConflictingSender:
     """1 sender, 2 different labels on 2 emails -> conflicted."""
 
     @pytest.fixture(autouse=True)
-    def setup_conflicting(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1"]
-            if mailbox_id == "mb-tofeed":
-                return ["email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
-
+    def setup_conflicting(self, jmap, mock_mailbox_ids):
         def sender_side_effect(email_ids):
-            result = {}
-            for eid in email_ids:
-                result[eid] = ("bob@example.com", "Bob Example")
-            return result
+            return {eid: ("bob@example.com", "Bob Example") for eid in email_ids}
 
         jmap.get_email_senders.side_effect = sender_side_effect
 
-        # Email/get: neither email has error label
-        def call_side_effect(method_calls):
-            method = method_calls[0][0]
-            if method == "Email/get":
-                ids = method_calls[0][1].get("ids", [])
-                return [
-                    [
-                        "Email/get",
-                        {
-                            "list": [
-                                {"id": eid, "mailboxIds": {"mb-toimbox": True}}
-                                for eid in ids
-                            ]
-                        },
-                        "g0",
-                    ]
-                ]
-            # Email/set for error labeling -> success
-            return [["Email/set", {"updated": {"email-1": None}}, "err0"]]
-
-        jmap.call.side_effect = call_side_effect
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"], "mb-tofeed": ["email-2"]}, mock_mailbox_ids
+        )
 
     def test_returns_zero_processed(self, workflow):
         result = workflow.poll()
@@ -173,30 +156,14 @@ class TestPollTwoCleanSenders:
     """2 senders, each with 1 label -> both clean, both processed."""
 
     @pytest.fixture(autouse=True)
-    def setup_two_senders(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1", "email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup_two_senders(self, jmap, mock_mailbox_ids):
         jmap.get_email_senders.return_value = {
             "email-1": ("alice@example.com", "Alice"),
             "email-2": ("carol@example.com", "Carol"),
         }
-        # Neither has error label
-        jmap.call.return_value = [
-            [
-                "Email/get",
-                {
-                    "list": [
-                        {"id": "email-1", "mailboxIds": {"mb-toimbox": True}},
-                        {"id": "email-2", "mailboxIds": {"mb-toimbox": True}},
-                    ]
-                },
-                "g0",
-            ]
-        ]
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1", "email-2"]}, mock_mailbox_ids
+        )
 
     def test_both_senders_attempted(self, workflow):
         """Both senders get _process_sender called (stub fails, both counted as failures)."""
@@ -209,16 +176,7 @@ class TestPollMixedCleanAndConflicted:
     """1 clean sender + 1 conflicted sender -> clean processed, conflicted gets error label."""
 
     @pytest.fixture(autouse=True)
-    def setup_mixed(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1", "email-2"]  # alice clean, bob conflict
-            if mailbox_id == "mb-tofeed":
-                return ["email-3"]  # bob conflict
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
-
+    def setup_mixed(self, jmap, mock_mailbox_ids):
         def sender_side_effect(email_ids):
             mapping = {
                 "email-1": ("alice@example.com", "Alice"),
@@ -229,25 +187,10 @@ class TestPollMixedCleanAndConflicted:
 
         jmap.get_email_senders.side_effect = sender_side_effect
 
-        def call_side_effect(method_calls):
-            method = method_calls[0][0]
-            if method == "Email/get":
-                ids = method_calls[0][1].get("ids", [])
-                return [
-                    [
-                        "Email/get",
-                        {
-                            "list": [
-                                {"id": eid, "mailboxIds": {"mb-toimbox": True}}
-                                for eid in ids
-                            ]
-                        },
-                        "g0",
-                    ]
-                ]
-            return [["Email/set", {"updated": {}}, "err0"]]
-
-        jmap.call.side_effect = call_side_effect
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1", "email-2"], "mb-tofeed": ["email-3"]},
+            mock_mailbox_ids,
+        )
 
     def test_clean_sender_attempted(self, workflow):
         """Alice (clean) gets _process_sender called (stub fails, returns 0)."""
@@ -279,29 +222,29 @@ class TestAlreadyErroredEmailFiltered:
     """Email already has @MailroomError -> filtered out, not re-processed."""
 
     @pytest.fixture(autouse=True)
-    def setup_errored(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup_errored(self, jmap, mock_mailbox_ids):
         jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice")}
-        # email-1 already has the error label
-        jmap.call.return_value = [
-            [
-                "Email/get",
-                {
-                    "list": [
-                        {
-                            "id": "email-1",
-                            "mailboxIds": {"mb-toimbox": True, "mb-error": True},
-                        }
-                    ]
-                },
-                "g0",
-            ]
-        ]
+
+        def call_side_effect(method_calls):
+            first_method = method_calls[0][0]
+            if first_method == "Email/query":
+                responses = []
+                for mc in method_calls:
+                    label_id = mc[1]["filter"]["inMailbox"]
+                    call_id = mc[2]
+                    if label_id == "mb-toimbox":
+                        responses.append(["Email/query", {"ids": ["email-1"], "total": 1}, call_id])
+                    else:
+                        responses.append(["Email/query", {"ids": [], "total": 0}, call_id])
+                return responses
+            if first_method == "Email/get":
+                # email-1 already has the error label
+                return [["Email/get", {"list": [
+                    {"id": "email-1", "mailboxIds": {"mb-toimbox": True, "mb-error": True}},
+                ]}, "g0"]]
+            return [["Email/set", {"updated": {}}, method_calls[0][2]]]
+
+        jmap.call.side_effect = call_side_effect
 
     def test_returns_zero(self, workflow):
         result = workflow.poll()
@@ -322,27 +265,12 @@ class TestSenderMissingFromHeader:
     """Email without From header -> skipped with warning, others still processed."""
 
     @pytest.fixture(autouse=True)
-    def setup_missing_sender(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1", "email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup_missing_sender(self, jmap, mock_mailbox_ids):
         # email-1 has no sender, email-2 has a sender
         jmap.get_email_senders.return_value = {"email-2": ("alice@example.com", "Alice")}
-        # Neither has error label
-        jmap.call.return_value = [
-            [
-                "Email/get",
-                {
-                    "list": [
-                        {"id": "email-2", "mailboxIds": {"mb-toimbox": True}},
-                    ]
-                },
-                "g0",
-            ]
-        ]
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1", "email-2"]}, mock_mailbox_ids
+        )
 
     def test_sender_with_email_still_processed(self, workflow):
         """alice@example.com is still collected even though email-1 has no sender."""
@@ -355,39 +283,31 @@ class TestApplyErrorLabelTransientFailure:
     """_apply_error_label fails (transient) -> logged, poll continues."""
 
     @pytest.fixture(autouse=True)
-    def setup_error_label_failure(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1"]
-            if mailbox_id == "mb-tofeed":
-                return ["email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
-
+    def setup_error_label_failure(self, jmap, mock_mailbox_ids):
         def sender_side_effect(email_ids):
             return {eid: ("bob@example.com", "Bob") for eid in email_ids}
 
         jmap.get_email_senders.side_effect = sender_side_effect
 
-        call_count = {"n": 0}
-
         def call_side_effect(method_calls):
-            method = method_calls[0][0]
-            if method == "Email/get":
+            first_method = method_calls[0][0]
+            if first_method == "Email/query":
+                responses = []
+                for mc in method_calls:
+                    label_id = mc[1]["filter"]["inMailbox"]
+                    call_id = mc[2]
+                    if label_id == "mb-toimbox":
+                        responses.append(["Email/query", {"ids": ["email-1"], "total": 1}, call_id])
+                    elif label_id == "mb-tofeed":
+                        responses.append(["Email/query", {"ids": ["email-2"], "total": 1}, call_id])
+                    else:
+                        responses.append(["Email/query", {"ids": [], "total": 0}, call_id])
+                return responses
+            if first_method == "Email/get":
                 ids = method_calls[0][1].get("ids", [])
-                return [
-                    [
-                        "Email/get",
-                        {
-                            "list": [
-                                {"id": eid, "mailboxIds": {"mb-toimbox": True}}
-                                for eid in ids
-                            ]
-                        },
-                        "g0",
-                    ]
-                ]
+                return [["Email/get", {"list": [
+                    {"id": eid, "mailboxIds": {"mb-toimbox": True}} for eid in ids
+                ]}, "g0"]]
             # Email/set for error labeling -> transient failure
             raise ConnectionError("Network timeout")
 
@@ -403,21 +323,11 @@ class TestProcessSenderException:
     """_process_sender raises exception -> logged, triage labels left in place."""
 
     @pytest.fixture(autouse=True)
-    def setup_process_failure(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup_process_failure(self, jmap, mock_mailbox_ids):
         jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice")}
-        jmap.call.return_value = [
-            [
-                "Email/get",
-                {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]},
-                "g0",
-            ]
-        ]
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"]}, mock_mailbox_ids
+        )
 
     def test_exception_caught_and_returns_zero(self, workflow):
         """_process_sender is a stub raising NotImplementedError, poll catches it."""
@@ -478,36 +388,33 @@ class TestCollectTriagedFilterErrorLabel:
     """_collect_triaged filters out emails already marked with @MailroomError."""
 
     @pytest.fixture(autouse=True)
-    def setup_mixed_errored(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1", "email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup_mixed_errored(self, jmap, mock_mailbox_ids):
         jmap.get_email_senders.return_value = {
             "email-1": ("alice@example.com", "Alice"),
             "email-2": ("bob@example.com", "Bob"),
         }
-        # email-1 has error label, email-2 does not
-        jmap.call.return_value = [
-            [
-                "Email/get",
-                {
-                    "list": [
-                        {
-                            "id": "email-1",
-                            "mailboxIds": {"mb-toimbox": True, "mb-error": True},
-                        },
-                        {
-                            "id": "email-2",
-                            "mailboxIds": {"mb-toimbox": True},
-                        },
-                    ]
-                },
-                "g0",
-            ]
-        ]
+
+        def call_side_effect(method_calls):
+            first_method = method_calls[0][0]
+            if first_method == "Email/query":
+                responses = []
+                for mc in method_calls:
+                    label_id = mc[1]["filter"]["inMailbox"]
+                    call_id = mc[2]
+                    if label_id == "mb-toimbox":
+                        responses.append(["Email/query", {"ids": ["email-1", "email-2"], "total": 2}, call_id])
+                    else:
+                        responses.append(["Email/query", {"ids": [], "total": 0}, call_id])
+                return responses
+            if first_method == "Email/get":
+                # email-1 has error label, email-2 does not
+                return [["Email/get", {"list": [
+                    {"id": "email-1", "mailboxIds": {"mb-toimbox": True, "mb-error": True}},
+                    {"id": "email-2", "mailboxIds": {"mb-toimbox": True}},
+                ]}, "g0"]]
+            return [["Email/set", {"updated": {}}, method_calls[0][2]]]
+
+        jmap.call.side_effect = call_side_effect
 
     def test_only_non_errored_collected(self, workflow):
         triaged, sender_names = workflow._collect_triaged()
@@ -1152,26 +1059,21 @@ class TestProcessSenderIntegrationWithPoll:
     """End-to-end: poll() calls _process_sender which now works (not a stub)."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, jmap, carddav):
-        # Poll: one sender with one email in @ToImbox
-        def poll_query_side_effect(mailbox_id, **kwargs):
+    def setup(self, jmap, carddav, mock_mailbox_ids):
+        # Discovery: batched Email/query returns email-1 in @ToImbox
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"]}, mock_mailbox_ids
+        )
+        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
+
+        # Sweep: query_emails returns email-1 from Screener for this sender
+        def sweep_query_side_effect(mailbox_id, **kwargs):
             sender = kwargs.get("sender")
-            if sender is not None:
-                # This is a sweep query from _process_sender
-                if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                    return ["email-1"]
-                return []
-            # This is a poll collection query
-            if mailbox_id == "mb-toimbox":
+            if mailbox_id == "mb-screener" and sender == "alice@example.com":
                 return ["email-1"]
             return []
 
-        jmap.query_emails.side_effect = poll_query_side_effect
-        jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
-        # Email/get for error filtering
-        jmap.call.return_value = [
-            ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
-        ]
+        jmap.query_emails.side_effect = sweep_query_side_effect
 
         carddav.search_by_email.return_value = []
         carddav.upsert_contact.return_value = {
@@ -1261,17 +1163,11 @@ class TestCollectTriagedReturnsSenderNames:
     """_collect_triaged returns sender_names dict alongside triaged emails."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toimbox":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+    def setup(self, jmap, mock_mailbox_ids):
         jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
-        jmap.call.return_value = [
-            ["Email/get", {"list": [{"id": "email-1", "mailboxIds": {"mb-toimbox": True}}]}, "g0"]
-        ]
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toimbox": ["email-1"]}, mock_mailbox_ids
+        )
 
     def test_returns_tuple(self, workflow):
         """_collect_triaged returns a tuple of (triaged, sender_names)."""
@@ -1290,9 +1186,9 @@ class TestCollectTriagedReturnsSenderNames:
         assert "alice@example.com" in triaged
         assert triaged["alice@example.com"] == [("email-1", "@ToImbox")]
 
-    def test_empty_returns_empty_tuple(self, workflow, jmap):
+    def test_empty_returns_empty_tuple(self, workflow, jmap, mock_mailbox_ids):
         """When no emails found, returns ({}, {})."""
-        jmap.query_emails.side_effect = lambda *a, **kw: []
+        jmap.call.side_effect = _make_batched_call_side_effect({}, mock_mailbox_ids)
         result = workflow._collect_triaged()
         assert result == ({}, {})
 
@@ -1438,29 +1334,23 @@ class TestToPersonRoutingPoll:
     """poll() with @ToPerson label processes sender, sweeps to Inbox, removes label."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, jmap, carddav):
-        # Poll: one sender with one email in @ToPerson
-        def poll_query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if sender is not None:
-                if mailbox_id == "mb-screener" and sender == "person@example.com":
-                    return ["email-1"]
-                return []
-            if mailbox_id == "mb-toperson":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = poll_query_side_effect
+    def setup(self, jmap, carddav, mock_mailbox_ids):
+        # Discovery: batched Email/query returns email-1 in @ToPerson
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toperson": ["email-1"]}, mock_mailbox_ids
+        )
         jmap.get_email_senders.return_value = {
             "email-1": ("person@example.com", "Jane Doe")
         }
-        jmap.call.return_value = [
-            [
-                "Email/get",
-                {"list": [{"id": "email-1", "mailboxIds": {"mb-toperson": True}}]},
-                "g0",
-            ]
-        ]
+
+        # Sweep: query_emails returns email-1 from Screener
+        def sweep_query_side_effect(mailbox_id, **kwargs):
+            sender = kwargs.get("sender")
+            if mailbox_id == "mb-screener" and sender == "person@example.com":
+                return ["email-1"]
+            return []
+
+        jmap.query_emails.side_effect = sweep_query_side_effect
 
         carddav.search_by_email.return_value = []
         carddav.upsert_contact.return_value = {
@@ -1534,40 +1424,15 @@ class TestToPersonConflictWithToImbox:
     """@ToPerson + @ToImbox on same sender produces conflict."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toperson":
-                return ["email-1"]
-            if mailbox_id == "mb-toimbox":
-                return ["email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
-
+    def setup(self, jmap, mock_mailbox_ids):
         def sender_side_effect(email_ids):
             return {eid: ("both@example.com", "Both Labels") for eid in email_ids}
 
         jmap.get_email_senders.side_effect = sender_side_effect
 
-        def call_side_effect(method_calls):
-            method = method_calls[0][0]
-            if method == "Email/get":
-                ids = method_calls[0][1].get("ids", [])
-                return [
-                    [
-                        "Email/get",
-                        {
-                            "list": [
-                                {"id": eid, "mailboxIds": {"mb-toperson": True}}
-                                for eid in ids
-                            ]
-                        },
-                        "g0",
-                    ]
-                ]
-            return [["Email/set", {"updated": {}}, "err0"]]
-
-        jmap.call.side_effect = call_side_effect
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toperson": ["email-1"], "mb-toimbox": ["email-2"]}, mock_mailbox_ids
+        )
 
     def test_conflict_detected(self, workflow):
         """@ToPerson + @ToImbox = conflict, returns 0 processed."""
@@ -1596,40 +1461,15 @@ class TestToPersonConflictWithToFeed:
     """@ToPerson + @ToFeed on same sender produces conflict."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, jmap):
-        def query_side_effect(mailbox_id, **kwargs):
-            if mailbox_id == "mb-toperson":
-                return ["email-1"]
-            if mailbox_id == "mb-tofeed":
-                return ["email-2"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
-
+    def setup(self, jmap, mock_mailbox_ids):
         def sender_side_effect(email_ids):
             return {eid: ("both@example.com", "Both Labels") for eid in email_ids}
 
         jmap.get_email_senders.side_effect = sender_side_effect
 
-        def call_side_effect(method_calls):
-            method = method_calls[0][0]
-            if method == "Email/get":
-                ids = method_calls[0][1].get("ids", [])
-                return [
-                    [
-                        "Email/get",
-                        {
-                            "list": [
-                                {"id": eid, "mailboxIds": {"mb-toperson": True}}
-                                for eid in ids
-                            ]
-                        },
-                        "g0",
-                    ]
-                ]
-            return [["Email/set", {"updated": {}}, "err0"]]
-
-        jmap.call.side_effect = call_side_effect
+        jmap.call.side_effect = _make_batched_call_side_effect(
+            {"mb-toperson": ["email-1"], "mb-tofeed": ["email-2"]}, mock_mailbox_ids
+        )
 
     def test_conflict_detected(self, workflow):
         """@ToPerson + @ToFeed = conflict, returns 0 processed."""
@@ -2247,25 +2087,28 @@ class TestBatchedPerMethodError:
         assert triaged["alice@example.com"] == [("email-1", "@ToImbox")]
 
     def test_failed_label_logged_at_warning_on_first_failure(
-        self, workflow, jmap, mock_mailbox_ids, caplog
+        self, workflow, jmap, mock_mailbox_ids
     ):
         """First failure for a label is logged at WARNING level."""
-        import logging
+        import structlog.testing
 
         jmap.call.side_effect = _make_batched_call_side_effect(
             {},
             mock_mailbox_ids,
             error_labels={"mb-tofeed": {"type": "serverFail", "description": "Temp"}},
         )
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as logs:
             workflow._collect_triaged()
-        assert any("label_query_failed" in r.message or "label_query_failed" in str(r) for r in caplog.records)
+        warning_logs = [l for l in logs if l.get("event") == "label_query_failed"]
+        assert len(warning_logs) >= 1
+        assert warning_logs[0]["log_level"] == "warning"
+        assert warning_logs[0]["consecutive_failures"] == 1
 
     def test_three_consecutive_failures_logged_at_error(
-        self, workflow, jmap, mock_mailbox_ids, caplog
+        self, workflow, jmap, mock_mailbox_ids
     ):
         """After 3 consecutive failures for the same label, logged at ERROR level."""
-        import logging
+        import structlog.testing
 
         side_effect = _make_batched_call_side_effect(
             {},
@@ -2279,18 +2122,18 @@ class TestBatchedPerMethodError:
         workflow._collect_triaged()
 
         # Third poll: should escalate to ERROR
-        with caplog.at_level(logging.ERROR):
+        with structlog.testing.capture_logs() as logs:
             workflow._collect_triaged()
-        assert any(
-            "label_query_persistent_failure" in r.message or "label_query_persistent_failure" in str(r)
-            for r in caplog.records
-        )
+        error_logs = [l for l in logs if l.get("event") == "label_query_persistent_failure"]
+        assert len(error_logs) >= 1
+        assert error_logs[0]["log_level"] == "error"
+        assert error_logs[0]["consecutive_failures"] == 3
 
     def test_counter_resets_on_success(
-        self, workflow, jmap, mock_mailbox_ids, caplog
+        self, workflow, jmap, mock_mailbox_ids
     ):
         """Counter resets to 0 when a previously-failing label succeeds."""
-        import logging
+        import structlog.testing
 
         # First 2 polls: Feed fails
         fail_side_effect = _make_batched_call_side_effect(
@@ -2311,17 +2154,15 @@ class TestBatchedPerMethodError:
         workflow._collect_triaged()
 
         # Fourth poll: Feed fails again -- should be WARNING (count=1), not ERROR
-        caplog.clear()
         jmap.call.side_effect = fail_side_effect
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as logs:
             workflow._collect_triaged()
-        # Should NOT have ERROR level log
-        error_records = [
-            r for r in caplog.records
-            if r.levelno >= logging.ERROR
-            and ("label_query" in r.message or "label_query" in str(r))
-        ]
-        assert len(error_records) == 0
+        # Should have WARNING for label_query_failed, NOT ERROR
+        warning_logs = [l for l in logs if l.get("event") == "label_query_failed"]
+        error_logs = [l for l in logs if l.get("event") == "label_query_persistent_failure"]
+        assert len(warning_logs) >= 1
+        assert warning_logs[0]["consecutive_failures"] == 1  # Reset to 1
+        assert len(error_logs) == 0
 
     def test_all_labels_fail_returns_empty(
         self, workflow, jmap, mock_mailbox_ids

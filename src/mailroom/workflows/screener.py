@@ -37,6 +37,7 @@ class ScreenerWorkflow:
         self._settings = settings
         self._mailbox_ids = mailbox_ids
         self._log = structlog.get_logger(component="screener")
+        self._label_failure_counts: dict[str, int] = {}
 
     def poll(self) -> int:
         """Execute one poll cycle. Returns count of successfully processed senders."""
@@ -84,6 +85,9 @@ class ScreenerWorkflow:
     ) -> tuple[dict[str, list[tuple[str, str]]], dict[str, str | None]]:
         """Collect all triaged emails across all labels, grouped by sender.
 
+        Uses a single batched JMAP request to query all triage label mailboxes
+        at once (SCAN-01, SCAN-02), with per-method error detection (SCAN-03).
+
         Returns:
             Tuple of (triaged, sender_names):
             - triaged: Dict mapping sender email -> list of (email_id, label_name) tuples.
@@ -91,44 +95,86 @@ class ScreenerWorkflow:
             - sender_names: Dict mapping sender email -> display name (or None).
               Stores the first non-None display name seen across a sender's emails.
         """
-        # Collect emails from all triage labels
-        raw: dict[str, list[tuple[str, str]]] = {}
-        sender_names: dict[str, str | None] = {}
-        all_email_ids: list[str] = []
+        triage_labels = self._settings.triage_labels
 
-        for label_name in self._settings.triage_labels:
+        # Build batched Email/query method calls -- one per triage label
+        method_calls = []
+        for i, label_name in enumerate(triage_labels):
             label_id = self._mailbox_ids[label_name]
-            email_ids = self._jmap.query_emails(label_id)
-            if not email_ids:
+            method_calls.append([
+                "Email/query",
+                {
+                    "accountId": self._jmap.account_id,
+                    "filter": {"inMailbox": label_id},
+                    "limit": 100,
+                },
+                f"q{i}",
+            ])
+
+        # Single JMAP round-trip for all label queries (SCAN-02)
+        responses = self._jmap.call(method_calls)
+
+        # Parse responses with per-method error detection (SCAN-03)
+        label_email_ids: dict[str, list[str]] = {}
+        for i, label_name in enumerate(triage_labels):
+            response = responses[i]
+
+            if response[0] == "error":
+                self._handle_label_query_failure(label_name, response[1])
                 continue
 
-            # Get sender addresses and names for these emails
-            senders = self._jmap.get_email_senders(email_ids)
+            # Success: reset failure counter
+            self._label_failure_counts.pop(label_name, None)
 
+            data = response[1]
+            email_ids = data["ids"]
+            total = data.get("total", len(email_ids))
+
+            # Pagination: if total > len(ids), follow up with paginated query
+            if total > len(email_ids):
+                label_id = self._mailbox_ids[label_name]
+                self._log.warning(
+                    "label_query_pagination_needed",
+                    label=label_name,
+                    returned=len(email_ids),
+                    total=total,
+                )
+                email_ids = self._jmap.query_emails(label_id)
+
+            if email_ids:
+                label_email_ids[label_name] = email_ids
+
+        # Collect all email IDs across successful labels
+        all_email_ids: list[str] = []
+        for ids in label_email_ids.values():
+            all_email_ids.extend(ids)
+
+        if not all_email_ids:
+            return {}, {}
+
+        # Single sender-fetch call for ALL emails across ALL labels
+        senders = self._jmap.get_email_senders(all_email_ids)
+
+        # Build the triaged dict (same structure as before)
+        raw: dict[str, list[tuple[str, str]]] = {}
+        sender_names: dict[str, str | None] = {}
+        for label_name, email_ids in label_email_ids.items():
             for email_id in email_ids:
                 if email_id not in senders:
-                    # Email has no From header -- skip with warning
                     self._log.warning(
                         "email_missing_sender",
                         email_id=email_id,
                         label=label_name,
                     )
                     continue
-
                 sender_email, sender_name = senders[email_id]
                 raw.setdefault(sender_email, []).append((email_id, label_name))
-                all_email_ids.append(email_id)
-
-                # Store first non-None name seen for this sender
                 if sender_email not in sender_names or (
                     sender_names[sender_email] is None and sender_name is not None
                 ):
                     sender_names[sender_email] = sender_name
 
-        if not all_email_ids:
-            return {}, {}
-
-        # Filter out emails that already have @MailroomError
+        # Filter out emails that already have @MailroomError (separate call)
         error_id = self._mailbox_ids[self._settings.labels.mailroom_error]
         responses = self._jmap.call(
             [
@@ -165,6 +211,37 @@ class ScreenerWorkflow:
                 filtered[sender] = clean_emails
 
         return filtered, sender_names
+
+    def _handle_label_query_failure(self, label_name: str, error_data: dict) -> None:
+        """Handle a per-method error for a label query in the batch.
+
+        Increments consecutive failure counter and logs with escalating severity:
+        - Count < 3: WARNING
+        - Count >= 3: ERROR
+
+        Counter resets when the label succeeds again (in _collect_triaged).
+        """
+        count = self._label_failure_counts.get(label_name, 0) + 1
+        self._label_failure_counts[label_name] = count
+        error_type = error_data.get("type", "unknown")
+        description = error_data.get("description", "")
+
+        if count >= 3:
+            self._log.error(
+                "label_query_persistent_failure",
+                label=label_name,
+                error_type=error_type,
+                description=description,
+                consecutive_failures=count,
+            )
+        else:
+            self._log.warning(
+                "label_query_failed",
+                label=label_name,
+                error_type=error_type,
+                description=description,
+                consecutive_failures=count,
+            )
 
     def _detect_conflicts(
         self,
