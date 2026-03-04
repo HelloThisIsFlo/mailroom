@@ -50,10 +50,10 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 - [x] **PROV-05**: Contact notes include provenance line after header: "Created by Mailroom" (new) or "Adopted by Mailroom" (existing)
 - [x] **PROV-06**: Provenance group invisible to triage pipeline — `check_membership()` excludes infrastructure groups
 - [x] **PROV-07**: @MailroomWarning removed from all sender emails on every successful triage, reapplied if warning condition persists
-- [ ] **PROV-08**: CardDAV `delete_contact()` method for HTTP DELETE with ETag concurrency
-- [ ] **PROV-09**: User-modified detection identifies contacts with vCard fields beyond what Mailroom creates
-- [ ] **PROV-10**: Reset DELETEs unmodified provenance contacts, WARNs user-modified provenance contacts (apply @MailroomWarning to their emails), strips adopted contacts
-- [ ] **PROV-11**: Reset follows exact 7-step operation order: managed labels, warning/error cleanup, group removal, warning application, provenance removal, note strip, contact delete
+- [x] **PROV-08**: CardDAV `delete_contact()` method for HTTP DELETE with ETag concurrency
+- [x] **PROV-09**: User-modified detection identifies contacts with vCard fields beyond what Mailroom creates
+- [x] **PROV-10**: Reset DELETEs unmodified provenance contacts, WARNs user-modified provenance contacts (apply @MailroomWarning to their emails), strips adopted contacts
+- [x] **PROV-11**: Reset follows exact 7-step operation order: managed labels, warning/error cleanup, group removal, warning application, provenance removal, note strip, contact delete
 
 ### Milestone Closeout
 
@@ -120,10 +120,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-05 | Phase 14 | Complete |
 | PROV-06 | Phase 14 | Complete |
 | PROV-07 | Phase 14 | Complete |
-| PROV-08 | Phase 14 | Pending |
-| PROV-09 | Phase 14 | Pending |
-| PROV-10 | Phase 14 | Pending |
-| PROV-11 | Phase 14 | Pending |
+| PROV-08 | Phase 14 | Complete |
+| PROV-09 | Phase 14 | Complete |
+| PROV-10 | Phase 14 | Complete |
+| PROV-11 | Phase 14 | Complete |
 | CLOSE-01 | Post-Phase 13 | Pending |
 
 **Coverage:**

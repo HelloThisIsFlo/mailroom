@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-03-04T14:47:48.841Z"
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-03-04T14:58:12.031Z"
 last_activity: "2026-03-04 - Completed 14-02: CardDAV provenance tracking + warning cleanup"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 67
 ---
 
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
-Plan: 2 of 3 (complete)
-Status: In Progress
-Last activity: 2026-03-04 - Completed 14-02: CardDAV provenance tracking + warning cleanup
+Plan: 3 of 3 (complete)
+Status: Phase Complete
+Last activity: 2026-03-04 - Completed 14-03: Provenance-aware reset with 7-step order
 
-Progress: [██████░░░░] 67% (2/3 plans complete in Phase 14)
+Progress: [██████████] 100% (3/3 plans complete in Phase 14)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10 (v1.2)
-- Average duration: 5min
-- Total execution time: 54min
+- Total plans completed: 13 (v1.2)
+- Average duration: 6min
+- Total execution time: 78min
 
 **By Phase:**
 
@@ -47,10 +47,11 @@ Progress: [██████░░░░] 67% (2/3 plans complete in Phase 14)
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
 | 13-re-triage | 3 | 21min | 7min |
-| 14-contact-provenance | 1/3 | 6min | 6min |
+| 14-contact-provenance | 3/3 | 24min | 8min |
 
 *Updated after each plan completion*
 | Phase 14 P02 | 11min | 2 tasks | 5 files |
+| Phase 14 P03 | 7min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Recent decisions for v1.2:
 - [Phase 14]: infrastructure_groups stored as set on CardDAVClient, populated via validate_groups param
 - [Phase 14]: Provenance note: Created by Mailroom for new, Adopted by Mailroom for existing without prior note
 - [Phase 14]: Warning cleanup-then-reapply: remove @MailroomWarning before processing, reapply if condition persists
+- [Phase 14]: User-modified detection checks vCard fields beyond Mailroom's managed set (version, uid, fn, n, email, note, org, prodid)
+- [Phase 14]: 7-step reset order: labels, system-label cleanup, group removal, warning application, provenance removal, note strip, contact delete
 
 ### Pending Todos
 
@@ -117,6 +120,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T14:47:48.839Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-03-04T14:58:12.028Z
+Stopped at: Completed 14-03-PLAN.md
 Resume file: None
