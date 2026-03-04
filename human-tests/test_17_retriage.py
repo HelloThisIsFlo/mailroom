@@ -85,14 +85,8 @@ except ValueError as e:
     print(f"\n--- FAIL ---\n{e}")
     sys.exit(1)
 
-# Resolve all mailboxes the workflow needs
-all_mailboxes = list(dict.fromkeys([  # dedupe preserving order
-    "Inbox",
-    settings.triage.screener_mailbox,
-    settings.labels.mailroom_error,
-    *settings.triage_labels,
-    *[c.destination_mailbox for c in settings.label_to_category_mapping.values()],
-]))
+# Resolve all mailboxes the workflow needs (use settings to stay in sync)
+all_mailboxes = settings.required_mailboxes
 
 print(f"\nResolving {len(all_mailboxes)} mailboxes...")
 try:

@@ -324,9 +324,8 @@ class ScreenerWorkflow:
             sender: Sender email address (for logging).
             email_ids: List of triggering email IDs to apply the warning to.
         """
-        warning_id = self._mailbox_ids[self._settings.labels.mailroom_warning]
-
         try:
+            warning_id = self._mailbox_ids[self._settings.labels.mailroom_warning]
             for email_id in email_ids:
                 self._jmap.call(
                     [
