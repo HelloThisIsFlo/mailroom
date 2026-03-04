@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: in-progress
-stopped_at: "Completed 13-02-PLAN.md"
-last_updated: "2026-03-03T23:35:03Z"
-last_activity: 2026-03-03 -- Completed 13-02 (Re-triage workflow logic)
+status: complete
+stopped_at: "Completed 13-03-PLAN.md"
+last_updated: "2026-03-03T23:51:04Z"
+last_activity: 2026-03-03 -- Completed 13-03 (Human integration tests for re-triage)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 13 - Re-triage
+**Current focus:** v1.2 Milestone Complete
 
 ## Current Position
 
 Phase: 13 of 13 (Re-triage) -- fourth of 4 v1.2 phases
-Plan: 3 of 3 (next)
-Status: Phase 13 In Progress
-Last activity: 2026-03-03 -- Completed 13-02 (Re-triage workflow logic)
+Plan: 3 of 3 (complete)
+Status: v1.2 Milestone Complete
+Last activity: 2026-03-03 -- Completed 13-03 (Human integration tests for re-triage)
 
-Progress: [██████░░░░] 67% (2/3 plans complete in Phase 13)
+Progress: [██████████] 100% (3/3 plans complete in Phase 13)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9 (v1.2)
+- Total plans completed: 10 (v1.2)
 - Average duration: 5min
-- Total execution time: 43min
+- Total execution time: 54min
 
 **By Phase:**
 
@@ -46,7 +46,7 @@ Progress: [██████░░░░] 67% (2/3 plans complete in Phase 13)
 | 10-tech-debt-cleanup | 2 | 3min | 2min |
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
-| 13-re-triage | 2 | 10min | 5min |
+| 13-re-triage | 3 | 21min | 7min |
 
 *Updated after each plan completion*
 
@@ -85,6 +85,7 @@ Recent decisions for v1.2:
 - [13-02] Same-group re-triage runs full reconciliation for self-healing
 - [13-02] Chain diff uses set operations on contact_group names
 - [13-02] Inbox explicitly excluded from managed label removal set
+- [13-03] JMAP pagination uses len-based check instead of total field (total requires calculateTotal: true)
 
 ### Pending Todos
 
