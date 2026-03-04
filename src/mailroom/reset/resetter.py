@@ -399,7 +399,7 @@ def run_reset(apply: bool = False) -> int:
     Returns:
         Exit code: 0 if no errors, 1 if any errors.
     """
-    from mailroom.reset.reporting import print_reset_report
+    from mailroom.reset.reporting import print_mode_banner, print_progress, print_reset_report
 
     # Load config
     try:
@@ -446,7 +446,11 @@ def run_reset(apply: bool = False) -> int:
     # Validate groups + provenance group (needed for group operations)
     carddav.validate_groups(settings.contact_groups + [settings.mailroom.provenance_group])
 
+    # Show mode banner before any scanning output
+    print_mode_banner(apply)
+
     # Build plan
+    print_progress("Scanning mailboxes and contacts...")
     reset_plan = plan_reset(settings, jmap, carddav)
 
     if not apply:
@@ -454,6 +458,7 @@ def run_reset(apply: bool = False) -> int:
         return 0
 
     # Apply
+    print_progress("Applying reset...")
     reset_result = apply_reset(reset_plan, jmap, carddav, settings)
     print_reset_report(reset_result, apply=True)
 

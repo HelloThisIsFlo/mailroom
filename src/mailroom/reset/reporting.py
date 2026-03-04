@@ -4,7 +4,38 @@ from __future__ import annotations
 
 import sys
 
-from mailroom.setup.colors import GREEN, YELLOW, RED, DIM, RESET, CYAN, color
+from mailroom.setup.colors import GREEN, YELLOW, RED, DIM, RESET, CYAN, BOLD, color
+
+
+def print_mode_banner(apply: bool) -> None:
+    """Print a prominent mode banner before any reset output.
+
+    DRY RUN mode uses CYAN, APPLY mode uses RED. Both use BOLD.
+
+    Args:
+        apply: If True, show APPLY banner. If False, show DRY RUN banner.
+    """
+    out = sys.stdout
+    bar = color("=" * 42, BOLD + (RED if apply else CYAN))
+    if apply:
+        label = color("  APPLY MODE — changes will be permanent", BOLD + RED)
+    else:
+        label = color("  DRY RUN — no changes will be made", BOLD + CYAN)
+    print(file=out)
+    print(bar, file=out)
+    print(label, file=out)
+    print(bar, file=out)
+    print(file=out)
+
+
+def print_progress(message: str) -> None:
+    """Print a progress message with a dimmed prefix.
+
+    Args:
+        message: The progress description (e.g. "Scanning mailboxes and contacts...").
+    """
+    prefix = color("  ...", DIM)
+    print(f"{prefix} {message}", file=sys.stdout)
 
 
 def print_reset_report(plan_or_result: object, apply: bool) -> None:
