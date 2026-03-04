@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
-stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-03-04T15:04:03.127Z"
-last_activity: "2026-03-04 - Completed 14-03: Provenance-aware reset with 7-step order"
+stopped_at: Completed 14-04-PLAN.md
+last_updated: "2026-03-04T19:01:17Z"
+last_activity: "2026-03-04 - Completed 14-04: Fix reset apply bugs (RFC 8621 + stale ETag)"
 progress:
   total_phases: 5
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 14
+  completed_plans: 14
   percent: 100
 ---
 
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
-Plan: 3 of 3 (complete)
-Status: Phase Complete
-Last activity: 2026-03-04 - Completed 14-03: Provenance-aware reset with 7-step order
+Plan: 4 of 4+ (gap closure plans complete)
+Status: Gap Closure Complete
+Last activity: 2026-03-04 - Completed 14-04: Fix reset apply bugs (RFC 8621 + stale ETag)
 
-Progress: [██████████] 100% (3/3 plans complete in Phase 14)
+Progress: [██████████] 100% (4 plans complete in Phase 14, including gap closure)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13 (v1.2)
+- Total plans completed: 14 (v1.2)
 - Average duration: 6min
-- Total execution time: 78min
+- Total execution time: 82min
 
 **By Phase:**
 
@@ -47,11 +47,12 @@ Progress: [██████████] 100% (3/3 plans complete in Phase 14)
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
 | 13-re-triage | 3 | 21min | 7min |
-| 14-contact-provenance | 3/3 | 24min | 8min |
+| 14-contact-provenance | 4 | 28min | 7min |
 
 *Updated after each plan completion*
 | Phase 14 P02 | 11min | 2 tasks | 5 files |
 | Phase 14 P03 | 7min | 2 tasks | 7 files |
+| Phase 14 P04 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions for v1.2:
 - [Phase 14]: Warning cleanup-then-reapply: remove @MailroomWarning before processing, reapply if condition persists
 - [Phase 14]: User-modified detection checks vCard fields beyond Mailroom's managed set (version, uid, fn, n, email, note, org, prodid)
 - [Phase 14]: 7-step reset order: labels, system-label cleanup, group removal, warning application, provenance removal, note strip, contact delete
+- [14-04]: Step 1 adds Screener before removing managed labels (atomic move pattern for RFC 8621 compliance)
+- [14-04]: Step 6 skips contacts_to_delete entirely (don't modify resources about to be deleted)
 
 ### Pending Todos
 
@@ -120,6 +123,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T14:58:12.028Z
-Stopped at: Completed 14-03-PLAN.md
+Last session: 2026-03-04T19:01:17Z
+Stopped at: Completed 14-04-PLAN.md
 Resume file: None

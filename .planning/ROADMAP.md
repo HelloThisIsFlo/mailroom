@@ -145,5 +145,5 @@ Plans:
 - [x] 14-01-PLAN.md — Config rename (labels -> mailroom), provenance_group field, update all references, setup provisioner
 - [x] 14-02-PLAN.md — CardDAV provenance tracking (group membership, note format, infrastructure_groups), @MailroomWarning cleanup
 - [x] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order
-- [ ] 14-04-PLAN.md — Gap closure: fix JMAP label removal (move-to-Inbox) and stale ETag on contact deletion
+- [x] 14-04-PLAN.md — Gap closure: fix JMAP label removal (move-to-Screener) and stale ETag on contact deletion
 - [ ] 14-05-PLAN.md — Gap closure: config error simplification, reset UX banners/progress, REV field test coverage
