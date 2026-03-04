@@ -15,6 +15,44 @@ from mailroom.core.logging import configure_logging
 
 MAILROOM_HEADER = "\u2014 Mailroom \u2014"
 
+# Fields that Mailroom sets on contacts it creates/manages
+MAILROOM_MANAGED_FIELDS = {
+    "version", "uid", "fn", "n", "email", "note", "org", "prodid",
+}
+# x-addressbookserver-* fields are Apple system fields, not user data
+_SYSTEM_FIELD_PREFIXES = ("x-addressbookserver-",)
+
+
+def _is_user_modified(vcard_data: str) -> bool:
+    """Detect whether a contact has been modified by the user.
+
+    Compares vCard fields against what Mailroom creates. Extra fields
+    (phone, address, photo, etc.) indicate user modification. Multiple
+    EMAIL entries also indicate user modification.
+
+    Apple system fields (x-addressbookserver-*) are ignored.
+
+    Args:
+        vcard_data: Raw vCard string.
+
+    Returns:
+        True if the contact has user-added fields beyond Mailroom's set.
+    """
+    card = vobject.readOne(vcard_data)
+    content_keys = {k.lower() for k in card.contents.keys()}
+    # Filter out system fields
+    user_fields = {
+        k for k in content_keys
+        if not any(k.startswith(p) for p in _SYSTEM_FIELD_PREFIXES)
+    }
+    extra = user_fields - MAILROOM_MANAGED_FIELDS
+    if extra:
+        return True
+    # Multiple EMAIL entries = user added one
+    if len(card.contents.get("email", [])) > 1:
+        return True
+    return False
+
 
 @dataclass
 class ContactCleanup:

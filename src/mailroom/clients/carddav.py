@@ -687,6 +687,26 @@ class CardDAVClient:
 
         return contacts
 
+    def delete_contact(self, href: str, etag: str) -> None:
+        """Delete a contact vCard from the addressbook.
+
+        Sends an HTTP DELETE with If-Match for ETag concurrency control.
+
+        Args:
+            href: The vCard resource href (path).
+            etag: Current ETag for concurrency control.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+            httpx.HTTPStatusError: On HTTP errors from the DELETE.
+        """
+        self._require_connection()
+        resp = self._http.delete(
+            f"https://{self._hostname}{href}",
+            headers={"If-Match": etag},
+        )
+        resp.raise_for_status()
+
     def update_contact_vcard(self, href: str, etag: str, vcard_bytes: bytes) -> str:
         """PUT an updated vCard to the addressbook with If-Match.
 
