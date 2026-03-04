@@ -29,7 +29,7 @@ def print_reset_report(plan_or_result: object, apply: bool) -> None:
 
 
 def _print_plan_report(plan: object, out: object) -> None:
-    """Print dry-run plan report."""
+    """Print dry-run plan report with provenance-aware sections."""
     from mailroom.reset.resetter import ResetPlan
 
     assert isinstance(plan, ResetPlan)
@@ -52,46 +52,53 @@ def _print_plan_report(plan: object, out: object) -> None:
             print(f"  {symbol} {group_name:<30} {color(f'{count} members', YELLOW)}", file=out)
         print(file=out)
 
-    # Contacts to Clean section
-    non_likely = [c for c in plan.contacts_to_clean if not c.likely_created]
-    if non_likely:
-        print("Contacts to Clean (strip note)", file=out)
-        for contact in non_likely:
-            symbol = color("\u270e", YELLOW)  # pencil
-            print(f"  {symbol} {contact.fn:<30} {color('strip note', DIM)}", file=out)
+    # Contacts to DELETE section (provenance + unmodified)
+    if plan.contacts_to_delete:
+        print("Contacts to DELETE", file=out)
+        for contact in plan.contacts_to_delete:
+            symbol = color("\u2717", RED)  # X mark
+            print(f"  {symbol} {contact.fn:<30} {color('delete', RED)}", file=out)
         print(file=out)
 
-    # Likely-created section
-    likely = [c for c in plan.contacts_to_clean if c.likely_created]
-    if likely:
-        print("Likely Mailroom-Created Contacts", file=out)
-        print(color("  (Consider manual deletion after reset)", DIM), file=out)
-        for contact in likely:
+    # Contacts to WARN section (provenance + user-modified)
+    if plan.contacts_to_warn:
+        print("Contacts to WARN", file=out)
+        for contact in plan.contacts_to_warn:
             symbol = color("!", YELLOW)
+            print(f"  {symbol} {contact.fn:<30} {color('warn + strip', YELLOW)}", file=out)
+        print(file=out)
+
+    # Contacts to strip section (adopted)
+    if plan.contacts_to_strip:
+        print("Contacts to strip (adopted)", file=out)
+        for contact in plan.contacts_to_strip:
+            symbol = color("\u270e", YELLOW)  # pencil
             print(f"  {symbol} {contact.fn:<30} {color('strip note', DIM)}", file=out)
         print(file=out)
 
     # Summary
     total_emails = sum(len(ids) for ids in plan.email_labels.values())
     total_groups = len(plan.group_members)
-    total_contacts = len(plan.contacts_to_clean)
+    total_delete = len(plan.contacts_to_delete)
+    total_warn = len(plan.contacts_to_warn)
+    total_strip = len(plan.contacts_to_strip)
 
     parts = [
         f"{total_emails} emails to un-label",
         f"{total_groups} groups to empty",
-        f"{total_contacts} contacts to clean",
     ]
-    print(" \u00b7 ".join(parts), file=out)
+    if total_delete:
+        parts.append(f"{total_delete} contacts to delete")
+    if total_warn:
+        parts.append(f"{total_warn} contacts to warn")
+    if total_strip:
+        parts.append(f"{total_strip} contacts to strip")
 
-    if likely:
-        print(
-            color(f"  + {len(likely)} likely Mailroom-created (manual deletion recommended)", YELLOW),
-            file=out,
-        )
+    print(" \u00b7 ".join(parts), file=out)
 
 
 def _print_apply_report(result: object, out: object) -> None:
-    """Print apply result report."""
+    """Print apply result report with provenance-aware counts."""
     from mailroom.reset.resetter import ResetResult
 
     assert isinstance(result, ResetResult)
@@ -102,8 +109,14 @@ def _print_apply_report(result: object, out: object) -> None:
     parts = [
         f"{result.emails_unlabeled} emails un-labeled",
         f"{result.groups_emptied} groups emptied",
-        f"{result.contacts_cleaned} contacts cleaned",
     ]
+    if result.contacts_deleted:
+        parts.append(f"{result.contacts_deleted} contacts deleted")
+    if result.contacts_warned:
+        parts.append(f"{result.contacts_warned} contacts warned")
+    if result.contacts_cleaned:
+        parts.append(f"{result.contacts_cleaned} contacts cleaned")
+
     print(" \u00b7 ".join(parts), file=out)
 
     if result.errors:

@@ -380,8 +380,13 @@ class TestApplyReset:
 
         apply_reset(plan, jmap, carddav, mock_settings)
 
-        # remove_from_group: Feed(uid-del, uid-warn) + Imbox(uid-strip) = 3 calls
-        assert carddav.remove_from_group.call_count == 3
+        # remove_from_group: Feed(uid-del, uid-warn) + Imbox(uid-strip) = 3 category calls
+        # + 1 provenance group removal (step 5) = 4 total
+        category_removals = [
+            c for c in carddav.remove_from_group.call_args_list
+            if c[0][0] != "Mailroom"
+        ]
+        assert len(category_removals) == 3
 
     def test_step4_applies_warning_to_modified_contacts(self, mock_settings) -> None:
         """Step 4: Apply @MailroomWarning to user-modified provenance contacts' emails."""
