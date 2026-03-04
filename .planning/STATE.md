@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
 stopped_at: Completed 14-05-PLAN.md
-last_updated: "2026-03-04T19:08:17.684Z"
+last_updated: "2026-03-04T19:13:34.852Z"
 last_activity: "2026-03-04 - Completed 14-05: UAT gap closure (config error, reset UX, REV field)"
 progress:
   total_phases: 5
