@@ -139,9 +139,11 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
   6. @MailroomWarning removed from all sender emails on every successful triage, reapplied if condition persists
   7. Reset DELETEs unmodified provenance contacts, WARNs modified provenance contacts, strips adopted contacts
   8. Reset follows exact 7-step operation order
-**Plans**: 3 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 14-01-PLAN.md — Config rename (labels -> mailroom), provenance_group field, update all references, setup provisioner
-- [ ] 14-02-PLAN.md — CardDAV provenance tracking (group membership, note format, infrastructure_groups), @MailroomWarning cleanup
-- [ ] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order
+- [x] 14-02-PLAN.md — CardDAV provenance tracking (group membership, note format, infrastructure_groups), @MailroomWarning cleanup
+- [x] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order
+- [ ] 14-04-PLAN.md — Gap closure: fix JMAP label removal (move-to-Inbox) and stale ETag on contact deletion
+- [ ] 14-05-PLAN.md — Gap closure: config error simplification, reset UX banners/progress, REV field test coverage
