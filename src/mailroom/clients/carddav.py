@@ -70,6 +70,7 @@ class CardDAVClient:
         )
         self._addressbook_url: str | None = None
         self._groups: dict[str, dict] = {}
+        self._infrastructure_groups: set[str] = set()
 
     def connect(self) -> None:
         """Discover the default address book URL via 3-step PROPFIND chain.
@@ -219,7 +220,11 @@ class CardDAVClient:
             }
         return groups
 
-    def validate_groups(self, required_groups: list[str]) -> dict[str, dict]:
+    def validate_groups(
+        self,
+        required_groups: list[str],
+        infrastructure_groups: list[str] | None = None,
+    ) -> dict[str, dict]:
         """Validate that all required contact groups exist in the addressbook.
 
         Fetches all vCards via REPORT addressbook-query, filters for Apple-style
@@ -227,6 +232,9 @@ class CardDAVClient:
 
         Args:
             required_groups: List of group names that must exist.
+            infrastructure_groups: Optional list of group names that are
+                infrastructure (e.g., provenance). These are stored in
+                _infrastructure_groups and excluded from check_membership().
 
         Returns:
             Dict mapping group name to {"href": ..., "etag": ..., "uid": ...}.
@@ -280,6 +288,10 @@ class CardDAVClient:
 
         # Store validated groups for later use
         self._groups = {g: groups[g] for g in required_groups}
+
+        # Store infrastructure groups for check_membership exclusion
+        self._infrastructure_groups = set(infrastructure_groups or [])
+
         return self._groups
 
     def create_group(self, name: str) -> dict:
@@ -437,6 +449,7 @@ class CardDAVClient:
         email_prop.type_param = "INTERNET"
         card.add("note").value = (
             f"\u2014 Mailroom \u2014\n"
+            f"Created by Mailroom\n"
             f"Triaged to {group_name} on {date.today().isoformat()}"
         )
 
@@ -753,6 +766,8 @@ class CardDAVClient:
         for group_name, group_info in self._groups.items():
             if group_name == exclude_group:
                 continue
+            if group_name in self._infrastructure_groups:
+                continue
 
             href = group_info["href"]
             group_url = f"https://{self._hostname}{href}"
@@ -777,6 +792,7 @@ class CardDAVClient:
         display_name: str | None,
         group_name: str,
         contact_type: str = "company",
+        provenance_group: str | None = None,
     ) -> dict:
         """Search-or-create a contact and add it to a group.
 
@@ -806,6 +822,8 @@ class CardDAVClient:
                 group_name=group_name,
             )
             self.add_to_group(group_name, new_contact["uid"])
+            if provenance_group:
+                self.add_to_group(provenance_group, new_contact["uid"])
             return {
                 "action": "created",
                 "uid": new_contact["uid"],
@@ -863,20 +881,26 @@ class CardDAVClient:
         if note_entries and note_entries[0].value.strip():
             existing_note = note_entries[0].value
             if mailroom_header in existing_note:
-                # New format: append chronological entry
+                # Already tracked: append chronological entry (no new provenance line)
                 note_entries[0].value = (
                     f"{existing_note}\n{retriage_entry}"
                 )
             else:
-                # Old format: preserve old note, add Mailroom section
+                # Old format: preserve old note, add Mailroom section with Adopted line
                 note_entries[0].value = (
                     f"{existing_note}\n\n"
-                    f"{mailroom_header}\n{retriage_entry}"
+                    f"{mailroom_header}\n"
+                    f"Adopted by Mailroom\n"
+                    f"{retriage_entry}"
                 )
             changed = True
         else:
-            # No note or empty note: add Mailroom section
-            new_note = f"{mailroom_header}\n{retriage_entry}"
+            # No note or empty note: add Mailroom section with Adopted line
+            new_note = (
+                f"{mailroom_header}\n"
+                f"Adopted by Mailroom\n"
+                f"{retriage_entry}"
+            )
             if note_entries:
                 note_entries[0].value = new_note
             else:

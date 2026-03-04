@@ -573,7 +573,7 @@ class TestCreateContact:
         assert card.fn.value == "Jane Smith"
         assert card.email.value == "jane@example.com"
         today = date.today().isoformat()
-        expected_note = f"\u2014 Mailroom \u2014\nTriaged to Imbox on {today}"
+        expected_note = f"\u2014 Mailroom \u2014\nCreated by Mailroom\nTriaged to Imbox on {today}"
         assert card.note.value == expected_note
         # UID should be a valid UUID
         uuid.UUID(card.uid.value)
@@ -1324,7 +1324,7 @@ class TestCreateContactCompany:
         card = vobject.readOne(vcard_body)
 
         today = date.today().isoformat()
-        expected_note = f"\u2014 Mailroom \u2014\nTriaged to Feed on {today}"
+        expected_note = f"\u2014 Mailroom \u2014\nCreated by Mailroom\nTriaged to Feed on {today}"
         assert card.note.value == expected_note
 
 
@@ -1416,7 +1416,7 @@ class TestCreateContactPerson:
         card = vobject.readOne(vcard_body)
 
         today = date.today().isoformat()
-        expected_note = f"\u2014 Mailroom \u2014\nTriaged to Person on {today}"
+        expected_note = f"\u2014 Mailroom \u2014\nCreated by Mailroom\nTriaged to Person on {today}"
         assert card.note.value == expected_note
 
     def test_person_vcard_no_org(
@@ -1493,7 +1493,7 @@ class TestUpsertNoteField:
         card = vobject.readOne(updated_body)
 
         today = date.today().isoformat()
-        expected_note = f"\u2014 Mailroom \u2014\nRe-triaged to Imbox on {today}"
+        expected_note = f"\u2014 Mailroom \u2014\nAdopted by Mailroom\nRe-triaged to Imbox on {today}"
         assert card.note.value == expected_note
 
     def test_upsert_existing_old_format_note_migrates(
@@ -1544,10 +1544,11 @@ class TestUpsertNoteField:
         card = vobject.readOne(updated_body)
 
         today = date.today().isoformat()
-        # Old note preserved, Mailroom header + re-triage entry appended
+        # Old note preserved, Mailroom header + Adopted provenance + re-triage entry appended
         assert card.note.value == (
             f"Personal contact\n\n"
             f"\u2014 Mailroom \u2014\n"
+            f"Adopted by Mailroom\n"
             f"Re-triaged to Imbox on {today}"
         )
 
@@ -1558,7 +1559,7 @@ class TestUpsertNoteField:
         _setup_client_with_groups(client, httpx_mock)
 
         today = date.today().isoformat()
-        existing_note = f"\u2014 Mailroom \u2014\nTriaged to Feed on {today}"
+        existing_note = f"\u2014 Mailroom \u2014\nCreated by Mailroom\nTriaged to Feed on {today}"
         existing = _contact_vcard(
             "Jane Smith", "existing-uid", "jane@example.com",
             note=existing_note,
@@ -1601,6 +1602,7 @@ class TestUpsertNoteField:
 
         expected_note = (
             f"\u2014 Mailroom \u2014\n"
+            f"Created by Mailroom\n"
             f"Triaged to Feed on {today}\n"
             f"Re-triaged to Imbox on {today}"
         )
@@ -1776,3 +1778,479 @@ class TestUpsertNameMismatch:
         )
 
         assert result["name_mismatch"] is False
+
+
+# --- Infrastructure Groups Exclusion Tests ---
+
+
+PROVENANCE_GROUP_HREF = "/dav/ab/Default/group-provenance.vcf"
+PROVENANCE_GROUP_URL = f"https://carddav.fastmail.com{PROVENANCE_GROUP_HREF}"
+
+
+def _setup_client_with_provenance_groups(
+    client: CardDAVClient, httpx_mock: HTTPXMock
+) -> None:
+    """Connect client and populate _groups with Imbox + Mailroom provenance group."""
+    _connect_client(client, httpx_mock)
+    client._groups = {
+        "Imbox": {
+            "href": GROUP_HREF,
+            "etag": '"etag-imbox-1"',
+            "uid": "uid-imbox",
+        },
+        "Mailroom": {
+            "href": PROVENANCE_GROUP_HREF,
+            "etag": '"etag-provenance-1"',
+            "uid": "uid-provenance",
+        },
+    }
+    client._infrastructure_groups = {"Mailroom"}
+
+
+class TestValidateGroupsInfrastructure:
+    """validate_groups() with infrastructure_groups param stores them in _infrastructure_groups."""
+
+    def test_infrastructure_groups_stored(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """infrastructure_groups parameter populates _infrastructure_groups set."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([
+            (
+                "/dav/ab/Default/group-imbox.vcf",
+                "etag-imbox",
+                _group_vcard("Imbox", "uid-imbox"),
+            ),
+            (
+                "/dav/ab/Default/group-provenance.vcf",
+                "etag-provenance",
+                _group_vcard("Mailroom", "uid-provenance"),
+            ),
+        ])
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/addressbooks/user/user@fastmail.com/Default/",
+            status_code=207,
+            content=report_body,
+        )
+
+        client.validate_groups(
+            ["Imbox", "Mailroom"],
+            infrastructure_groups=["Mailroom"],
+        )
+
+        assert "Mailroom" in client._infrastructure_groups
+        assert "Imbox" not in client._infrastructure_groups
+
+    def test_infrastructure_groups_in_groups_dict(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Infrastructure groups are included in _groups dict (for add_to_group)."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([
+            (
+                "/dav/ab/Default/group-imbox.vcf",
+                "etag-imbox",
+                _group_vcard("Imbox", "uid-imbox"),
+            ),
+            (
+                "/dav/ab/Default/group-provenance.vcf",
+                "etag-provenance",
+                _group_vcard("Mailroom", "uid-provenance"),
+            ),
+        ])
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/addressbooks/user/user@fastmail.com/Default/",
+            status_code=207,
+            content=report_body,
+        )
+
+        client.validate_groups(
+            ["Imbox", "Mailroom"],
+            infrastructure_groups=["Mailroom"],
+        )
+
+        assert "Mailroom" in client._groups
+        assert "Imbox" in client._groups
+
+    def test_default_infrastructure_groups_empty(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Without infrastructure_groups param, _infrastructure_groups is empty."""
+        _connect_client(client, httpx_mock)
+
+        report_body = _build_report_response([
+            (
+                "/dav/ab/Default/group-imbox.vcf",
+                "etag-imbox",
+                _group_vcard("Imbox", "uid-imbox"),
+            ),
+        ])
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/addressbooks/user/user@fastmail.com/Default/",
+            status_code=207,
+            content=report_body,
+        )
+
+        client.validate_groups(["Imbox"])
+
+        assert client._infrastructure_groups == set()
+
+
+class TestCheckMembershipInfrastructureExclusion:
+    """check_membership() skips groups in _infrastructure_groups."""
+
+    def test_skips_provenance_group(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Contact in provenance group only returns None (invisible to triage)."""
+        _setup_client_with_provenance_groups(client, httpx_mock)
+
+        contact_uid = "contact-in-provenance"
+        # Imbox group has NO members
+        imbox_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=imbox_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        # Provenance group is NOT fetched (skipped by infrastructure_groups)
+        # No mock needed -- httpx_mock will error if it IS requested
+
+        result = client.check_membership(contact_uid)
+
+        assert result is None
+
+    def test_returns_triage_group_even_with_provenance(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Contact in both Imbox and provenance group returns 'Imbox' (triage group)."""
+        _setup_client_with_provenance_groups(client, httpx_mock)
+
+        contact_uid = "contact-in-both"
+        # Imbox group HAS the contact
+        imbox_body = _group_vcard(
+            "Imbox", "uid-imbox", members=[contact_uid]
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=imbox_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+
+        result = client.check_membership(contact_uid)
+
+        assert result == "Imbox"
+
+
+# --- Provenance Note Format in create_contact Tests ---
+
+
+class TestCreateContactProvenanceNote:
+    """create_contact() note includes 'Created by Mailroom' provenance line."""
+
+    def test_note_includes_created_by_mailroom(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """New contact note format: header + provenance + triage entry."""
+        _connect_client(client, httpx_mock)
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-etag"'},
+        )
+
+        client.create_contact("jane@example.com", "Jane Smith", group_name="Imbox")
+
+        requests = httpx_mock.get_requests()
+        put_req = requests[3]
+        vcard_body = put_req.content.decode("utf-8")
+        card = vobject.readOne(vcard_body)
+
+        today = date.today().isoformat()
+        expected_note = (
+            f"\u2014 Mailroom \u2014\n"
+            f"Created by Mailroom\n"
+            f"Triaged to Imbox on {today}"
+        )
+        assert card.note.value == expected_note
+
+
+# --- Provenance Group Membership in upsert_contact Tests ---
+
+
+class TestUpsertContactProvenanceGroup:
+    """upsert_contact() provenance_group behavior: add on create, skip on existing."""
+
+    def test_new_contact_added_to_provenance_group(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """upsert_contact with action=created adds contact to provenance_group."""
+        _setup_client_with_provenance_groups(client, httpx_mock)
+
+        # Search returns empty (new contact)
+        search_body = _build_report_response([])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock create_contact PUT
+        httpx_mock.add_response(
+            status_code=201,
+            headers={"etag": '"new-contact-etag"'},
+        )
+        # Mock add_to_group for triage group (Imbox): GET + PUT
+        imbox_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=imbox_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+        # Mock add_to_group for provenance group (Mailroom): GET + PUT
+        provenance_body = _group_vcard("Mailroom", "uid-provenance")
+        httpx_mock.add_response(
+            url=PROVENANCE_GROUP_URL, status_code=200,
+            content=provenance_body.encode("utf-8"),
+            headers={"etag": '"etag-provenance-1"'},
+        )
+        httpx_mock.add_response(
+            url=PROVENANCE_GROUP_URL, status_code=204,
+            headers={"etag": '"etag-provenance-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox",
+            provenance_group="Mailroom",
+        )
+
+        assert result["action"] == "created"
+
+        # Verify provenance group got a PUT with the new contact
+        requests = httpx_mock.get_requests()
+        provenance_puts = [
+            r for r in requests
+            if r.method == "PUT" and "group-provenance" in str(r.url)
+        ]
+        assert len(provenance_puts) == 1
+        put_body = provenance_puts[0].content.decode("utf-8")
+        assert f"urn:uuid:{result['uid']}" in put_body
+
+    def test_existing_contact_not_added_to_provenance_group(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """upsert_contact with action=existing does NOT add to provenance_group."""
+        _setup_client_with_provenance_groups(client, httpx_mock)
+
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        # Mock the contact update PUT
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        # Mock add_to_group for triage group (Imbox): GET + PUT
+        imbox_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=imbox_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        result = client.upsert_contact(
+            "jane@example.com", "Jane Smith", "Imbox",
+            provenance_group="Mailroom",
+        )
+
+        assert result["action"] == "existing"
+
+        # Verify NO PUT to provenance group
+        requests = httpx_mock.get_requests()
+        provenance_puts = [
+            r for r in requests
+            if r.method == "PUT" and "group-provenance" in str(r.url)
+        ]
+        assert len(provenance_puts) == 0
+
+
+# --- Adopted by Mailroom Note in upsert_contact Tests ---
+
+
+class TestUpsertAdoptedNote:
+    """upsert_contact() existing contact note includes 'Adopted by Mailroom'."""
+
+    def test_existing_no_mailroom_note_gets_adopted(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact without Mailroom note gets 'Adopted by Mailroom' line."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note="Personal contact",
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        today = date.today().isoformat()
+        expected_note = (
+            f"Personal contact\n\n"
+            f"\u2014 Mailroom \u2014\n"
+            f"Adopted by Mailroom\n"
+            f"Re-triaged to Imbox on {today}"
+        )
+        assert card.note.value == expected_note
+
+    def test_existing_no_note_gets_adopted(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Existing contact with no note gets 'Adopted by Mailroom' line."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        today = date.today().isoformat()
+        expected_note = (
+            f"\u2014 Mailroom \u2014\n"
+            f"Adopted by Mailroom\n"
+            f"Re-triaged to Imbox on {today}"
+        )
+        assert card.note.value == expected_note
+
+    def test_existing_with_mailroom_note_no_duplicate_provenance(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Re-triage of already-tracked contact does NOT add another provenance line."""
+        _setup_client_with_groups(client, httpx_mock)
+
+        today = date.today().isoformat()
+        existing_note = (
+            f"\u2014 Mailroom \u2014\n"
+            f"Created by Mailroom\n"
+            f"Triaged to Feed on {today}"
+        )
+        existing = _contact_vcard(
+            "Jane Smith", "existing-uid", "jane@example.com",
+            note=existing_note,
+        )
+        search_body = _build_report_response([
+            ("/dav/ab/Default/jane.vcf", "etag-jane", existing),
+        ])
+        httpx_mock.add_response(
+            url=ADDRESSBOOK_URL, status_code=207, content=search_body,
+        )
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/dav/ab/Default/jane.vcf",
+            status_code=204,
+            headers={"etag": '"etag-jane-updated"'},
+        )
+        group_body = _group_vcard("Imbox", "uid-imbox")
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=200,
+            content=group_body.encode("utf-8"),
+            headers={"etag": '"etag-imbox-1"'},
+        )
+        httpx_mock.add_response(
+            url=GROUP_URL, status_code=204,
+            headers={"etag": '"etag-imbox-2"'},
+        )
+
+        client.upsert_contact("jane@example.com", "Jane Smith", "Imbox")
+
+        requests = httpx_mock.get_requests()
+        contact_puts = [
+            r for r in requests
+            if r.method == "PUT" and "jane.vcf" in str(r.url)
+        ]
+        assert len(contact_puts) == 1
+        updated_body = contact_puts[0].content.decode("utf-8")
+        card = vobject.readOne(updated_body)
+
+        expected_note = (
+            f"\u2014 Mailroom \u2014\n"
+            f"Created by Mailroom\n"
+            f"Triaged to Feed on {today}\n"
+            f"Re-triaged to Imbox on {today}"
+        )
+        assert card.note.value == expected_note
+        # Verify no "Adopted by Mailroom" added
+        assert "Adopted by Mailroom" not in card.note.value
