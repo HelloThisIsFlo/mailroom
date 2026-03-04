@@ -316,24 +316,60 @@ class TestApplyReset:
             ],
         )
 
-    def test_step1_removes_managed_labels(self, mock_settings) -> None:
-        """Step 1: Remove managed labels from emails."""
+    def test_step1_moves_emails_to_screener_before_removing_label(self, mock_settings) -> None:
+        """Step 1: batch_add_labels with Screener ID before batch_remove_labels for each managed label."""
+        plan = self._make_plan()
+        call_order = []
+
+        jmap = MagicMock()
+        jmap.resolve_mailboxes.return_value = {
+            "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
+            "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
+        }
+        jmap.query_emails.return_value = []
+        jmap.query_emails_by_sender.return_value = []
+        jmap.batch_add_labels.side_effect = lambda ids, mbs: call_order.append(("add", ids, mbs))
+        jmap.batch_remove_labels.side_effect = lambda ids, mbs: call_order.append(("remove", ids, mbs))
+        carddav = MagicMock()
+        carddav.update_contact_vcard.return_value = '"new-etag"'
+
+        apply_reset(plan, jmap, carddav, mock_settings)
+
+        # For each managed label in step 1, add-Screener must come before remove-label
+        # Plan has Feed: [e1, e2] and @ToImbox: [e3]
+        # Extract step 1 calls (before step 2 system label cleanup)
+        step1_adds = [c for c in call_order if c[0] == "add" and c[2] == ["mb-screener"]]
+        step1_removes = [c for c in call_order if c[0] == "remove" and c[2] in [["mb-feed"], ["mb-toimbox"]]]
+
+        # Must have add-Screener calls for each managed label batch
+        assert len(step1_adds) >= 2, f"Expected at least 2 add-Screener calls, got {step1_adds}"
+        assert len(step1_removes) >= 2, f"Expected at least 2 remove calls, got {step1_removes}"
+
+        # For Feed: add-Screener before remove-Feed
+        feed_add_idx = next(i for i, c in enumerate(call_order) if c[0] == "add" and c[1] == ["e1", "e2"])
+        feed_remove_idx = next(i for i, c in enumerate(call_order) if c[0] == "remove" and c[2] == ["mb-feed"])
+        assert feed_add_idx < feed_remove_idx, "Screener add must precede label removal for Feed"
+
+    def test_step1_resolves_screener_mailbox(self, mock_settings) -> None:
+        """resolve_mailboxes call includes the screener_mailbox name."""
         plan = self._make_plan()
         jmap = MagicMock()
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
+        jmap.query_emails_by_sender.return_value = []
         carddav = MagicMock()
         carddav.update_contact_vcard.return_value = '"new-etag"'
-        jmap.query_emails_by_sender.return_value = []
 
-        result = apply_reset(plan, jmap, carddav, mock_settings)
+        apply_reset(plan, jmap, carddav, mock_settings)
 
-        # batch_remove_labels called for Feed and @ToImbox
-        remove_calls = jmap.batch_remove_labels.call_args_list
-        assert len(remove_calls) >= 2  # at least managed labels + possible warning/error cleanup
+        # Screener must be in the resolve_mailboxes call
+        resolve_call = jmap.resolve_mailboxes.call_args[0][0]
+        assert "Screener" in resolve_call, f"Screener not in resolve_names: {resolve_call}"
 
     def test_step2_removes_warning_and_error_labels(self, mock_settings) -> None:
         """Step 2: Remove @MailroomWarning and @MailroomError from ALL emails."""
