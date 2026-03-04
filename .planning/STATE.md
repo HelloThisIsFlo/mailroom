@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: executing
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-04T14:31:53.360Z"
-last_activity: "2026-03-04 - Completed 14-01: Config rename labels->mailroom + provenance_group field"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-04T14:47:48.841Z"
+last_activity: "2026-03-04 - Completed 14-02: CardDAV provenance tracking + warning cleanup"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 13
-  completed_plans: 11
-  percent: 33
+  completed_plans: 12
+  percent: 67
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
-Plan: 1 of 3 (complete)
+Plan: 2 of 3 (complete)
 Status: In Progress
-Last activity: 2026-03-04 - Completed 14-01: Config rename labels->mailroom + provenance_group field
+Last activity: 2026-03-04 - Completed 14-02: CardDAV provenance tracking + warning cleanup
 
-Progress: [███░░░░░░░] 33% (1/3 plans complete in Phase 14)
+Progress: [██████░░░░] 67% (2/3 plans complete in Phase 14)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [███░░░░░░░] 33% (1/3 plans complete in Phase 14)
 | 14-contact-provenance | 1/3 | 6min | 6min |
 
 *Updated after each plan completion*
+| Phase 14 P02 | 11min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Recent decisions for v1.2:
 - [Phase 14]: MailroomSectionSettings replaces LabelSettings with field renames: mailroom_error->label_error, mailroom_warning->label_warning
 - [Phase 14]: Provenance group tracked as kind=mailroom in provisioner (infrastructure, not triage)
 - [Phase 14]: apply_resources routes non-@ mailroom resources through carddav.create_group
+- [Phase 14]: infrastructure_groups stored as set on CardDAVClient, populated via validate_groups param
+- [Phase 14]: Provenance note: Created by Mailroom for new, Adopted by Mailroom for existing without prior note
+- [Phase 14]: Warning cleanup-then-reapply: remove @MailroomWarning before processing, reapply if condition persists
 
 ### Pending Todos
 
@@ -113,6 +117,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T14:31:53.357Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-03-04T14:47:48.839Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None

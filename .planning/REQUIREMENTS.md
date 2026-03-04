@@ -46,10 +46,10 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 - [x] **PROV-01**: Config `labels:` section renamed to `mailroom:` with keys `label_error`, `label_warning`, `warnings_enabled`, `provenance_group`
 - [x] **PROV-02**: No backward compatibility — app fails to start if config uses old `labels:` key for non-default values
 - [x] **PROV-03**: Setup CLI creates and validates provenance contact group as kind="mailroom" resource
-- [ ] **PROV-04**: New contacts added to provenance group on creation; existing (adopted) contacts never added
-- [ ] **PROV-05**: Contact notes include provenance line after header: "Created by Mailroom" (new) or "Adopted by Mailroom" (existing)
-- [ ] **PROV-06**: Provenance group invisible to triage pipeline — `check_membership()` excludes infrastructure groups
-- [ ] **PROV-07**: @MailroomWarning removed from all sender emails on every successful triage, reapplied if warning condition persists
+- [x] **PROV-04**: New contacts added to provenance group on creation; existing (adopted) contacts never added
+- [x] **PROV-05**: Contact notes include provenance line after header: "Created by Mailroom" (new) or "Adopted by Mailroom" (existing)
+- [x] **PROV-06**: Provenance group invisible to triage pipeline — `check_membership()` excludes infrastructure groups
+- [x] **PROV-07**: @MailroomWarning removed from all sender emails on every successful triage, reapplied if warning condition persists
 - [ ] **PROV-08**: CardDAV `delete_contact()` method for HTTP DELETE with ETag concurrency
 - [ ] **PROV-09**: User-modified detection identifies contacts with vCard fields beyond what Mailroom creates
 - [ ] **PROV-10**: Reset DELETEs unmodified provenance contacts, WARNs user-modified provenance contacts (apply @MailroomWarning to their emails), strips adopted contacts
@@ -116,10 +116,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-01 | Phase 14 | Complete |
 | PROV-02 | Phase 14 | Complete |
 | PROV-03 | Phase 14 | Complete |
-| PROV-04 | Phase 14 | Pending |
-| PROV-05 | Phase 14 | Pending |
-| PROV-06 | Phase 14 | Pending |
-| PROV-07 | Phase 14 | Pending |
+| PROV-04 | Phase 14 | Complete |
+| PROV-05 | Phase 14 | Complete |
+| PROV-06 | Phase 14 | Complete |
+| PROV-07 | Phase 14 | Complete |
 | PROV-08 | Phase 14 | Pending |
 | PROV-09 | Phase 14 | Pending |
 | PROV-10 | Phase 14 | Pending |
