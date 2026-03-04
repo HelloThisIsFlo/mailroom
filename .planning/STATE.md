@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
-stopped_at: Completed 14-05-PLAN.md
-last_updated: "2026-03-04T19:13:34.852Z"
-last_activity: "2026-03-04 - Completed 14-05: UAT gap closure (config error, reset UX, REV field)"
+stopped_at: Completed 14-06-PLAN.md
+last_updated: "2026-03-04T20:10:42.925Z"
+last_activity: "2026-03-04 - Completed 14-06: Reset --apply confirmation prompt"
 progress:
   total_phases: 5
   completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 16
+  completed_plans: 16
   percent: 100
 ---
 
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
-Plan: 5 of 5 (all gap closure plans complete)
+Plan: 6 of 6 (all gap closure plans complete)
 Status: All Plans Complete
-Last activity: 2026-03-04 - Completed 14-05: UAT gap closure (config error, reset UX, REV field)
+Last activity: 2026-03-04 - Completed 14-06: Reset --apply confirmation prompt
 
-Progress: [██████████] 100% (5 plans complete in Phase 14, including gap closure)
+Progress: [██████████] 100% (6 plans complete in Phase 14, including gap closure)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14 (v1.2)
+- Total plans completed: 15 (v1.2)
 - Average duration: 6min
-- Total execution time: 82min
+- Total execution time: 86min
 
 **By Phase:**
 
@@ -47,13 +47,14 @@ Progress: [██████████] 100% (5 plans complete in Phase 14, i
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
 | 13-re-triage | 3 | 21min | 7min |
-| 14-contact-provenance | 4 | 28min | 7min |
+| 14-contact-provenance | 5 | 32min | 6min |
 
 *Updated after each plan completion*
 | Phase 14 P02 | 11min | 2 tasks | 5 files |
 | Phase 14 P03 | 7min | 2 tasks | 7 files |
 | Phase 14 P04 | 4min | 2 tasks | 2 files |
 | Phase 14 P05 | 3min | 2 tasks | 6 files |
+| Phase 14 P06 | 4min | 1 task | 3 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions for v1.2:
 - [14-04]: Step 6 skips contacts_to_delete entirely (don't modify resources about to be deleted)
 - [Phase 14]: Config error for old labels key uses plain unknown-key rejection with valid keys list
 - [Phase 14]: REV field exclusion from MAILROOM_MANAGED_FIELDS documented as relied-upon Fastmail behavior
+- [14-06]: Reset --apply confirmation default [y/N] declines on Enter (safe default for destructive ops)
+- [14-06]: Non-interactive stdin aborts with explicit message, not silent failure
 
 ### Pending Todos
 
@@ -126,6 +129,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T19:08:17.682Z
-Stopped at: Completed 14-05-PLAN.md
+Last session: 2026-03-04T20:10:00Z
+Stopped at: Completed 14-06-PLAN.md
 Resume file: None
