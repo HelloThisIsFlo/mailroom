@@ -30,16 +30,20 @@ config:
     screener_mailbox: Screener
     categories:
       - name: Imbox
-        destination_mailbox: Inbox
-      - Feed
-      - Paper Trail
-      - Jail
-      - Truck
-      - Bank
-      - Billboard
+        add_to_inbox: true
       - name: Person
         parent: Imbox
+        add_to_inbox: true
         contact_type: person
+      - Feed
+      - Paper Trail
+      - name: Truck
+        parent: Paper Trail
+      - name: Bank
+        parent: Paper Trail
+      - name: Billboard
+        parent: Paper Trail
+      - Jail
   labels:
     mailroom_error: "@MailroomError"
     mailroom_warning: "@MailroomWarning"
