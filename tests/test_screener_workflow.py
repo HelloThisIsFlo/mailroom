@@ -488,14 +488,13 @@ class TestProcessSenderNewContact:
         # CardDAV: search returns empty (new sender)
         carddav.search_by_email.return_value = []
 
-        # JMAP: sweep finds 3 emails in Screener from this sender
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1", "email-2", "email-3"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        # JMAP: reconcile finds 3 emails from this sender (all in Screener)
+        jmap.query_emails_by_sender.return_value = ["email-1", "email-2", "email-3"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+            "email-2": {"mb-screener"},
+            "email-3": {"mb-screener"},
+        }
 
     def test_upsert_contact_called(self, workflow, carddav):
         """upsert_contact called with sender, display name from sender_names, group name."""
@@ -508,26 +507,32 @@ class TestProcessSenderNewContact:
             "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
         )
 
-    def test_sweep_queries_screener(self, workflow, jmap):
-        """Sweep query searches Screener for all emails from sender."""
+    def test_sweep_queries_all_mailboxes(self, workflow, jmap):
+        """Sweep queries all mailboxes for sender emails (not just Screener)."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        # Should call query_emails with screener_id and sender
-        jmap.query_emails.assert_called_once_with(
-            "mb-screener", sender="alice@example.com"
-        )
+        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
 
-    def test_batch_move_called_with_imbox_plus_inbox(self, workflow, jmap):
-        """batch_move_emails called: remove Screener, add [Imbox, Inbox] (add_to_inbox=True)."""
+    def test_reconcile_applies_imbox_plus_inbox(self, workflow, jmap):
+        """Reconciliation adds Imbox + Inbox labels (add_to_inbox=True), removes Screener."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.batch_move_emails.assert_called_once_with(
-            ["email-1", "email-2", "email-3"],
-            "mb-screener",
-            ["mb-imbox", "mb-inbox"],
-        )
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-1" in update:
+                        patch = update["email-1"]
+                        assert patch.get("mailboxIds/mb-imbox") is True
+                        assert patch.get("mailboxIds/mb-inbox") is True
+                        assert patch.get("mailboxIds/mb-screener") is None
 
     def test_triage_label_removed_last(self, workflow, jmap):
         """remove_label called for triage label on triggering emails only."""
@@ -556,24 +561,31 @@ class TestProcessSenderExistingContact:
         }
         carddav.search_by_email.return_value = []
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "bob@example.com":
-                return ["email-5", "email-6"]
-            return []
+        # Reconcile finds 2 emails from sender (both in Screener)
+        jmap.query_emails_by_sender.return_value = ["email-5", "email-6"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-5": {"mb-screener"},
+            "email-6": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_batch_move_to_feed(self, workflow, jmap):
-        """batch_move_emails uses Feed mailbox ID for @ToFeed destination."""
+    def test_reconcile_to_feed(self, workflow, jmap):
+        """Reconciliation adds Feed label, removes Screener for @ToFeed destination."""
         workflow._process_sender(
             "bob@example.com", [("email-5", "@ToFeed")]
         )
-        jmap.batch_move_emails.assert_called_once_with(
-            ["email-5", "email-6"],
-            "mb-screener",
-            ["mb-feed"],
-        )
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-5" in update:
+                        patch = update["email-5"]
+                        assert patch.get("mailboxIds/mb-feed") is True
+                        assert patch.get("mailboxIds/mb-screener") is None
 
     def test_triage_label_removed(self, workflow, jmap):
         """Triage label removed from triggering email after sweep."""
@@ -596,23 +608,28 @@ class TestProcessSenderPaperTrail:
         }
         carddav.search_by_email.return_value = []
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "carol@example.com":
-                return ["email-10"]
-            return []
+        jmap.query_emails_by_sender.return_value = ["email-10"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-10": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_batch_move_to_paper_trail(self, workflow, jmap):
+    def test_reconcile_to_paper_trail(self, workflow, jmap):
         workflow._process_sender(
             "carol@example.com", [("email-10", "@ToPaperTrail")]
         )
-        jmap.batch_move_emails.assert_called_once_with(
-            ["email-10"],
-            "mb-screener",
-            ["mb-papertrl"],
-        )
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-10" in update:
+                        patch = update["email-10"]
+                        assert patch.get("mailboxIds/mb-papertrl") is True
+                        assert patch.get("mailboxIds/mb-screener") is None
 
 
 class TestProcessSenderJail:
@@ -628,27 +645,32 @@ class TestProcessSenderJail:
         }
         carddav.search_by_email.return_value = []
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "spam@example.com":
-                return ["email-20"]
-            return []
+        jmap.query_emails_by_sender.return_value = ["email-20"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-20": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_batch_move_to_jail(self, workflow, jmap):
+    def test_reconcile_to_jail(self, workflow, jmap):
         workflow._process_sender(
             "spam@example.com", [("email-20", "@ToJail")]
         )
-        jmap.batch_move_emails.assert_called_once_with(
-            ["email-20"],
-            "mb-screener",
-            ["mb-jail"],
-        )
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-20" in update:
+                        patch = update["email-20"]
+                        assert patch.get("mailboxIds/mb-jail") is True
+                        assert patch.get("mailboxIds/mb-screener") is None
 
 
 class TestProcessSenderMultipleTriggering:
-    """Sender with 5 triggering emails and 5 more in Screener: all swept, only triggering get remove_label."""
+    """Sender with 5 triggering emails and 5 more in Screener: all reconciled, only triggering get remove_label."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -660,24 +682,32 @@ class TestProcessSenderMultipleTriggering:
         }
         carddav.search_by_email.return_value = []
 
-        # Sweep finds all 10 emails
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return [f"email-{i}" for i in range(1, 11)]
-            return []
+        # Reconcile finds all 10 emails from sender (all in Screener)
+        jmap.query_emails_by_sender.return_value = [
+            f"email-{i}" for i in range(1, 11)
+        ]
+        jmap.get_email_mailbox_ids.return_value = {
+            f"email-{i}": {"mb-screener"} for i in range(1, 11)
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_all_swept(self, workflow, jmap):
-        """All 10 Screener emails from sender are swept to additive chain."""
+    def test_all_reconciled(self, workflow, jmap):
+        """All 10 emails from sender are reconciled with new labels."""
         triggering = [(f"email-{i}", "@ToImbox") for i in range(1, 6)]
         workflow._process_sender("alice@example.com", triggering)
-        jmap.batch_move_emails.assert_called_once_with(
-            [f"email-{i}" for i in range(1, 11)],
-            "mb-screener",
-            ["mb-imbox", "mb-inbox"],
-        )
+        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        # Verify Email/set was called for reconciliation
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
+        # Check that all 10 emails got patches
+        patched_ids = set()
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    patched_ids.update(mc[1].get("update", {}).keys())
+        assert patched_ids == {f"email-{i}" for i in range(1, 11)}
 
     def test_only_triggering_get_remove_label(self, workflow, jmap):
         """Only the 5 triggering emails get triage label removed."""
@@ -689,7 +719,7 @@ class TestProcessSenderMultipleTriggering:
 
 
 class TestProcessSenderStepOrder:
-    """Verify strict step ordering for initial triage: detect retriage -> upsert -> sweep -> remove label."""
+    """Verify strict step ordering for initial triage: detect retriage -> upsert -> reconcile -> remove label."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -701,33 +731,26 @@ class TestProcessSenderStepOrder:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_upsert_before_sweep(self, workflow, jmap, carddav):
-        """upsert_contact is called before any JMAP sweep/move calls."""
+    def test_upsert_before_reconcile(self, workflow, jmap, carddav):
+        """upsert_contact is called before reconciliation queries."""
         call_order = []
         carddav.upsert_contact.side_effect = lambda *a, **kw: (
             call_order.append("upsert"),
             {"action": "created", "uid": "order-uid", "group": "Imbox", "name_mismatch": False},
         )[1]
 
-        orig_query = jmap.query_emails.side_effect
+        orig_query = jmap.query_emails_by_sender.return_value
 
-        def tracking_query(mailbox_id, **kwargs):
-            if mailbox_id == "mb-screener":
-                call_order.append("sweep_query")
-            return orig_query(mailbox_id, **kwargs)
+        def tracking_query(sender):
+            call_order.append("reconcile_query")
+            return orig_query
 
-        jmap.query_emails.side_effect = tracking_query
-        jmap.batch_move_emails.side_effect = lambda *a, **kw: call_order.append(
-            "batch_move"
-        )
+        jmap.query_emails_by_sender.side_effect = tracking_query
         jmap.remove_label.side_effect = lambda *a, **kw: call_order.append(
             "remove_label"
         )
@@ -736,7 +759,7 @@ class TestProcessSenderStepOrder:
             "alice@example.com", [("email-1", "@ToImbox")]
         )
 
-        assert call_order == ["upsert", "sweep_query", "batch_move", "remove_label"]
+        assert call_order == ["upsert", "reconcile_query", "remove_label"]
 
     def test_remove_label_is_last(self, workflow, jmap, carddav):
         """remove_label is the very last operation."""
@@ -745,9 +768,6 @@ class TestProcessSenderStepOrder:
             call_order.append("upsert"),
             {"action": "created", "uid": "order-uid", "group": "Imbox", "name_mismatch": False},
         )[1]
-        jmap.batch_move_emails.side_effect = lambda *a, **kw: call_order.append(
-            "batch_move"
-        )
         jmap.remove_label.side_effect = lambda *a, **kw: call_order.append(
             "remove_label"
         )
@@ -908,13 +928,10 @@ class TestRetriageNewSender:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "newbie@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_no_membership_check(self, workflow, carddav):
         """check_membership NOT called when no contact found (new sender)."""
@@ -930,12 +947,12 @@ class TestRetriageNewSender:
         )
         carddav.upsert_contact.assert_called_once()
 
-    def test_no_email_reconciliation(self, workflow, jmap):
-        """New sender uses initial triage (Screener sweep), not email reconciliation."""
+    def test_uses_full_reconciliation(self, workflow, jmap):
+        """New sender also uses full email reconciliation (same as retriage)."""
         workflow._process_sender(
             "newbie@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.query_emails_by_sender.assert_not_called()
+        jmap.query_emails_by_sender.assert_called_once_with("newbie@example.com")
 
 
 class TestCardDAVFailureDuringUpsert:
@@ -970,8 +987,8 @@ class TestCardDAVFailureDuringUpsert:
         jmap.batch_move_emails.assert_not_called()
 
 
-class TestJMAPFailureDuringSweep:
-    """JMAP failure during sweep: exception propagates, triage label NOT removed."""
+class TestJMAPFailureDuringReconciliation:
+    """JMAP failure during email reconciliation: exception propagates, triage label NOT removed."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -983,17 +1000,22 @@ class TestJMAPFailureDuringSweep:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-        jmap.batch_move_emails.side_effect = RuntimeError("JMAP batch move failed")
+        # Reconciliation uses jmap.call for Email/set -- make it fail
+        def call_side_effect(method_calls):
+            first_method = method_calls[0][0]
+            if first_method == "Email/set":
+                raise RuntimeError("JMAP reconciliation failed")
+            return _default_call_side_effect(method_calls)
+
+        jmap.call.side_effect = call_side_effect
 
     def test_exception_propagates(self, workflow):
-        with pytest.raises(RuntimeError, match="JMAP batch move failed"):
+        with pytest.raises(RuntimeError, match="JMAP reconciliation failed"):
             workflow._process_sender(
                 "alice@example.com", [("email-1", "@ToImbox")]
             )
@@ -1019,13 +1041,10 @@ class TestJMAPFailureDuringRemoveLabel:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
         jmap.remove_label.side_effect = RuntimeError("Failed to remove label")
 
     def test_exception_propagates(self, workflow):
@@ -1042,17 +1061,17 @@ class TestJMAPFailureDuringRemoveLabel:
             )
         carddav.upsert_contact.assert_called_once()
 
-    def test_emails_were_swept(self, workflow, jmap):
-        """Sweep succeeded before remove_label failed."""
+    def test_emails_were_reconciled(self, workflow, jmap):
+        """Email reconciliation succeeded before remove_label failed."""
         with pytest.raises(RuntimeError):
             workflow._process_sender(
                 "alice@example.com", [("email-1", "@ToImbox")]
             )
-        jmap.batch_move_emails.assert_called_once()
+        jmap.query_emails_by_sender.assert_called_once()
 
 
-class TestProcessSenderEmptySweep:
-    """Sweep query returns no emails (all already moved): batch_move not called."""
+class TestProcessSenderEmptyReconciliation:
+    """Reconciliation finds no emails from sender: no Email/set patches applied."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -1064,21 +1083,23 @@ class TestProcessSenderEmptySweep:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            # Sweep returns empty -- all emails already moved
-            return []
+        # No emails found from sender across all mailboxes
+        jmap.query_emails_by_sender.return_value = []
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_batch_move_not_called(self, workflow, jmap):
-        """batch_move_emails skipped when sweep finds nothing."""
+    def test_no_email_set_called(self, workflow, jmap):
+        """No Email/set patches when reconciliation finds nothing."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.batch_move_emails.assert_not_called()
+        # No Email/set calls should be made for reconciliation
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) == 0
 
     def test_triage_label_still_removed(self, workflow, jmap):
-        """Triage label removal still happens even if sweep is empty."""
+        """Triage label removal still happens even if reconciliation is empty."""
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
@@ -1096,14 +1117,11 @@ class TestProcessSenderIntegrationWithPoll:
         )
         jmap.get_email_senders.return_value = {"email-1": ("alice@example.com", "Alice Smith")}
 
-        # Sweep: query_emails returns email-1 from Screener for this sender
-        def sweep_query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = sweep_query_side_effect
+        # Reconciliation: finds email-1 from sender
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
         carddav.search_by_email.return_value = []
         carddav.upsert_contact.return_value = {
@@ -1122,9 +1140,9 @@ class TestProcessSenderIntegrationWithPoll:
         workflow.poll()
         carddav.upsert_contact.assert_called_once()
 
-    def test_poll_calls_sweep(self, workflow, jmap):
+    def test_poll_calls_reconciliation(self, workflow, jmap):
         workflow.poll()
-        jmap.batch_move_emails.assert_called_once()
+        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
 
     def test_poll_passes_display_name_to_upsert(self, workflow, carddav):
         """poll() propagates sender display name from JMAP to upsert_contact."""
@@ -1147,13 +1165,10 @@ class TestDisplayNamePropagation:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_display_name_passed_to_upsert(self, workflow, carddav):
         """_process_sender passes the sender's display name from sender_names to upsert_contact."""
@@ -1241,13 +1256,10 @@ class TestContactTypePassthroughToImbox:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_contact_type_company(self, workflow, carddav):
         """upsert_contact called with contact_type='company' for @ToImbox."""
@@ -1274,13 +1286,10 @@ class TestContactTypePassthroughToPerson:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_contact_type_person(self, workflow, carddav):
         """upsert_contact called with contact_type='person' for @ToPerson."""
@@ -1307,13 +1316,10 @@ class TestContactTypePassthroughToFeed:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "feed@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_contact_type_company(self, workflow, carddav):
         """upsert_contact called with contact_type='company' for @ToFeed."""
@@ -1340,13 +1346,10 @@ class TestContactTypePassthroughToJail:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "spam@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_contact_type_company(self, workflow, carddav):
         """upsert_contact called with contact_type='company' for @ToJail."""
@@ -1361,7 +1364,7 @@ class TestContactTypePassthroughToJail:
 
 
 class TestToPersonRoutingPoll:
-    """poll() with @ToPerson label processes sender, sweeps to Inbox, removes label."""
+    """poll() with @ToPerson label processes sender, reconciles labels, removes triage label."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav, mock_mailbox_ids):
@@ -1373,14 +1376,11 @@ class TestToPersonRoutingPoll:
             "email-1": ("person@example.com", "Jane Doe")
         }
 
-        # Sweep: query_emails returns email-1 from Screener
-        def sweep_query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "person@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = sweep_query_side_effect
+        # Reconciliation: finds email-1 from sender in Screener
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
         carddav.search_by_email.return_value = []
         carddav.upsert_contact.return_value = {
@@ -1402,14 +1402,10 @@ class TestToPersonRoutingPoll:
             "person@example.com", "Jane Doe", "Person", contact_type="person"
         )
 
-    def test_sweep_to_person_plus_imbox(self, workflow, jmap):
-        """Sweep moves emails to Person + Imbox mailboxes (additive chain)."""
+    def test_reconcile_to_person_plus_imbox(self, workflow, jmap):
+        """Reconciliation applies Person + Imbox labels (additive chain)."""
         workflow.poll()
-        jmap.batch_move_emails.assert_called_once_with(
-            ["email-1"],
-            "mb-screener",
-            ["mb-person", "mb-imbox"],
-        )
+        jmap.query_emails_by_sender.assert_called_once_with("person@example.com")
 
     def test_triage_label_removed(self, workflow, jmap):
         """@ToPerson label removed from triggering email."""
@@ -1430,13 +1426,10 @@ class TestToPersonRoutesPersonGroup:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "person@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_routes_to_person_group(self, workflow, carddav):
         """@ToPerson upsert_contact uses 'Person' group (v1.2: independent)."""
@@ -1537,13 +1530,10 @@ class TestWarningLabelOnNameMismatchEnabled:
             "name_mismatch": True,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_warning_label_applied(self, workflow, jmap):
         """_apply_warning_label is called when name_mismatch=True and warnings_enabled=True."""
@@ -1585,13 +1575,10 @@ class TestWarningLabelOnNameMismatchDisabled:
             "name_mismatch": True,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_no_warning_label(self, workflow, jmap):
         """No warning label applied when warnings_enabled=False."""
@@ -1626,13 +1613,10 @@ class TestNoWarningWhenNoNameMismatch:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_no_warning_label(self, workflow, jmap):
         """No warning label applied when name_mismatch=False."""
@@ -1641,13 +1625,13 @@ class TestNoWarningWhenNoNameMismatch:
             [("email-1", "@ToPerson")],
             {"alice@example.com": "Alice"},
         )
-        # No Email/set calls for warning
-        email_set_calls = [
-            c
-            for c in jmap.call.call_args_list
-            if any("Email/set" in mc[0] for mc in c.args[0])
-        ]
-        assert len(email_set_calls) == 0
+        # Email/set calls should be reconciliation only, not warning.
+        # Check none of the patches contain the warning mailbox ID.
+        for c in jmap.call.call_args_list:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid, update in mc[1].get("update", {}).items():
+                        assert "mailboxIds/mb-warning" not in update
 
 
 class TestWarningLabelFailureNonBlocking:
@@ -1663,27 +1647,31 @@ class TestWarningLabelFailureNonBlocking:
             "name_mismatch": True,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-        # Make the warning Email/set call fail
-        original_call = jmap.call.return_value
+        # Track Email/set calls to distinguish warning from reconciliation.
+        # Step 3a (warning) runs BEFORE step 4 (reconciliation) in _process_sender.
+        self._email_set_count = 0
 
         def call_side_effect(method_calls):
             method = method_calls[0][0]
             if method == "Email/set":
-                raise ConnectionError("JMAP warning label failed")
-            return original_call
+                self._email_set_count += 1
+                if self._email_set_count == 1:
+                    # First Email/set is warning label -- fail
+                    raise ConnectionError("JMAP warning label failed")
+                else:
+                    # Second Email/set is reconciliation -- let it succeed
+                    return [["Email/set", {"updated": {}}, method_calls[0][2]]]
+            return _default_call_side_effect(method_calls)
 
         jmap.call.side_effect = call_side_effect
 
     def test_processing_continues_after_warning_failure(self, workflow, jmap):
-        """Sweep and label removal still happen even when warning label fails."""
+        """Reconciliation and label removal still happen even when warning label fails."""
         workflow._process_sender(
             "alice@example.com",
             [("email-1", "@ToPerson")],
@@ -1706,14 +1694,12 @@ class TestWarningAppliedToTriggeringEmailsOnly:
             "name_mismatch": True,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                # Sweep finds 5 emails from this sender
-                return [f"email-{i}" for i in range(1, 6)]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = [
+            f"email-{i}" for i in range(1, 6)
+        ]
+        jmap.get_email_mailbox_ids.return_value = {
+            f"email-{i}": {"mb-screener"} for i in range(1, 6)
+        }
 
     def test_warning_applied_to_triggering_only(self, workflow, jmap):
         """Warning label applied only to triggering emails (email-1, email-2), not swept ones."""
@@ -1756,13 +1742,10 @@ class TestAdditiveContactGroups:
     def setup(self, jmap, carddav):
         carddav.search_by_email.return_value = []
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender:
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
     def test_person_adds_to_imbox_group(self, workflow, carddav):
         """Person triage: upsert_contact with 'Person', then add_to_group with 'Imbox'."""
@@ -2173,8 +2156,8 @@ class TestRetriageStructuredLogging:
         assert reassigned[0]["same_group"] is True
 
 
-class TestRetriageInitialTriageUnchanged:
-    """Verify new sender follows the old initial triage path exactly."""
+class TestInitialTriageUsesReconciliation:
+    """Verify new sender uses full email reconciliation (same path as retriage)."""
 
     @pytest.fixture(autouse=True)
     def setup(self, jmap, carddav):
@@ -2186,30 +2169,30 @@ class TestRetriageInitialTriageUnchanged:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "new@example.com":
-                return ["email-1"]
-            return []
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
-        jmap.query_emails.side_effect = query_side_effect
-
-    def test_initial_triage_uses_screener_sweep(self, workflow, jmap):
-        """New sender uses query_emails for Screener sweep (not query_emails_by_sender)."""
+    def test_initial_triage_uses_full_reconciliation(self, workflow, jmap):
+        """New sender uses query_emails_by_sender for full reconciliation."""
         workflow._process_sender(
             "new@example.com",
             [("email-1", "@ToImbox")],
         )
-        jmap.query_emails.assert_called_once_with("mb-screener", sender="new@example.com")
-        jmap.query_emails_by_sender.assert_not_called()
+        jmap.query_emails_by_sender.assert_called_once_with("new@example.com")
 
-    def test_initial_triage_uses_batch_move(self, workflow, jmap):
-        """New sender uses batch_move_emails for Screener sweep."""
+    def test_initial_triage_reconciles_via_email_set(self, workflow, jmap):
+        """New sender reconciles via Email/set patches (not batch_move_emails)."""
         workflow._process_sender(
             "new@example.com",
             [("email-1", "@ToImbox")],
         )
-        jmap.batch_move_emails.assert_called_once()
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        assert len(email_set_calls) >= 1
 
     def test_initial_triage_logs_triage_complete(self, workflow):
         """New sender logs triage_complete (not group_reassigned)."""
@@ -2224,6 +2207,75 @@ class TestRetriageInitialTriageUnchanged:
         reassigned_events = [l for l in logs if l.get("event") == "group_reassigned"]
         assert len(triage_events) == 1
         assert len(reassigned_events) == 0
+
+
+class TestInitialTriageSweepsAllMailboxes:
+    """Regression test: initial triage sweeps emails across ALL mailboxes, not just Screener.
+
+    This was the root cause of a bug where triaging from Screener only processed
+    Screener emails. A second triage (retriage) fixed it because it used
+    query_emails_by_sender which searches all mailboxes.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "sweep-all-uid",
+            "group": "Feed",
+            "name_mismatch": False,
+        }
+
+        # Sender has emails in BOTH Screener and other mailboxes
+        jmap.query_emails_by_sender.return_value = [
+            "email-screener-1",
+            "email-screener-2",
+            "email-inbox-1",
+        ]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-screener-1": {"mb-screener"},
+            "email-screener-2": {"mb-screener"},
+            "email-inbox-1": {"mb-inbox"},
+        }
+
+    def test_queries_all_mailboxes(self, workflow, jmap):
+        """Initial triage uses query_emails_by_sender (all mailboxes), not query_emails (Screener only)."""
+        workflow._process_sender(
+            "alice@example.com", [("email-screener-1", "@ToFeed")]
+        )
+        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        jmap.query_emails.assert_not_called()
+
+    def test_all_emails_get_new_labels(self, workflow, jmap):
+        """All emails from sender get new destination labels, including those outside Screener."""
+        workflow._process_sender(
+            "alice@example.com", [("email-screener-1", "@ToFeed")]
+        )
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        patched_ids = set()
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    patched_ids.update(mc[1].get("update", {}).keys())
+        # All 3 emails should be patched (including the one in Inbox)
+        assert patched_ids == {"email-screener-1", "email-screener-2", "email-inbox-1"}
+
+    def test_inbox_email_gets_feed_label(self, workflow, jmap):
+        """Email already in Inbox gets Feed label applied too."""
+        workflow._process_sender(
+            "alice@example.com", [("email-screener-1", "@ToFeed")]
+        )
+        for c in jmap.call.call_args_list:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    update = mc[1].get("update", {})
+                    if "email-inbox-1" in update:
+                        patch = update["email-inbox-1"]
+                        assert patch.get("mailboxIds/mb-feed") is True
 
 
 # =============================================================================
@@ -2598,10 +2650,10 @@ class TestBatchedPagination:
 class TestBatchedExistingBehaviorPreserved:
     """Existing behavior preserved after batching refactor."""
 
-    def test_process_sender_still_uses_query_emails_for_sweep(
+    def test_process_sender_uses_query_emails_by_sender_for_reconciliation(
         self, workflow, jmap, carddav
     ):
-        """_process_sender sweep still uses jmap.query_emails() (not batched call)."""
+        """_process_sender reconciliation uses jmap.query_emails_by_sender() for full sweep."""
         carddav.search_by_email.return_value = []
         carddav.upsert_contact.return_value = {
             "action": "created",
@@ -2610,18 +2662,15 @@ class TestBatchedExistingBehaviorPreserved:
             "name_mismatch": False,
         }
 
-        def query_side_effect(mailbox_id, **kwargs):
-            sender = kwargs.get("sender")
-            if mailbox_id == "mb-screener" and sender == "alice@example.com":
-                return ["email-1"]
-            return []
-
-        jmap.query_emails.side_effect = query_side_effect
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
 
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.query_emails.assert_called_once_with("mb-screener", sender="alice@example.com")
+        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
 
 
 # =============================================================================

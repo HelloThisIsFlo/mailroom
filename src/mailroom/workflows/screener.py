@@ -21,8 +21,8 @@ class ScreenerWorkflow:
     2. Filter out emails already marked with @MailroomError
     3. Detect conflicting triage labels (same sender, different labels)
     4. Apply @MailroomError to conflicted senders
-    5. Process each clean sender: check already-grouped, upsert contact,
-       sweep Screener emails, remove triage label (last step)
+    5. Process each clean sender: upsert contact, reconcile email labels
+       across all mailboxes, remove triage label (last step)
     """
 
     def __init__(
@@ -371,7 +371,8 @@ class ScreenerWorkflow:
         2. Detect re-triage via _detect_retriage
         3. Upsert contact into group (CardDAV)
         4. Contact group management (re-triage: chain diff; initial: ancestor groups)
-        5. Email label management (re-triage: full reconciliation; initial: Screener sweep)
+        5. Email label management: full reconciliation for ALL sender emails
+           across all mailboxes (both initial triage and re-triage)
         6. Structured logging
         7. Remove triage label from triggering emails -- LAST STEP
         """
@@ -419,19 +420,11 @@ class ScreenerWorkflow:
             self._apply_warning_label(sender, email_ids)
 
         # Step 4: Email label management
-        if is_retriage:
-            emails_reconciled = self._reconcile_email_labels(
-                sender, category, category.add_to_inbox
-            )
-        else:
-            # Initial triage: sweep Screener emails
-            screener_id = self._mailbox_ids[self._settings.triage.screener_mailbox]
-            sender_emails = self._jmap.query_emails(screener_id, sender=sender)
-            emails_reconciled = 0
-            if sender_emails:
-                add_ids = self._get_destination_mailbox_ids(label_name)
-                self._jmap.batch_move_emails(sender_emails, screener_id, add_ids)
-                log.info("emails_swept", count=len(sender_emails))
+        # Both initial triage and re-triage use _reconcile_email_labels to sweep
+        # ALL emails from the sender across all mailboxes (not just Screener).
+        emails_reconciled = self._reconcile_email_labels(
+            sender, category, category.add_to_inbox
+        )
 
         # Step 5: Structured logging
         if is_retriage:
@@ -447,7 +440,7 @@ class ScreenerWorkflow:
             log.info(
                 "triage_complete",
                 sender=sender,
-                emails_moved=len(sender_emails),
+                emails_moved=emails_reconciled,
             )
 
         # Step 6: Remove triage label from triggering emails -- LAST STEP
