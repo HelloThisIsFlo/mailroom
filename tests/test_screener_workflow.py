@@ -504,15 +504,20 @@ class TestProcessSenderNewContact:
             {"alice@example.com": "Alice Smith"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
+            "alice@example.com", "Alice Smith", "Imbox", contact_type="company",
+            provenance_group="Mailroom",
         )
 
     def test_sweep_queries_all_mailboxes(self, workflow, jmap):
-        """Sweep queries all mailboxes for sender emails (not just Screener)."""
+        """Sweep queries all mailboxes for sender emails (not just Screener).
+
+        query_emails_by_sender is called twice: once for warning cleanup, once for reconciliation.
+        """
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        assert jmap.query_emails_by_sender.call_count == 2
+        jmap.query_emails_by_sender.assert_any_call("alice@example.com")
 
     def test_reconcile_applies_imbox_plus_inbox(self, workflow, jmap):
         """Reconciliation adds Imbox + Inbox labels (add_to_inbox=True), removes Screener."""
@@ -694,7 +699,7 @@ class TestProcessSenderMultipleTriggering:
         """All 10 emails from sender are reconciled with new labels."""
         triggering = [(f"email-{i}", "@ToImbox") for i in range(1, 6)]
         workflow._process_sender("alice@example.com", triggering)
-        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        jmap.query_emails_by_sender.assert_any_call("alice@example.com")
         # Verify Email/set was called for reconciliation
         email_set_calls = [
             c for c in jmap.call.call_args_list
@@ -737,7 +742,7 @@ class TestProcessSenderStepOrder:
         }
 
     def test_upsert_before_reconcile(self, workflow, jmap, carddav):
-        """upsert_contact is called before reconciliation queries."""
+        """upsert_contact is called after warning cleanup but before reconciliation."""
         call_order = []
         carddav.upsert_contact.side_effect = lambda *a, **kw: (
             call_order.append("upsert"),
@@ -745,9 +750,14 @@ class TestProcessSenderStepOrder:
         )[1]
 
         orig_query = jmap.query_emails_by_sender.return_value
+        query_call_count = [0]
 
         def tracking_query(sender):
-            call_order.append("reconcile_query")
+            query_call_count[0] += 1
+            if query_call_count[0] == 1:
+                call_order.append("warning_cleanup_query")
+            else:
+                call_order.append("reconcile_query")
             return orig_query
 
         jmap.query_emails_by_sender.side_effect = tracking_query
@@ -759,7 +769,7 @@ class TestProcessSenderStepOrder:
             "alice@example.com", [("email-1", "@ToImbox")]
         )
 
-        assert call_order == ["upsert", "reconcile_query", "remove_label"]
+        assert call_order == ["warning_cleanup_query", "upsert", "reconcile_query", "remove_label"]
 
     def test_remove_label_is_last(self, workflow, jmap, carddav):
         """remove_label is the very last operation."""
@@ -847,7 +857,7 @@ class TestRetriageDifferentGroup:
             "bob@example.com",
             [("email-1", "@ToImbox")],
         )
-        jmap.query_emails_by_sender.assert_called_once_with("bob@example.com")
+        jmap.query_emails_by_sender.assert_any_call("bob@example.com")
 
     def test_triage_label_removed(self, workflow, jmap):
         """Triage label IS removed after re-triage (not left for manual resolution)."""
@@ -905,7 +915,7 @@ class TestRetriageSameGroup:
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        jmap.query_emails_by_sender.assert_any_call("alice@example.com")
 
     def test_triage_label_removed(self, workflow, jmap):
         """Triage label removed normally."""
@@ -952,7 +962,7 @@ class TestRetriageNewSender:
         workflow._process_sender(
             "newbie@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.query_emails_by_sender.assert_called_once_with("newbie@example.com")
+        jmap.query_emails_by_sender.assert_any_call("newbie@example.com")
 
 
 class TestCardDAVFailureDuringUpsert:
@@ -1067,7 +1077,7 @@ class TestJMAPFailureDuringRemoveLabel:
             workflow._process_sender(
                 "alice@example.com", [("email-1", "@ToImbox")]
             )
-        jmap.query_emails_by_sender.assert_called_once()
+        jmap.query_emails_by_sender.assert_called()
 
 
 class TestProcessSenderEmptyReconciliation:
@@ -1142,13 +1152,14 @@ class TestProcessSenderIntegrationWithPoll:
 
     def test_poll_calls_reconciliation(self, workflow, jmap):
         workflow.poll()
-        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        jmap.query_emails_by_sender.assert_any_call("alice@example.com")
 
     def test_poll_passes_display_name_to_upsert(self, workflow, carddav):
         """poll() propagates sender display name from JMAP to upsert_contact."""
         workflow.poll()
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
+            "alice@example.com", "Alice Smith", "Imbox", contact_type="company",
+            provenance_group="Mailroom",
         )
 
 
@@ -1178,7 +1189,8 @@ class TestDisplayNamePropagation:
             {"alice@example.com": "Alice Smith"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Smith", "Imbox", contact_type="company"
+            "alice@example.com", "Alice Smith", "Imbox", contact_type="company",
+            provenance_group="Mailroom",
         )
 
     def test_display_name_none_when_missing(self, workflow, carddav):
@@ -1189,7 +1201,8 @@ class TestDisplayNamePropagation:
             {"alice@example.com": None},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", None, "Imbox", contact_type="company"
+            "alice@example.com", None, "Imbox", contact_type="company",
+            provenance_group="Mailroom",
         )
 
     def test_display_name_none_when_sender_not_in_names(self, workflow, carddav):
@@ -1200,7 +1213,8 @@ class TestDisplayNamePropagation:
             {},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", None, "Imbox", contact_type="company"
+            "alice@example.com", None, "Imbox", contact_type="company",
+            provenance_group="Mailroom",
         )
 
 
@@ -1269,7 +1283,8 @@ class TestContactTypePassthroughToImbox:
             {"alice@example.com": "Alice"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice", "Imbox", contact_type="company"
+            "alice@example.com", "Alice", "Imbox", contact_type="company",
+            provenance_group="Mailroom",
         )
 
 
@@ -1299,7 +1314,8 @@ class TestContactTypePassthroughToPerson:
             {"alice@example.com": "Alice Person"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice Person", "Person", contact_type="person"
+            "alice@example.com", "Alice Person", "Person", contact_type="person",
+            provenance_group="Mailroom",
         )
 
 
@@ -1329,7 +1345,8 @@ class TestContactTypePassthroughToFeed:
             {"feed@example.com": "Feed Sender"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "feed@example.com", "Feed Sender", "Feed", contact_type="company"
+            "feed@example.com", "Feed Sender", "Feed", contact_type="company",
+            provenance_group="Mailroom",
         )
 
 
@@ -1359,7 +1376,8 @@ class TestContactTypePassthroughToJail:
             {"spam@example.com": "Spammer"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "spam@example.com", "Spammer", "Jail", contact_type="company"
+            "spam@example.com", "Spammer", "Jail", contact_type="company",
+            provenance_group="Mailroom",
         )
 
 
@@ -1399,13 +1417,14 @@ class TestToPersonRoutingPoll:
         """upsert_contact called with contact_type='person' for @ToPerson."""
         workflow.poll()
         carddav.upsert_contact.assert_called_once_with(
-            "person@example.com", "Jane Doe", "Person", contact_type="person"
+            "person@example.com", "Jane Doe", "Person", contact_type="person",
+            provenance_group="Mailroom",
         )
 
     def test_reconcile_to_person_plus_imbox(self, workflow, jmap):
         """Reconciliation applies Person + Imbox labels (additive chain)."""
         workflow.poll()
-        jmap.query_emails_by_sender.assert_called_once_with("person@example.com")
+        jmap.query_emails_by_sender.assert_any_call("person@example.com")
 
     def test_triage_label_removed(self, workflow, jmap):
         """@ToPerson label removed from triggering email."""
@@ -1761,7 +1780,8 @@ class TestAdditiveContactGroups:
             {"alice@example.com": "Alice"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "alice@example.com", "Alice", "Person", contact_type="person"
+            "alice@example.com", "Alice", "Person", contact_type="person",
+            provenance_group="Mailroom",
         )
         carddav.add_to_group.assert_called_once_with("Imbox", "person-uid-1")
 
@@ -1779,7 +1799,8 @@ class TestAdditiveContactGroups:
             {"promo@example.com": "Promo Sender"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "promo@example.com", "Promo Sender", "Billboard", contact_type="company"
+            "promo@example.com", "Promo Sender", "Billboard", contact_type="company",
+            provenance_group="Mailroom",
         )
         carddav.add_to_group.assert_called_once_with("Paper Trail", "bb-uid-1")
 
@@ -1797,7 +1818,8 @@ class TestAdditiveContactGroups:
             {"shipping@example.com": "Shipping Co"},
         )
         carddav.upsert_contact.assert_called_once_with(
-            "shipping@example.com", "Shipping Co", "Truck", contact_type="company"
+            "shipping@example.com", "Shipping Co", "Truck", contact_type="company",
+            provenance_group="Mailroom",
         )
         carddav.add_to_group.assert_called_once_with("Paper Trail", "truck-uid-1")
 
@@ -2180,7 +2202,7 @@ class TestInitialTriageUsesReconciliation:
             "new@example.com",
             [("email-1", "@ToImbox")],
         )
-        jmap.query_emails_by_sender.assert_called_once_with("new@example.com")
+        jmap.query_emails_by_sender.assert_any_call("new@example.com")
 
     def test_initial_triage_reconciles_via_email_set(self, workflow, jmap):
         """New sender reconciles via Email/set patches (not batch_move_emails)."""
@@ -2244,7 +2266,7 @@ class TestInitialTriageSweepsAllMailboxes:
         workflow._process_sender(
             "alice@example.com", [("email-screener-1", "@ToFeed")]
         )
-        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        jmap.query_emails_by_sender.assert_any_call("alice@example.com")
         jmap.query_emails.assert_not_called()
 
     def test_all_emails_get_new_labels(self, workflow, jmap):
@@ -2670,7 +2692,174 @@ class TestBatchedExistingBehaviorPreserved:
         workflow._process_sender(
             "alice@example.com", [("email-1", "@ToImbox")]
         )
-        jmap.query_emails_by_sender.assert_called_once_with("alice@example.com")
+        jmap.query_emails_by_sender.assert_any_call("alice@example.com")
+
+
+# =============================================================================
+# Plan 14-02: @MailroomWarning cleanup + provenance_group plumbing
+# =============================================================================
+
+
+class TestWarningCleanupBeforeProcessing:
+    """_process_sender removes @MailroomWarning from ALL sender emails before processing."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "cleanup-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        # Sender has 3 emails, some with @MailroomWarning
+        jmap.query_emails_by_sender.return_value = ["email-1", "email-2", "email-3"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+            "email-2": {"mb-screener"},
+            "email-3": {"mb-screener"},
+        }
+
+    def test_warning_cleanup_calls_batch_remove(self, workflow, jmap):
+        """batch_remove_labels called with warning label ID for all sender emails."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice"},
+        )
+        jmap.batch_remove_labels.assert_called_once_with(
+            ["email-1", "email-2", "email-3"],
+            ["mb-warning"],
+        )
+
+    def test_warning_cleanup_before_upsert(self, workflow, jmap, carddav):
+        """Warning cleanup happens BEFORE upsert_contact."""
+        call_order = []
+        jmap.batch_remove_labels.side_effect = lambda *a, **kw: call_order.append("cleanup")
+        carddav.upsert_contact.side_effect = lambda *a, **kw: (
+            call_order.append("upsert"),
+            {"action": "created", "uid": "cleanup-uid", "group": "Imbox", "name_mismatch": False},
+        )[1]
+
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice"},
+        )
+        assert call_order.index("cleanup") < call_order.index("upsert")
+
+
+class TestWarningCleanupThenReapply:
+    """Warning is cleaned up then reapplied if name mismatch persists."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "reapply-uid",
+            "group": "Imbox",
+            "name_mismatch": True,
+        }
+
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
+
+    def test_cleanup_then_warning_reapplied(self, workflow, jmap):
+        """Cleanup removes warning, then _apply_warning_label reapplies it."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice New Name"},
+        )
+        # Cleanup was called
+        jmap.batch_remove_labels.assert_called_once()
+        # Warning was reapplied via Email/set
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        found_warning = False
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid, update in mc[1].get("update", {}).items():
+                        if "mailboxIds/mb-warning" in update:
+                            found_warning = True
+        assert found_warning
+
+
+class TestWarningCleanupNoReapply:
+    """Warning is cleaned up and NOT reapplied when no name mismatch."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "existing",
+            "uid": "no-reapply-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
+
+    def test_cleanup_no_warning_reapplied(self, workflow, jmap):
+        """Cleanup removes warning, no reapply since no mismatch."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice"},
+        )
+        jmap.batch_remove_labels.assert_called_once()
+        # No Email/set calls with warning mailbox
+        email_set_calls = [
+            c for c in jmap.call.call_args_list
+            if any(mc[0] == "Email/set" for mc in c.args[0])
+        ]
+        for c in email_set_calls:
+            for mc in c.args[0]:
+                if mc[0] == "Email/set":
+                    for eid, update in mc[1].get("update", {}).items():
+                        assert "mailboxIds/mb-warning" not in update
+
+
+class TestProvenanceGroupPlumbing:
+    """_process_sender passes settings.mailroom.provenance_group to upsert_contact."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, jmap, carddav):
+        carddav.search_by_email.return_value = []
+        carddav.upsert_contact.return_value = {
+            "action": "created",
+            "uid": "prov-uid",
+            "group": "Imbox",
+            "name_mismatch": False,
+        }
+
+        jmap.query_emails_by_sender.return_value = ["email-1"]
+        jmap.get_email_mailbox_ids.return_value = {
+            "email-1": {"mb-screener"},
+        }
+
+    def test_provenance_group_passed_to_upsert(self, workflow, carddav):
+        """upsert_contact is called with provenance_group='Mailroom'."""
+        workflow._process_sender(
+            "alice@example.com",
+            [("email-1", "@ToImbox")],
+            {"alice@example.com": "Alice"},
+        )
+        carddav.upsert_contact.assert_called_once_with(
+            "alice@example.com", "Alice", "Imbox",
+            contact_type="company",
+            provenance_group="Mailroom",
+        )
 
 
 # =============================================================================

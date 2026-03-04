@@ -388,10 +388,20 @@ class ScreenerWorkflow:
         contact_uid, old_group = self._detect_retriage(sender)
         is_retriage = contact_uid is not None and old_group is not None
 
+        # Step 1b: Clean @MailroomWarning from all sender emails (idempotent)
+        if self._settings.mailroom.warnings_enabled:
+            warning_label = self._settings.mailroom.label_warning
+            warning_id = self._mailbox_ids.get(warning_label)
+            if warning_id:
+                all_sender_emails = self._jmap.query_emails_by_sender(sender)
+                if all_sender_emails:
+                    self._jmap.batch_remove_labels(all_sender_emails, [warning_id])
+
         # Step 2: Upsert contact into group (CardDAV)
         display_name = (sender_names or {}).get(sender)
         result = self._carddav.upsert_contact(
-            sender, display_name, group_name, contact_type=contact_type
+            sender, display_name, group_name, contact_type=contact_type,
+            provenance_group=self._settings.mailroom.provenance_group,
         )
         log.info("contact_upserted", action=result["action"], uid=result["uid"])
 

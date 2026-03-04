@@ -125,7 +125,10 @@ def main() -> None:
     mailbox_ids = jmap.resolve_mailboxes(settings.required_mailboxes)
 
     # 5. Validate contact groups + provenance group (crashes if any missing)
-    carddav.validate_groups(settings.contact_groups + [settings.mailroom.provenance_group])
+    carddav.validate_groups(
+        settings.contact_groups + [settings.mailroom.provenance_group],
+        infrastructure_groups=[settings.mailroom.provenance_group],
+    )
 
     # 6. Build workflow
     workflow = ScreenerWorkflow(jmap, carddav, settings, mailbox_ids)
