@@ -620,6 +620,113 @@ class CardDAVClient:
             f"after {max_retries} retries (ETag conflict)"
         )
 
+    def list_all_contacts(self) -> list[dict]:
+        """Fetch all non-group contacts from the addressbook.
+
+        Returns a list of contact dicts with href, etag, uid, fn, emails,
+        note, and vcard_data fields. Filters out group vCards.
+
+        Returns:
+            List of contact dicts.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+        """
+        addressbook_url = self._require_connection()
+        resp = self._http.request(
+            "REPORT",
+            addressbook_url,
+            content=REPORT_ALL_VCARDS,
+            headers={"Depth": "1"},
+        )
+        resp.raise_for_status()
+        all_items = self._parse_multistatus(resp.content)
+
+        contacts: list[dict] = []
+        for item in all_items:
+            vcard_data = item.get("vcard_data", "")
+            if not vcard_data:
+                continue
+            card = vobject.readOne(vcard_data)
+            # Skip group vCards
+            kind_list = card.contents.get("x-addressbookserver-kind", [])
+            if kind_list and kind_list[0].value.lower() == "group":
+                continue
+
+            fn = card.fn.value if hasattr(card, "fn") else ""
+            uid = card.uid.value if hasattr(card, "uid") else ""
+            emails = [
+                e.value.lower()
+                for e in card.contents.get("email", [])
+            ]
+            note_entries = card.contents.get("note", [])
+            note = note_entries[0].value if note_entries else ""
+
+            contacts.append({
+                "href": item["href"],
+                "etag": item["etag"],
+                "uid": uid,
+                "fn": fn,
+                "emails": emails,
+                "note": note,
+                "vcard_data": vcard_data,
+            })
+
+        return contacts
+
+    def update_contact_vcard(self, href: str, etag: str, vcard_bytes: bytes) -> str:
+        """PUT an updated vCard to the addressbook with If-Match.
+
+        Args:
+            href: The vCard resource href (path).
+            etag: Current ETag for concurrency control.
+            vcard_bytes: Serialized vCard bytes.
+
+        Returns:
+            New ETag from the response.
+
+        Raises:
+            RuntimeError: If connect() has not been called.
+        """
+        self._require_connection()
+        resp = self._http.put(
+            f"https://{self._hostname}{href}",
+            content=vcard_bytes,
+            headers={
+                "Content-Type": "text/vcard; charset=utf-8",
+                "If-Match": etag,
+            },
+        )
+        resp.raise_for_status()
+        return resp.headers.get("etag", "")
+
+    def get_group_members(self, group_name: str) -> list[str]:
+        """Get all member UIDs of a validated group.
+
+        Fetches the group vCard and extracts X-ADDRESSBOOKSERVER-MEMBER
+        entries, returning contact UIDs.
+
+        Args:
+            group_name: Name of the group (must exist in self._groups).
+
+        Returns:
+            List of contact UID strings.
+
+        Raises:
+            KeyError: If group_name is not in validated groups.
+        """
+        self._require_connection()
+        group_info = self._groups[group_name]
+        href = group_info["href"]
+        group_url = f"https://{self._hostname}{href}"
+
+        resp = self._http.get(group_url)
+        resp.raise_for_status()
+
+        card = vobject.readOne(resp.text)
+        members = card.contents.get("x-addressbookserver-member", [])
+        return [m.value.replace("urn:uuid:", "") for m in members]
+
     def check_membership(
         self,
         contact_uid: str,

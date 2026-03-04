@@ -167,15 +167,15 @@ class TestPlanReset:
             "Imbox": {"href": "/imbox.vcf", "etag": '"etag"', "uid": "uid-imbox"},
         }
 
-        # Mock check_membership to indicate group memberships
-        def _check_membership(contact_uid, exclude_group=None):
-            if contact_uid == "uid-created":
-                return "Feed" if exclude_group != "Feed" else None
-            if contact_uid == "uid-existing":
-                return "Imbox" if exclude_group != "Imbox" else None
-            return None
+        # Mock get_group_members to return membership data
+        def _get_group_members(group_name):
+            if group_name == "Feed":
+                return ["uid-created"]
+            if group_name == "Imbox":
+                return ["uid-existing"]
+            return []
 
-        carddav.check_membership.side_effect = _check_membership
+        carddav.get_group_members.side_effect = _get_group_members
 
         plan = plan_reset(mock_settings, jmap, carddav)
 

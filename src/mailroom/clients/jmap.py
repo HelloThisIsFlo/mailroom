@@ -370,6 +370,54 @@ class JMAPClient:
 
         return result
 
+    def batch_remove_labels(
+        self,
+        email_ids: list[str],
+        mailbox_ids: list[str],
+    ) -> None:
+        """Remove multiple mailbox labels from emails in batches.
+
+        Uses JMAP patch syntax to remove the specified labels from each
+        email. Processes in BATCH_SIZE chunks.
+
+        Args:
+            email_ids: List of email IDs to modify.
+            mailbox_ids: List of mailbox label IDs to remove from each email.
+
+        Raises:
+            RuntimeError: If any emails fail to update.
+        """
+        for chunk_start in range(0, len(email_ids), BATCH_SIZE):
+            chunk = email_ids[chunk_start : chunk_start + BATCH_SIZE]
+
+            update: dict = {}
+            for email_id in chunk:
+                patch = {f"mailboxIds/{mb_id}": None for mb_id in mailbox_ids}
+                update[email_id] = patch
+
+            responses = self.call(
+                [
+                    [
+                        "Email/set",
+                        {
+                            "accountId": self.account_id,
+                            "update": update,
+                        },
+                        "s0",
+                    ]
+                ]
+            )
+            data = responses[0][1]
+            not_updated = data.get("notUpdated")
+            if not_updated:
+                errors = [
+                    f"{eid}: {err.get('description', 'unknown error')}"
+                    for eid, err in not_updated.items()
+                ]
+                raise RuntimeError(
+                    f"Failed to remove labels from emails: {', '.join(errors)}"
+                )
+
     def remove_label(self, email_id: str, mailbox_id: str) -> None:
         """Remove a single mailbox label from an email.
 
