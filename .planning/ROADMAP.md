@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-5 (shipped 2026-02-25)
 - ✅ **v1.1 Push & Config** — Phases 6-9 (shipped 2026-03-02)
-- 🚧 **v1.2 Triage Pipeline v2** — Phases 10-13 (in progress)
+- 🚧 **v1.2 Triage Pipeline v2** — Phases 10-15 (in progress)
 
 ## Phases
 
@@ -148,3 +148,17 @@ Plans:
 - [x] 14-04-PLAN.md — Gap closure: fix JMAP label removal (move-to-Screener) and stale ETag on contact deletion
 - [x] 14-05-PLAN.md — Gap closure: config error simplification, reset UX banners/progress, REV field test coverage
 - [ ] 14-06-PLAN.md — Gap closure: reset --apply confirmation prompt before destructive operations
+
+### Phase 15: Milestone Closeout & Cleanup
+
+**Goal:** Close all audit gaps — finalize WIP documentation, fix latent integration inconsistency, resolve test cross-contamination, remove dead production code, and update requirement checkboxes.
+**Requirements**: CLOSE-01
+**Depends on:** Phase 14
+**Gap Closure:** Closes gaps from v1.2 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. `docs/WIP.md` is finalized into proper documentation integrated into `docs/`
+  2. `run_reset()` passes `infrastructure_groups` to `validate_groups()` (consistent with triage path)
+  3. `TestRunResetConfirmation._run_reset_with_mocks()` mocks `configure_logging` — no structlog cross-contamination in full test suite
+  4. Dead code removed: `_get_destination_mailbox_ids()` (screener.py) and `batch_move_emails()` (jmap.py) and their tests
+  5. RTRI-05 checkbox updated to `[x] Complete`; RTRI-04 wording aligned between REQUIREMENTS.md and code
+**Plans**: 0 plans (pending)
