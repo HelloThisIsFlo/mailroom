@@ -73,6 +73,7 @@ _STANDARD_MAILBOXES = {
     "Person": "mb-person", "@ToPerson": "mb-toperson",
     "Billboard": "mb-billboard", "@ToBillboard": "mb-tobillboard",
     "Truck": "mb-truck", "@ToTruck": "mb-totruck",
+    "Screener": "mb-screener",
 }
 
 
@@ -380,6 +381,7 @@ class TestApplyReset:
         jmap = MagicMock()
         jmap.resolve_mailboxes.return_value = {
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         # Warning mailbox has 2 emails, error has 1
         def _query_emails(mailbox_id, **kwargs):
@@ -408,6 +410,7 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         jmap.query_emails_by_sender.return_value = []
@@ -431,6 +434,7 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         # Sender has 3 emails
@@ -442,10 +446,14 @@ class TestApplyReset:
 
         # query_emails_by_sender called for warn contact's email
         jmap.query_emails_by_sender.assert_called_with("warn@example.com")
-        # batch_add_labels called with warning mailbox
-        jmap.batch_add_labels.assert_called_once_with(
-            ["we1", "we2", "we3"], ["mb-warning"]
-        )
+        # batch_add_labels called with warning mailbox (step 4)
+        # Note: batch_add_labels is also called in step 1 (Screener), so check specific call
+        warning_calls = [
+            c for c in jmap.batch_add_labels.call_args_list
+            if c[0][1] == ["mb-warning"]
+        ]
+        assert len(warning_calls) == 1
+        assert warning_calls[0][0][0] == ["we1", "we2", "we3"]
 
     def test_step5_removes_warned_from_provenance_group(self, mock_settings) -> None:
         """Step 5: Remove warned contacts from provenance group."""
@@ -454,6 +462,7 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         jmap.query_emails_by_sender.return_value = []
@@ -477,6 +486,7 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         jmap.query_emails_by_sender.return_value = []
@@ -495,6 +505,7 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         jmap.query_emails_by_sender.return_value = []
@@ -515,11 +526,14 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         jmap.batch_remove_labels.side_effect = lambda *a, **kw: call_order.append("step1_or_2_remove_labels")
         jmap.query_emails_by_sender.return_value = ["we1"]
-        jmap.batch_add_labels.side_effect = lambda *a, **kw: call_order.append("step4_add_warning")
+        jmap.batch_add_labels.side_effect = lambda *a, **kw: call_order.append(
+            "step1_add_screener" if a[1] == ["mb-screener"] else "step4_add_warning"
+        )
 
         carddav = MagicMock()
         carddav.remove_from_group.side_effect = lambda *a, **kw: call_order.append(
@@ -543,7 +557,8 @@ class TestApplyReset:
                     return i
             return -1
 
-        assert last_index("step1_or_2") < first_index("step3")
+        # Step 1 includes both add-screener and remove-labels
+        assert last_index("step1_") < first_index("step3")
         assert last_index("step3") < first_index("step4")
         assert last_index("step4") < first_index("step5")
         assert last_index("step5") < first_index("step6")
@@ -556,6 +571,7 @@ class TestApplyReset:
         jmap.resolve_mailboxes.return_value = {
             "Feed": "mb-feed", "@ToImbox": "mb-toimbox",
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         jmap.query_emails_by_sender.return_value = ["we1"]
@@ -593,6 +609,7 @@ class TestApplyReset:
         jmap = MagicMock()
         jmap.resolve_mailboxes.return_value = {
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         carddav = MagicMock()
@@ -628,6 +645,7 @@ class TestApplyReset:
         jmap = MagicMock()
         jmap.resolve_mailboxes.return_value = {
             "@MailroomWarning": "mb-warning", "@MailroomError": "mb-error",
+            "Screener": "mb-screener",
         }
         jmap.query_emails.return_value = []
         carddav = MagicMock()

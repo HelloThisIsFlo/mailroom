@@ -273,20 +273,25 @@ def apply_reset(
 
     # Resolve mailbox IDs for label removal
     label_names = list(plan.email_labels.keys())
-    # Always resolve warning + error mailboxes for step 2
+    # Always resolve warning + error + screener mailboxes
     resolve_names = list(set(label_names + [
         settings.mailroom.label_warning,
         settings.mailroom.label_error,
+        settings.triage.screener_mailbox,
     ]))
     if resolve_names:
         mailbox_ids = jmap.resolve_mailboxes(resolve_names)
     else:
         mailbox_ids = {}
 
-    # === Step 1: Remove managed labels from emails ===
+    # === Step 1: Move emails to Screener, then remove managed labels ===
+    # Add Screener first to ensure emails always have at least one mailbox
+    # (RFC 8621: email must belong to >=1 mailbox at all times)
+    screener_mb_id = mailbox_ids[settings.triage.screener_mailbox]
     for label_name, email_ids in plan.email_labels.items():
         mb_id = mailbox_ids[label_name]
         try:
+            jmap.batch_add_labels(email_ids, [screener_mb_id])
             jmap.batch_remove_labels(email_ids, [mb_id])
             result.emails_unlabeled += len(email_ids)
         except RuntimeError as exc:
