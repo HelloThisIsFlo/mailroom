@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: complete
-stopped_at: "Completed 13-03-PLAN.md"
-last_updated: "2026-03-03T23:51:04Z"
-last_activity: 2026-03-03 -- Completed 13-03 (Human integration tests for re-triage)
+status: completed
+stopped_at: Phase 14 context gathered
+last_updated: "2026-03-04T13:44:29.700Z"
+last_activity: "2026-03-04 - Completed quick task 1: Add a mailroom reset CLI command that undoes all mailroom changes (contacts, labels, groups) with dry-run/apply mode"
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 4
   total_plans: 10
   completed_plans: 10
@@ -93,6 +93,10 @@ Recent decisions for v1.2:
 7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone
 12. Deploy Grafana + Loki observability stack (area: deployment) -- deferred to v1.3
 
+### Roadmap Evolution
+
+- Phase 14 added: Contact provenance tracking for clean reset
+
 ### Blockers/Concerns
 
 None.
@@ -105,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-03T23:35:03Z
-Stopped at: Completed 13-02-PLAN.md
-Resume file: .planning/phases/13-re-triage/13-03-PLAN.md
+Last session: 2026-03-04T13:44:29.679Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-contact-provenance-tracking-for-clean-reset/14-CONTEXT.md
