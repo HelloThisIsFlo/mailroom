@@ -15,7 +15,7 @@ from mailroom.reset.resetter import (
     apply_reset,
     plan_reset,
 )
-from mailroom.reset.reporting import print_reset_report
+from mailroom.reset.reporting import print_confirmation_prompt, print_reset_report
 
 
 # --- Mock Helpers ---
@@ -848,3 +848,181 @@ class TestIsUserModified:
             "X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:abc\r\n"
         )
         assert _is_user_modified(vcard) is False
+
+
+# --- TestPrintConfirmationPrompt ---
+
+
+class TestPrintConfirmationPrompt:
+    """Tests for print_confirmation_prompt() user confirmation gate."""
+
+    def test_returns_true_on_y(self, monkeypatch) -> None:
+        """User typing 'y' confirms and returns True."""
+        monkeypatch.setattr("builtins.input", lambda _: "y")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        assert print_confirmation_prompt() is True
+
+    def test_returns_true_on_uppercase_Y(self, monkeypatch) -> None:
+        """User typing 'Y' confirms and returns True."""
+        monkeypatch.setattr("builtins.input", lambda _: "Y")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        assert print_confirmation_prompt() is True
+
+    def test_returns_false_on_n(self, monkeypatch) -> None:
+        """User typing 'n' declines and returns False."""
+        monkeypatch.setattr("builtins.input", lambda _: "n")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        assert print_confirmation_prompt() is False
+
+    def test_returns_false_on_empty(self, monkeypatch) -> None:
+        """User pressing Enter (empty input) declines and returns False."""
+        monkeypatch.setattr("builtins.input", lambda _: "")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        assert print_confirmation_prompt() is False
+
+    def test_returns_false_on_non_tty(self, monkeypatch) -> None:
+        """Non-interactive (piped) stdin returns False without prompting."""
+        monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+        assert print_confirmation_prompt() is False
+
+    def test_returns_false_on_eof_error(self, monkeypatch) -> None:
+        """EOFError (piped stdin hitting EOF) returns False."""
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+
+        def _raise_eof(_):
+            raise EOFError
+
+        monkeypatch.setattr("builtins.input", _raise_eof)
+        assert print_confirmation_prompt() is False
+
+
+# --- TestRunResetConfirmation ---
+
+
+class TestRunResetConfirmation:
+    """Tests for confirmation flow in run_reset(apply=True)."""
+
+    @patch("mailroom.reset.resetter.plan_reset")
+    @patch("mailroom.reset.resetter.apply_reset")
+    @patch("mailroom.reset.resetter.CardDAVClient")
+    @patch("mailroom.reset.resetter.JMAPClient")
+    @patch("mailroom.reset.resetter.MailroomSettings")
+    def test_apply_shows_plan_before_executing(
+        self, mock_settings_cls, mock_jmap_cls, mock_carddav_cls,
+        mock_apply, mock_plan, monkeypatch, capsys,
+    ) -> None:
+        """run_reset(apply=True) shows the plan report BEFORE executing apply_reset."""
+        call_order = []
+
+        mock_settings_cls.return_value = MagicMock()
+        jmap_inst = MagicMock()
+        jmap_inst.connect.return_value = None
+        mock_jmap_cls.return_value = jmap_inst
+        carddav_inst = MagicMock()
+        carddav_inst.connect.return_value = None
+        mock_carddav_cls.return_value = carddav_inst
+
+        fake_plan = ResetPlan(
+            email_labels={}, group_members={},
+            contacts_to_delete=[], contacts_to_warn=[], contacts_to_strip=[],
+        )
+        mock_plan.return_value = fake_plan
+
+        fake_result = ResetResult()
+        mock_apply.return_value = fake_result
+
+        # Track call order: plan report shown before apply_reset
+        original_print_report = print_reset_report
+
+        def tracking_print_report(plan_or_result, apply):
+            call_order.append(f"print_report:apply={apply}")
+            original_print_report(plan_or_result, apply)
+
+        monkeypatch.setattr("mailroom.reset.resetter.print_reset_report",
+                            tracking_print_report)
+        mock_apply.side_effect = lambda *a, **kw: (
+            call_order.append("apply_reset"),
+            fake_result,
+        )[-1]
+
+        # Confirm "y"
+        monkeypatch.setattr("mailroom.reset.reporting.sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda _: "y")
+
+        from mailroom.reset.resetter import run_reset
+        exit_code = run_reset(apply=True)
+
+        # Plan report (apply=False) shown before apply_reset
+        assert "print_report:apply=False" in call_order
+        report_idx = call_order.index("print_report:apply=False")
+        apply_idx = call_order.index("apply_reset")
+        assert report_idx < apply_idx
+
+    @patch("mailroom.reset.resetter.plan_reset")
+    @patch("mailroom.reset.resetter.apply_reset")
+    @patch("mailroom.reset.resetter.CardDAVClient")
+    @patch("mailroom.reset.resetter.JMAPClient")
+    @patch("mailroom.reset.resetter.MailroomSettings")
+    def test_apply_confirmed_proceeds_and_returns_0(
+        self, mock_settings_cls, mock_jmap_cls, mock_carddav_cls,
+        mock_apply, mock_plan, monkeypatch,
+    ) -> None:
+        """run_reset(apply=True) with 'y' confirmation proceeds to apply and returns 0."""
+        mock_settings_cls.return_value = MagicMock()
+        jmap_inst = MagicMock()
+        jmap_inst.connect.return_value = None
+        mock_jmap_cls.return_value = jmap_inst
+        carddav_inst = MagicMock()
+        carddav_inst.connect.return_value = None
+        mock_carddav_cls.return_value = carddav_inst
+
+        fake_plan = ResetPlan(
+            email_labels={}, group_members={},
+            contacts_to_delete=[], contacts_to_warn=[], contacts_to_strip=[],
+        )
+        mock_plan.return_value = fake_plan
+        mock_apply.return_value = ResetResult()
+
+        monkeypatch.setattr("mailroom.reset.reporting.sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda _: "y")
+
+        from mailroom.reset.resetter import run_reset
+        exit_code = run_reset(apply=True)
+
+        assert exit_code == 0
+        mock_apply.assert_called_once()
+
+    @patch("mailroom.reset.resetter.plan_reset")
+    @patch("mailroom.reset.resetter.apply_reset")
+    @patch("mailroom.reset.resetter.CardDAVClient")
+    @patch("mailroom.reset.resetter.JMAPClient")
+    @patch("mailroom.reset.resetter.MailroomSettings")
+    def test_apply_declined_aborts_no_changes(
+        self, mock_settings_cls, mock_jmap_cls, mock_carddav_cls,
+        mock_apply, mock_plan, monkeypatch, capsys,
+    ) -> None:
+        """run_reset(apply=True) with 'n' aborts: returns 0, prints 'Aborted.', no apply_reset."""
+        mock_settings_cls.return_value = MagicMock()
+        jmap_inst = MagicMock()
+        jmap_inst.connect.return_value = None
+        mock_jmap_cls.return_value = jmap_inst
+        carddav_inst = MagicMock()
+        carddav_inst.connect.return_value = None
+        mock_carddav_cls.return_value = carddav_inst
+
+        fake_plan = ResetPlan(
+            email_labels={}, group_members={},
+            contacts_to_delete=[], contacts_to_warn=[], contacts_to_strip=[],
+        )
+        mock_plan.return_value = fake_plan
+
+        monkeypatch.setattr("mailroom.reset.reporting.sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda _: "n")
+
+        from mailroom.reset.resetter import run_reset
+        exit_code = run_reset(apply=True)
+
+        assert exit_code == 0
+        mock_apply.assert_not_called()
+        output = capsys.readouterr().out
+        assert "Aborted" in output
