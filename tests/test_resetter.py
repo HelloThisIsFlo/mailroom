@@ -479,8 +479,8 @@ class TestApplyReset:
         assert len(provenance_removals) == 1
         assert provenance_removals[0][0][1] == "uid-warn"
 
-    def test_step6_strips_notes_from_all_contacts(self, mock_settings) -> None:
-        """Step 6: Strip Mailroom notes from ALL annotated contacts."""
+    def test_step6_skips_contacts_to_delete(self, mock_settings) -> None:
+        """Step 6: Strip notes from warn + strip contacts only, skip delete targets."""
         plan = self._make_plan()
         jmap = MagicMock()
         jmap.resolve_mailboxes.return_value = {
@@ -495,8 +495,13 @@ class TestApplyReset:
 
         apply_reset(plan, jmap, carddav, mock_settings)
 
-        # update_contact_vcard called for all 3 contacts (delete + warn + strip)
-        assert carddav.update_contact_vcard.call_count == 3
+        # update_contact_vcard called for warn + strip only (NOT delete targets)
+        assert carddav.update_contact_vcard.call_count == 2
+        # Verify the hrefs are for warn and strip contacts only
+        updated_hrefs = [c[0][0] for c in carddav.update_contact_vcard.call_args_list]
+        assert "/uid-del.vcf" not in updated_hrefs
+        assert "/uid-warn.vcf" in updated_hrefs
+        assert "/uid-strip.vcf" in updated_hrefs
 
     def test_step7_deletes_unmodified_provenance_contacts(self, mock_settings) -> None:
         """Step 7: DELETE unmodified provenance contacts."""
