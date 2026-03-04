@@ -832,10 +832,10 @@ class TestValidationValidCustomCategory:
 
 
 class TestConfigLabelsRenamedToMailroom:
-    """Old `labels:` config key is actively rejected with helpful migration message."""
+    """Old `labels:` config key is rejected as unknown (no migration guidance)."""
 
     def test_old_labels_key_raises_value_error(self, monkeypatch, tmp_path):
-        """Config YAML with `labels:` key raises ValueError mentioning rename to `mailroom:`."""
+        """Config YAML with `labels:` key raises ValueError as unknown key."""
         config = tmp_path / "config.yaml"
         config.write_text(
             "labels:\n"
@@ -848,7 +848,9 @@ class TestConfigLabelsRenamedToMailroom:
             MailroomSettings()
 
         msg = str(exc_info.value)
-        assert "renamed" in msg.lower() or "mailroom:" in msg.lower()
+        assert "unknown" in msg.lower()
+        assert "labels" in msg.lower()
+        assert "renamed" not in msg.lower()
 
     def test_contact_groups_does_not_include_provenance_group(self, monkeypatch, tmp_path):
         """contact_groups property does NOT include provenance_group (it is infrastructure, not triage)."""

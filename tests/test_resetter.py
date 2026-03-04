@@ -831,6 +831,16 @@ class TestIsUserModified:
         vcard = self._make_vcard("PHOTO;VALUE=uri:https://example.com/photo.jpg\r\n")
         assert _is_user_modified(vcard) is True
 
+    def test_rev_field_alone_returns_true(self) -> None:
+        """REV field (added by Fastmail on contact edit) triggers user-modification detection.
+
+        REV is intentionally NOT in MAILROOM_MANAGED_FIELDS. Fastmail adds/updates
+        a REV timestamp on every contact edit via their UI, so any user edit produces
+        a REV field which counts as an "extra" field beyond Mailroom's managed set.
+        """
+        vcard = self._make_vcard("REV:2026-03-04T12:00:00Z\r\n")
+        assert _is_user_modified(vcard) is True
+
     def test_apple_system_fields_not_treated_as_user(self) -> None:
         """x-addressbookserver-* fields are system fields, not user data."""
         vcard = self._make_vcard(
