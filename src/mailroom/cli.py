@@ -1,7 +1,8 @@
 """Click CLI entry point for Mailroom.
 
-Provides `setup` and `run` subcommands. When invoked without a subcommand
-(e.g. `python -m mailroom`), defaults to `run` for backward compatibility.
+Provides `setup`, `reset`, and `run` subcommands. When invoked without a
+subcommand (e.g. `python -m mailroom`), defaults to `run` for backward
+compatibility.
 """
 
 import sys
@@ -32,4 +33,14 @@ def setup(apply: bool) -> None:
     from mailroom.setup.provisioner import run_setup
 
     exit_code = run_setup(apply=apply)
+    sys.exit(exit_code)
+
+
+@cli.command()
+@click.option("--apply", is_flag=True, default=False, help="Apply changes (default is dry-run)")
+def reset(apply: bool) -> None:
+    """Reset all Mailroom changes: clean contacts, un-label emails, empty groups."""
+    from mailroom.reset.resetter import run_reset
+
+    exit_code = run_reset(apply=apply)
     sys.exit(exit_code)
