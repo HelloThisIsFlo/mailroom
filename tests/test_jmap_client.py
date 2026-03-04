@@ -1462,3 +1462,74 @@ class TestGetEmailMailboxIds:
             if str(r.url) == "https://api.fastmail.com/jmap/api/"
         ]
         assert len(api_requests) == 0
+
+
+# --- TestBatchAddLabels ---
+
+
+class TestBatchAddLabels:
+    """Tests for batch_add_labels() — adds mailbox labels to emails."""
+
+    def _setup_connected_client(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """Connect client via mocked session."""
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/session",
+            json=FASTMAIL_SESSION_RESPONSE,
+        )
+        client.connect()
+
+    def test_adds_labels_to_emails(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """batch_add_labels sends Email/set with True patch values."""
+        self._setup_connected_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    ["Email/set", {"accountId": "u1234", "updated": {"e1": None, "e2": None}}, "s0"]
+                ]
+            },
+        )
+
+        client.batch_add_labels(["e1", "e2"], ["mb-warning"])
+
+        api_requests = [
+            r for r in httpx_mock.get_requests()
+            if str(r.url) == "https://api.fastmail.com/jmap/api/"
+        ]
+        assert len(api_requests) == 1
+        body = api_requests[0].read()
+        import json
+        payload = json.loads(body)
+        update = payload["methodCalls"][0][1]["update"]
+        # Each email should have mailboxIds/mb-warning: True
+        assert update["e1"] == {"mailboxIds/mb-warning": True}
+        assert update["e2"] == {"mailboxIds/mb-warning": True}
+
+    def test_raises_on_not_updated(
+        self, client: JMAPClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """batch_add_labels raises RuntimeError on notUpdated."""
+        self._setup_connected_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            url="https://api.fastmail.com/jmap/api/",
+            json={
+                "methodResponses": [
+                    ["Email/set", {
+                        "accountId": "u1234",
+                        "updated": None,
+                        "notUpdated": {
+                            "e1": {"type": "notFound", "description": "Email not found"},
+                        },
+                    }, "s0"]
+                ]
+            },
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to add labels"):
+            client.batch_add_labels(["e1"], ["mb-warning"])

@@ -11,6 +11,7 @@ from mailroom.reset.resetter import (
     ContactCleanup,
     ResetPlan,
     ResetResult,
+    _is_user_modified,
     apply_reset,
     plan_reset,
 )
@@ -472,3 +473,79 @@ class TestResetReporting:
         assert "5" in output
         assert "3" in output
         assert "2" in output
+
+
+# --- TestIsUserModified ---
+
+
+class TestIsUserModified:
+    """Tests for _is_user_modified() vCard field detection."""
+
+    def _make_vcard(self, extra_fields: str = "") -> str:
+        """Build a minimal vCard string with optional extra fields."""
+        return (
+            "BEGIN:VCARD\r\n"
+            "VERSION:3.0\r\n"
+            "UID:test-uid\r\n"
+            "FN:Test Corp\r\n"
+            "N:;;;\r\n"
+            "EMAIL;TYPE=INTERNET:test@example.com\r\n"
+            "NOTE:— Mailroom —\\nCreated by Mailroom\r\n"
+            "ORG:Test Corp\r\n"
+            "PRODID:-//Apple Inc.//Fastmail//EN\r\n"
+            f"{extra_fields}"
+            "END:VCARD\r\n"
+        )
+
+    def test_unmodified_returns_false(self) -> None:
+        """Contact with only Mailroom-managed fields is NOT user-modified."""
+        vcard = self._make_vcard()
+        assert _is_user_modified(vcard) is False
+
+    def test_tel_field_returns_true(self) -> None:
+        """Contact with TEL field IS user-modified."""
+        vcard = self._make_vcard("TEL;TYPE=CELL:+1234567890\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_additional_email_returns_true(self) -> None:
+        """Contact with multiple EMAIL entries IS user-modified."""
+        vcard = self._make_vcard("EMAIL;TYPE=INTERNET:second@example.com\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_adr_returns_true(self) -> None:
+        """Contact with ADR field IS user-modified."""
+        vcard = self._make_vcard("ADR:;;123 Main St;City;CA;90210;US\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_url_returns_true(self) -> None:
+        """Contact with URL field IS user-modified."""
+        vcard = self._make_vcard("URL:https://example.com\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_bday_returns_true(self) -> None:
+        """Contact with BDAY field IS user-modified."""
+        vcard = self._make_vcard("BDAY:1990-01-15\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_title_returns_true(self) -> None:
+        """Contact with TITLE field IS user-modified."""
+        vcard = self._make_vcard("TITLE:CEO\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_nickname_returns_true(self) -> None:
+        """Contact with NICKNAME field IS user-modified."""
+        vcard = self._make_vcard("NICKNAME:TestNick\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_photo_returns_true(self) -> None:
+        """Contact with PHOTO field IS user-modified."""
+        vcard = self._make_vcard("PHOTO;VALUE=uri:https://example.com/photo.jpg\r\n")
+        assert _is_user_modified(vcard) is True
+
+    def test_apple_system_fields_not_treated_as_user(self) -> None:
+        """x-addressbookserver-* fields are system fields, not user data."""
+        vcard = self._make_vcard(
+            "X-ADDRESSBOOKSERVER-KIND:individual\r\n"
+            "X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:abc\r\n"
+        )
+        assert _is_user_modified(vcard) is False

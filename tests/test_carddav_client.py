@@ -2254,3 +2254,44 @@ class TestUpsertAdoptedNote:
         assert card.note.value == expected_note
         # Verify no "Adopted by Mailroom" added
         assert "Adopted by Mailroom" not in card.note.value
+
+
+# --- delete_contact Tests ---
+
+
+class TestDeleteContact:
+    """delete_contact() sends HTTP DELETE with If-Match ETag."""
+
+    def test_sends_http_delete_with_etag(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """delete_contact sends DELETE request with If-Match header."""
+        _connect_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/uid-1.vcf",
+            method="DELETE",
+            status_code=204,
+        )
+
+        client.delete_contact("/uid-1.vcf", '"etag-1"')
+
+        requests = httpx_mock.get_requests()
+        delete_reqs = [r for r in requests if r.method == "DELETE"]
+        assert len(delete_reqs) == 1
+        assert delete_reqs[0].headers["If-Match"] == '"etag-1"'
+
+    def test_raises_on_http_error(
+        self, client: CardDAVClient, httpx_mock: HTTPXMock
+    ) -> None:
+        """delete_contact raises on HTTP error status."""
+        _connect_client(client, httpx_mock)
+
+        httpx_mock.add_response(
+            url="https://carddav.fastmail.com/uid-1.vcf",
+            method="DELETE",
+            status_code=404,
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.delete_contact("/uid-1.vcf", '"etag-1"')
