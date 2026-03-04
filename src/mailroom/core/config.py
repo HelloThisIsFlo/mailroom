@@ -288,12 +288,13 @@ class TriageSettings(BaseModel):
         return [{"name": item} if isinstance(item, str) else item for item in v]
 
 
-class LabelSettings(BaseModel):
-    """Error and warning label configuration."""
+class MailroomSectionSettings(BaseModel):
+    """Mailroom operational settings: error/warning labels and provenance group."""
 
-    mailroom_error: str = "@MailroomError"
-    mailroom_warning: str = "@MailroomWarning"
+    label_error: str = "@MailroomError"
+    label_warning: str = "@MailroomWarning"
     warnings_enabled: bool = True
+    provenance_group: str = "Mailroom"
 
 
 class LoggingSettings(BaseModel):
@@ -328,7 +329,7 @@ def _resolve_config_path() -> str:
 class MailroomSettings(BaseSettings):
     """Application settings loaded from config.yaml + auth env vars.
 
-    Non-secret configuration lives in config.yaml (polling, triage, labels, logging).
+    Non-secret configuration lives in config.yaml (polling, triage, mailroom, logging).
     Auth credentials come from MAILROOM_-prefixed environment variables.
     """
 
@@ -348,8 +349,19 @@ class MailroomSettings(BaseSettings):
     # Nested sections -- from config.yaml
     polling: PollingSettings = PollingSettings()
     triage: TriageSettings = TriageSettings()
-    labels: LabelSettings = LabelSettings()
+    mailroom: MailroomSectionSettings = MailroomSectionSettings()
     logging: LoggingSettings = LoggingSettings()
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_old_labels_key(cls, data: dict) -> dict:
+        """Reject config files that still use the old 'labels:' section name."""
+        if isinstance(data, dict) and "labels" in data:
+            raise ValueError(
+                "Config section 'labels:' has been renamed to 'mailroom:'. "
+                "Please update your config.yaml."
+            )
+        return data
 
     @classmethod
     def settings_customise_sources(
@@ -394,13 +406,13 @@ class MailroomSettings(BaseSettings):
         mailboxes: set[str] = {
             "Inbox",
             self.triage.screener_mailbox,
-            self.labels.mailroom_error,
+            self.mailroom.label_error,
         }
         for c in self._resolved_categories:
             mailboxes.add(c.label)
             mailboxes.add(c.destination_mailbox)
-        if self.labels.warnings_enabled:
-            mailboxes.add(self.labels.mailroom_warning)
+        if self.mailroom.warnings_enabled:
+            mailboxes.add(self.mailroom.label_warning)
         return sorted(mailboxes)
 
     @property

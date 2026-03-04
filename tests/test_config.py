@@ -29,9 +29,10 @@ class TestYAMLConfigDefaults:
         assert settings.polling.interval == 60
         assert settings.polling.debounce_seconds == 3
         assert settings.logging.level == "info"
-        assert settings.labels.mailroom_error == "@MailroomError"
-        assert settings.labels.mailroom_warning == "@MailroomWarning"
-        assert settings.labels.warnings_enabled is True
+        assert settings.mailroom.label_error == "@MailroomError"
+        assert settings.mailroom.label_warning == "@MailroomWarning"
+        assert settings.mailroom.warnings_enabled is True
+        assert settings.mailroom.provenance_group == "Mailroom"
         assert settings.triage.screener_mailbox == "Screener"
 
     def test_default_triage_categories(self, monkeypatch, tmp_path):
@@ -88,21 +89,23 @@ class TestYAMLConfigOverrides:
 
         assert settings.logging.level == "debug"
 
-    def test_labels_override(self, monkeypatch, tmp_path):
-        """labels section from YAML overrides defaults."""
+    def test_mailroom_section_override(self, monkeypatch, tmp_path):
+        """mailroom section from YAML overrides defaults."""
         config = tmp_path / "config.yaml"
         config.write_text(
-            "labels:\n"
-            "  mailroom_error: '@CustomError'\n"
+            "mailroom:\n"
+            "  label_error: '@CustomError'\n"
             "  warnings_enabled: false\n"
+            "  provenance_group: 'MyProvenance'\n"
         )
         monkeypatch.setenv("MAILROOM_CONFIG", str(config))
         monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
         settings = MailroomSettings()
 
-        assert settings.labels.mailroom_error == "@CustomError"
-        assert settings.labels.warnings_enabled is False
+        assert settings.mailroom.label_error == "@CustomError"
+        assert settings.mailroom.warnings_enabled is False
+        assert settings.mailroom.provenance_group == "MyProvenance"
 
     def test_screener_mailbox_override(self, monkeypatch, tmp_path):
         """triage.screener_mailbox from YAML overrides default."""
@@ -352,13 +355,13 @@ class TestComputedProperties:
     def test_required_mailboxes_without_warnings(self, monkeypatch, tmp_path):
         """required_mailboxes excludes @MailroomWarning when warnings disabled."""
         config = tmp_path / "config.yaml"
-        config.write_text("labels:\n  warnings_enabled: false\n")
+        config.write_text("mailroom:\n  warnings_enabled: false\n")
         monkeypatch.setenv("MAILROOM_CONFIG", str(config))
         monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
 
         settings = MailroomSettings()
 
-        assert settings.labels.warnings_enabled is False
+        assert settings.mailroom.warnings_enabled is False
         assert "@MailroomWarning" not in settings.required_mailboxes
 
     def test_contact_groups_unique(self, monkeypatch, tmp_path):
@@ -821,3 +824,40 @@ class TestValidationValidCustomCategory:
         assert len(resolved) == 1
         assert resolved[0].name == "Receipts"
         assert resolved[0].label == "@ToReceipts"
+
+
+# ---------------------------------------------------------------------------
+# Phase 14: Config rename labels -> mailroom, provenance_group
+# ---------------------------------------------------------------------------
+
+
+class TestConfigLabelsRenamedToMailroom:
+    """Old `labels:` config key is actively rejected with helpful migration message."""
+
+    def test_old_labels_key_raises_value_error(self, monkeypatch, tmp_path):
+        """Config YAML with `labels:` key raises ValueError mentioning rename to `mailroom:`."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "labels:\n"
+            "  mailroom_error: '@MailroomError'\n"
+        )
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        with pytest.raises((ValueError, ValidationError)) as exc_info:
+            MailroomSettings()
+
+        msg = str(exc_info.value)
+        assert "renamed" in msg.lower() or "mailroom:" in msg.lower()
+
+    def test_contact_groups_does_not_include_provenance_group(self, monkeypatch, tmp_path):
+        """contact_groups property does NOT include provenance_group (it is infrastructure, not triage)."""
+        config = tmp_path / "config.yaml"
+        config.write_text("")
+        monkeypatch.setenv("MAILROOM_CONFIG", str(config))
+        monkeypatch.setenv("MAILROOM_JMAP_TOKEN", "tok")
+
+        settings = MailroomSettings()
+
+        assert "Mailroom" not in settings.contact_groups
+        assert settings.mailroom.provenance_group == "Mailroom"

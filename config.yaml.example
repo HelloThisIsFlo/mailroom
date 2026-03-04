@@ -41,11 +41,12 @@ triage:
     - name: Truck
       parent: Paper Trail
 
-# --- Error & Warning Labels ---
-labels:
-  mailroom_error: "@MailroomError"
-  mailroom_warning: "@MailroomWarning"
-  warnings_enabled: true    # Set false to disable @MailroomWarning label
+# --- Mailroom Operational Settings ---
+mailroom:
+  label_error: "@MailroomError"
+  label_warning: "@MailroomWarning"
+  warnings_enabled: true          # Set false to disable @MailroomWarning label
+  provenance_group: "Mailroom"    # Contact group for tracking mailroom-managed contacts
 
 # --- Logging ---
 logging:
