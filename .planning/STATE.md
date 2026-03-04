@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
 stopped_at: Completed 14-06-PLAN.md
-last_updated: "2026-03-04T20:10:42.925Z"
+last_updated: "2026-03-04T20:18:18.830Z"
 last_activity: "2026-03-04 - Completed 14-06: Reset --apply confirmation prompt"
 progress:
   total_phases: 5
