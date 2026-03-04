@@ -341,8 +341,8 @@ def apply_reset(
         except RuntimeError as exc:
             result.errors.append(f"Provenance removal ({contact.fn}): {exc}")
 
-    # === Step 6: Strip Mailroom notes from ALL annotated contacts ===
-    all_contacts = plan.contacts_to_delete + plan.contacts_to_warn + plan.contacts_to_strip
+    # === Step 6: Strip Mailroom notes from warned + adopted contacts (skip delete targets) ===
+    all_contacts = plan.contacts_to_warn + plan.contacts_to_strip
     for contact in all_contacts:
         try:
             card = vobject.readOne(contact.vcard_data)
