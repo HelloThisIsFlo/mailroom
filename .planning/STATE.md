@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 Phase: 13 of 13 (Re-triage) -- fourth of 4 v1.2 phases
 Plan: 3 of 3 (complete)
 Status: v1.2 Milestone Complete
-Last activity: 2026-03-03 -- Completed 13-03 (Human integration tests for re-triage)
+Last activity: 2026-03-04 - Completed quick task 1: Add a mailroom reset CLI command that undoes all mailroom changes (contacts, labels, groups) with dry-run/apply mode
 
 Progress: [██████████] 100% (3/3 plans complete in Phase 13)
 
@@ -96,6 +96,12 @@ Recent decisions for v1.2:
 ### Blockers/Concerns
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 1 | Add a mailroom reset CLI command that undoes all mailroom changes (contacts, labels, groups) with dry-run/apply mode | 2026-03-04 | a754f75 | Verified | [1-add-a-mailroom-reset-cli-command-that-un](./quick/1-add-a-mailroom-reset-cli-command-that-un/) |
 
 ## Session Continuity
 
