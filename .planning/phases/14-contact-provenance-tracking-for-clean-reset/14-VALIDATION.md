@@ -2,8 +2,8 @@
 phase: 14
 slug: contact-provenance-tracking-for-clean-reset
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-04
 ---
 
@@ -38,23 +38,23 @@ created: 2026-03-04
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 14-01-01 | 01 | 1 | Config rename | unit | `pytest tests/test_config.py -x` | Needs update | ⬜ pending |
-| 14-01-02 | 01 | 1 | Old labels rejected | unit | `pytest tests/test_config.py -x` | Needs new test | ⬜ pending |
+| 14-01-01 | 01 | 1 | Config rename (PROV-01) | unit | `pytest tests/test_config.py -x` | Needs update | ⬜ pending |
+| 14-01-02 | 01 | 1 | Old labels rejected (PROV-02) | unit | `pytest tests/test_config.py -x` | Needs new test | ⬜ pending |
 | 14-01-03 | 01 | 1 | Provenance group validation | unit | `pytest tests/test_config.py -x` | Needs new test | ⬜ pending |
-| 14-02-01 | 02 | 1 | Provenance note (created) | unit | `pytest tests/test_carddav_client.py -x` | Needs update | ⬜ pending |
-| 14-02-02 | 02 | 1 | Provenance note (adopted) | unit | `pytest tests/test_carddav_client.py -x` | Needs update | ⬜ pending |
-| 14-02-03 | 02 | 1 | Provenance group add | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
-| 14-02-04 | 02 | 1 | Provenance group skip | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
-| 14-02-05 | 02 | 1 | check_membership exclusion | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
-| 14-02-06 | 02 | 1 | delete_contact | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
-| 14-03-01 | 03 | 2 | @MailroomWarning cleanup | unit | `pytest tests/test_screener_workflow.py -x` | Needs new test | ⬜ pending |
-| 14-03-02 | 03 | 2 | @MailroomWarning reapply | unit | `pytest tests/test_screener_workflow.py -x` | Needs new test | ⬜ pending |
-| 14-04-01 | 04 | 2 | User-modified detection | unit | `pytest tests/test_resetter.py -x` | Needs new test | ⬜ pending |
-| 14-04-02 | 04 | 2 | Reset provenance DELETE | unit | `pytest tests/test_resetter.py -x` | Needs update | ⬜ pending |
-| 14-04-03 | 04 | 2 | Reset provenance WARN | unit | `pytest tests/test_resetter.py -x` | Needs new test | ⬜ pending |
-| 14-04-04 | 04 | 2 | Reset adopted cleanup | unit | `pytest tests/test_resetter.py -x` | Needs update | ⬜ pending |
-| 14-04-05 | 04 | 2 | Reset operation order | unit | `pytest tests/test_resetter.py -x` | Needs update | ⬜ pending |
-| 14-05-01 | 05 | 1 | Setup provisioner | unit | `pytest tests/test_provisioner.py -x` | Needs update | ⬜ pending |
+| 14-01-04 | 01 | 1 | Setup provisioner (PROV-03) | unit | `pytest tests/test_provisioner.py -x` | Needs update | ⬜ pending |
+| 14-02-01 | 02 | 2 | Provenance note created (PROV-05) | unit | `pytest tests/test_carddav_client.py -x` | Needs update | ⬜ pending |
+| 14-02-02 | 02 | 2 | Provenance note adopted (PROV-05) | unit | `pytest tests/test_carddav_client.py -x` | Needs update | ⬜ pending |
+| 14-02-03 | 02 | 2 | Provenance group add (PROV-04) | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
+| 14-02-04 | 02 | 2 | Provenance group skip (PROV-04) | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
+| 14-02-05 | 02 | 2 | check_membership exclusion (PROV-06) | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
+| 14-02-06 | 02 | 2 | @MailroomWarning cleanup (PROV-07) | unit | `pytest tests/test_screener_workflow.py -x` | Needs new test | ⬜ pending |
+| 14-02-07 | 02 | 2 | @MailroomWarning reapply (PROV-07) | unit | `pytest tests/test_screener_workflow.py -x` | Needs new test | ⬜ pending |
+| 14-03-01 | 03 | 3 | delete_contact + batch_add_labels (PROV-08) | unit | `pytest tests/test_carddav_client.py -x` | Needs new test | ⬜ pending |
+| 14-03-02 | 03 | 3 | User-modified detection (PROV-09) | unit | `pytest tests/test_resetter.py -x` | Needs new test | ⬜ pending |
+| 14-03-03 | 03 | 3 | Reset provenance DELETE (PROV-10) | unit | `pytest tests/test_resetter.py -x` | Needs update | ⬜ pending |
+| 14-03-04 | 03 | 3 | Reset provenance WARN (PROV-10) | unit | `pytest tests/test_resetter.py -x` | Needs new test | ⬜ pending |
+| 14-03-05 | 03 | 3 | Reset adopted cleanup (PROV-10) | unit | `pytest tests/test_resetter.py -x` | Needs update | ⬜ pending |
+| 14-03-06 | 03 | 3 | Reset operation order (PROV-11) | unit | `pytest tests/test_resetter.py -x` | Needs update | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
