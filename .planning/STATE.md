@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
-stopped_at: Completed 14-04-PLAN.md
-last_updated: "2026-03-04T19:01:17Z"
-last_activity: "2026-03-04 - Completed 14-04: Fix reset apply bugs (RFC 8621 + stale ETag)"
+stopped_at: Completed 14-05-PLAN.md
+last_updated: "2026-03-04T19:08:17.684Z"
+last_activity: "2026-03-04 - Completed 14-05: UAT gap closure (config error, reset UX, REV field)"
 progress:
   total_phases: 5
   completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 15
+  completed_plans: 15
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
-Plan: 4 of 4+ (gap closure plans complete)
-Status: Gap Closure Complete
-Last activity: 2026-03-04 - Completed 14-04: Fix reset apply bugs (RFC 8621 + stale ETag)
+Plan: 5 of 5 (all gap closure plans complete)
+Status: All Plans Complete
+Last activity: 2026-03-04 - Completed 14-05: UAT gap closure (config error, reset UX, REV field)
 
-Progress: [██████████] 100% (4 plans complete in Phase 14, including gap closure)
+Progress: [██████████] 100% (5 plans complete in Phase 14, including gap closure)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██████████] 100% (4 plans complete in Phase 14, i
 | Phase 14 P02 | 11min | 2 tasks | 5 files |
 | Phase 14 P03 | 7min | 2 tasks | 7 files |
 | Phase 14 P04 | 4min | 2 tasks | 2 files |
+| Phase 14 P05 | 3min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Recent decisions for v1.2:
 - [Phase 14]: 7-step reset order: labels, system-label cleanup, group removal, warning application, provenance removal, note strip, contact delete
 - [14-04]: Step 1 adds Screener before removing managed labels (atomic move pattern for RFC 8621 compliance)
 - [14-04]: Step 6 skips contacts_to_delete entirely (don't modify resources about to be deleted)
+- [Phase 14]: Config error for old labels key uses plain unknown-key rejection with valid keys list
+- [Phase 14]: REV field exclusion from MAILROOM_MANAGED_FIELDS documented as relied-upon Fastmail behavior
 
 ### Pending Todos
 
@@ -123,6 +126,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T19:01:17Z
-Stopped at: Completed 14-04-PLAN.md
+Last session: 2026-03-04T19:08:17.682Z
+Stopped at: Completed 14-05-PLAN.md
 Resume file: None
