@@ -55,9 +55,9 @@ def plan_resources(
     triage_label_set = set(settings.triage_labels)
 
     # Mailroom-specific names (error/warning labels) get their own category
-    mailroom_names = {settings.labels.mailroom_error}
-    if settings.labels.warnings_enabled:
-        mailroom_names.add(settings.labels.mailroom_warning)
+    mailroom_names = {settings.mailroom.label_error}
+    if settings.mailroom.warnings_enabled:
+        mailroom_names.add(settings.mailroom.label_warning)
 
     mailbox_names = [
         name
@@ -88,6 +88,13 @@ def plan_resources(
     for name in sorted(mailroom_names):
         status = "exists" if name in existing_mailboxes else "create"
         actions.append(ResourceAction(kind="mailroom", name=name, status=status))
+
+    # Provenance group (infrastructure, not triage)
+    provenance_name = settings.mailroom.provenance_group
+    provenance_status = "exists" if provenance_name in existing_groups else "create"
+    actions.append(
+        ResourceAction(kind="mailroom", name=provenance_name, status=provenance_status)
+    )
 
     return actions
 
@@ -121,7 +128,11 @@ def apply_resources(
     mailroom = [a for a in plan if a.kind == "mailroom"]
     groups = [a for a in plan if a.kind == "contact_group"]
 
-    for action in mailboxes + labels + mailroom:
+    # Split mailroom resources: labels (mailboxes) vs contact groups (provenance)
+    mailroom_mailboxes = [a for a in mailroom if a.name.startswith("@")]
+    mailroom_groups = [a for a in mailroom if not a.name.startswith("@")]
+
+    for action in mailboxes + labels + mailroom_mailboxes:
         if action.status == "exists":
             result.append(action)
             continue
@@ -161,7 +172,7 @@ def apply_resources(
                 )
             )
 
-    for action in groups:
+    for action in groups + mailroom_groups:
         if action.status == "exists":
             result.append(action)
             continue

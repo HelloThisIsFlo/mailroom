@@ -292,8 +292,8 @@ def run_reset(apply: bool = False) -> int:
         print(f"CardDAV connection failed: {exc}", file=sys.stderr)
         return 1
 
-    # Validate groups (needed for group operations)
-    carddav.validate_groups(settings.contact_groups)
+    # Validate groups + provenance group (needed for group operations)
+    carddav.validate_groups(settings.contact_groups + [settings.mailroom.provenance_group])
 
     # Build plan
     reset_plan = plan_reset(settings, jmap, carddav)

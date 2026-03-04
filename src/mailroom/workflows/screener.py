@@ -175,7 +175,7 @@ class ScreenerWorkflow:
                     sender_names[sender_email] = sender_name
 
         # Filter out emails that already have @MailroomError (separate call)
-        error_id = self._mailbox_ids[self._settings.labels.mailroom_error]
+        error_id = self._mailbox_ids[self._settings.mailroom.label_error]
         responses = self._jmap.call(
             [
                 [
@@ -276,7 +276,7 @@ class ScreenerWorkflow:
         Keeps triage labels intact. The @MailroomError label is a signal
         to the user to resolve the conflict manually.
         """
-        error_id = self._mailbox_ids[self._settings.labels.mailroom_error]
+        error_id = self._mailbox_ids[self._settings.mailroom.label_error]
 
         try:
             for email_id, _ in emails:
@@ -325,7 +325,7 @@ class ScreenerWorkflow:
             email_ids: List of triggering email IDs to apply the warning to.
         """
         try:
-            warning_id = self._mailbox_ids[self._settings.labels.mailroom_warning]
+            warning_id = self._mailbox_ids[self._settings.mailroom.label_warning]
             for email_id in email_ids:
                 self._jmap.call(
                     [
@@ -416,7 +416,7 @@ class ScreenerWorkflow:
                     log.info("ancestor_group_added", group=ancestor.contact_group)
 
         # Step 3a: Apply warning label if name mismatch detected
-        if result.get("name_mismatch", False) and self._settings.labels.warnings_enabled:
+        if result.get("name_mismatch", False) and self._settings.mailroom.warnings_enabled:
             self._apply_warning_label(sender, email_ids)
 
         # Step 4: Email label management

@@ -55,7 +55,7 @@ class TestPlanResources:
     def test_all_exist(self, mock_settings) -> None:
         """When all resources exist, every action has status 'exists'."""
         all_mailboxes = list(mock_settings.required_mailboxes)
-        all_groups = list(mock_settings.contact_groups)
+        all_groups = list(mock_settings.contact_groups) + [mock_settings.mailroom.provenance_group]
 
         jmap = _mock_jmap(all_mailboxes)
         carddav = _mock_carddav(all_groups)
@@ -71,7 +71,7 @@ class TestPlanResources:
         mailboxes = [
             n for n in mock_settings.required_mailboxes if n != "Feed"
         ]
-        groups = [g for g in mock_settings.contact_groups if g != "Feed"]
+        groups = [g for g in mock_settings.contact_groups if g != "Feed"] + [mock_settings.mailroom.provenance_group]
 
         jmap = _mock_jmap(mailboxes)
         carddav = _mock_carddav(groups)
@@ -95,7 +95,7 @@ class TestPlanResources:
     def test_categorizes_correctly(self, mock_settings) -> None:
         """Resources are categorized into mailbox, label, contact_group, mailroom."""
         all_mailboxes = list(mock_settings.required_mailboxes)
-        all_groups = list(mock_settings.contact_groups)
+        all_groups = list(mock_settings.contact_groups) + [mock_settings.mailroom.provenance_group]
 
         jmap = _mock_jmap(all_mailboxes)
         carddav = _mock_carddav(all_groups)
@@ -133,6 +133,24 @@ class TestPlanResources:
         assert "Feed" in group_names
         assert "Paper Trail" in group_names
         assert "Jail" in group_names
+
+    def test_provenance_group_as_mailroom_resource(self, mock_settings) -> None:
+        """Provisioner creates provenance group as kind='mailroom' resource."""
+        all_mailboxes = list(mock_settings.required_mailboxes)
+        all_groups = list(mock_settings.contact_groups)  # Deliberately omit provenance group
+
+        jmap = _mock_jmap(all_mailboxes)
+        carddav = _mock_carddav(all_groups)  # Provenance group will show as "create"
+
+        actions = plan_resources(mock_settings, jmap, carddav)
+
+        # Provenance group should appear as kind="mailroom" contact_group
+        mailroom_actions = [a for a in actions if a.kind == "mailroom"]
+        mailroom_action_names = {a.name for a in mailroom_actions}
+        assert "Mailroom" in mailroom_action_names, (
+            f"Provenance group 'Mailroom' should appear as kind='mailroom' resource. "
+            f"Got: {mailroom_action_names}"
+        )
 
 
 # --- Apply Tests ---
