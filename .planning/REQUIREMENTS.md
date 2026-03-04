@@ -41,6 +41,20 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 - [ ] **RTRI-05**: Human integration test validates re-triage workflow end-to-end
 - [x] **RTRI-06**: `add_to_inbox` only adds Inbox label to emails that were in Screener at triage time — re-triage does NOT add Inbox to existing emails (they are not new)
 
+### Provenance
+
+- [ ] **PROV-01**: Config `labels:` section renamed to `mailroom:` with keys `label_error`, `label_warning`, `warnings_enabled`, `provenance_group`
+- [ ] **PROV-02**: No backward compatibility — app fails to start if config uses old `labels:` key for non-default values
+- [ ] **PROV-03**: Setup CLI creates and validates provenance contact group as kind="mailroom" resource
+- [ ] **PROV-04**: New contacts added to provenance group on creation; existing (adopted) contacts never added
+- [ ] **PROV-05**: Contact notes include provenance line after header: "Created by Mailroom" (new) or "Adopted by Mailroom" (existing)
+- [ ] **PROV-06**: Provenance group invisible to triage pipeline — `check_membership()` excludes infrastructure groups
+- [ ] **PROV-07**: @MailroomWarning removed from all sender emails on every successful triage, reapplied if warning condition persists
+- [ ] **PROV-08**: CardDAV `delete_contact()` method for HTTP DELETE with ETag concurrency
+- [ ] **PROV-09**: User-modified detection identifies contacts with vCard fields beyond what Mailroom creates
+- [ ] **PROV-10**: Reset DELETEs unmodified provenance contacts, WARNs user-modified provenance contacts (apply @MailroomWarning to their emails), strips adopted contacts
+- [ ] **PROV-11**: Reset follows exact 7-step operation order: managed labels, warning/error cleanup, group removal, warning application, provenance removal, note strip, contact delete
+
 ### Milestone Closeout
 
 - [ ] **CLOSE-01**: `docs/WIP.md` finalized into proper documentation and integrated into `docs/` at end of milestone
@@ -69,6 +83,7 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 | `@MailroomWarning` on re-triage | Re-triage is a supported operation, not an exception |
 | Sweep ALL historical sender emails on re-triage | Only sweep from old destination mailbox — bounded scope |
 | Re-label archived emails by group membership | Far-future idea (#5), different from re-triage |
+| Retroactive provenance migration | Provenance tracking starts from Phase 14 forward; old contacts not backfilled |
 
 ## Traceability
 
@@ -98,13 +113,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RTRI-04 | Phase 13 | Complete |
 | RTRI-05 | Phase 13 | Pending |
 | RTRI-06 | Phase 13 | Complete |
+| PROV-01 | Phase 14 | Pending |
+| PROV-02 | Phase 14 | Pending |
+| PROV-03 | Phase 14 | Pending |
+| PROV-04 | Phase 14 | Pending |
+| PROV-05 | Phase 14 | Pending |
+| PROV-06 | Phase 14 | Pending |
+| PROV-07 | Phase 14 | Pending |
+| PROV-08 | Phase 14 | Pending |
+| PROV-09 | Phase 14 | Pending |
+| PROV-10 | Phase 14 | Pending |
+| PROV-11 | Phase 14 | Pending |
 | CLOSE-01 | Post-Phase 13 | Pending |
 
 **Coverage:**
-- v1.2 requirements: 23 total
-- Mapped to phases: 23
+- v1.2 requirements: 34 total
+- Mapped to phases: 34
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after roadmap creation*
+*Last updated: 2026-03-04 after Phase 14 planning*

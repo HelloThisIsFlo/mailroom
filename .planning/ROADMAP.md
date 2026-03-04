@@ -124,3 +124,24 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 | 11. Config Layer | 4/4 | Complete    | 2026-03-03 | - |
 | 12. Label Scanning | 1/1 | Complete    | 2026-03-03 | - |
 | 13. Re-triage | 3/3 | Complete   | 2026-03-04 | - |
+
+### Phase 14: Contact provenance tracking for clean reset
+
+**Goal:** Track which contacts Mailroom created vs. merely annotated (adopted), enabling the reset command to delete created contacts entirely while only stripping notes from pre-existing ones. Includes config section rename, setup provisioning, and triage pipeline @MailroomWarning cleanup.
+**Requirements**: PROV-01, PROV-02, PROV-03, PROV-04, PROV-05, PROV-06, PROV-07, PROV-08, PROV-09, PROV-10, PROV-11
+**Depends on:** Phase 13
+**Success Criteria** (what must be TRUE):
+  1. Config uses `mailroom:` section (renamed from `labels:`) with `label_error`, `label_warning`, `warnings_enabled`, and `provenance_group` keys
+  2. Setup CLI creates and validates the provenance contact group
+  3. New contacts are added to provenance group; existing (adopted) contacts are not
+  4. Contact notes include provenance line: "Created by Mailroom" or "Adopted by Mailroom"
+  5. Provenance group is invisible to triage pipeline (check_membership excludes it)
+  6. @MailroomWarning removed from all sender emails on every successful triage, reapplied if condition persists
+  7. Reset DELETEs unmodified provenance contacts, WARNs modified provenance contacts, strips adopted contacts
+  8. Reset follows exact 7-step operation order
+**Plans**: 3 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Config rename (labels -> mailroom), provenance_group field, update all references, setup provisioner
+- [ ] 14-02-PLAN.md — CardDAV provenance tracking (group membership, note format, infrastructure_groups), @MailroomWarning cleanup
+- [ ] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order
