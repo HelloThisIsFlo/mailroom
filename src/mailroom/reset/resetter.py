@@ -399,7 +399,7 @@ def run_reset(apply: bool = False) -> int:
     Returns:
         Exit code: 0 if no errors, 1 if any errors.
     """
-    from mailroom.reset.reporting import print_mode_banner, print_progress, print_reset_report
+    from mailroom.reset.reporting import print_mode_banner, print_progress, print_reset_report, print_confirmation_prompt
 
     # Load config
     try:
@@ -453,8 +453,15 @@ def run_reset(apply: bool = False) -> int:
     print_progress("Scanning mailboxes and contacts...")
     reset_plan = plan_reset(settings, jmap, carddav)
 
+    # Always show the plan first
+    print_reset_report(reset_plan, apply=False)
+
     if not apply:
-        print_reset_report(reset_plan, apply=False)
+        return 0
+
+    # Confirmation gate
+    if not print_confirmation_prompt():
+        print("\nAborted.", file=sys.stdout)
         return 0
 
     # Apply

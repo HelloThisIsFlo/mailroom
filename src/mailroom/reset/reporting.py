@@ -59,6 +59,28 @@ def print_reset_report(plan_or_result: object, apply: bool) -> None:
         _print_plan_report(plan_or_result, out)
 
 
+def print_confirmation_prompt() -> bool:
+    """Prompt the user to confirm destructive reset operations.
+
+    Checks if stdin is a TTY first. In non-interactive environments
+    (piped stdin), aborts safely. Handles EOFError for piped input
+    that hits EOF.
+
+    Returns:
+        True if user typed "y" or "Y", False otherwise.
+    """
+    if not sys.stdin.isatty():
+        print("Non-interactive mode, aborting.", file=sys.stdout)
+        return False
+    try:
+        prompt_text = color("Proceed with reset? [y/N] ", YELLOW)
+        response = input(prompt_text)
+        return response.strip().lower() == "y"
+    except EOFError:
+        print(file=sys.stdout)
+        return False
+
+
 def _print_plan_report(plan: object, out: object) -> None:
     """Print dry-run plan report with provenance-aware sections."""
     from mailroom.reset.resetter import ResetPlan
