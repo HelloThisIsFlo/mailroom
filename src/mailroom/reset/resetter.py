@@ -20,7 +20,16 @@ from mailroom.core.logging import configure_logging
 
 MAILROOM_HEADER = "\u2014 Mailroom \u2014"
 
-# Fields that Mailroom sets on contacts it creates/manages
+# Fields that Mailroom sets on contacts it creates/manages.
+#
+# REV is intentionally NOT in this set. Fastmail adds/updates a REV timestamp
+# on every contact edit made through their UI (web or mobile). This means any
+# user edit produces a REV field, which _is_user_modified() detects as an
+# "extra" field beyond Mailroom's managed set. This is the key mechanism that
+# makes user-modification detection work with Fastmail's CardDAV server.
+#
+# If the CardDAV server does NOT add REV on user edits, user-modification
+# detection would need a different strategy (e.g. hash comparison).
 MAILROOM_MANAGED_FIELDS = {
     "version", "uid", "fn", "n", "email", "note", "org", "prodid",
 }

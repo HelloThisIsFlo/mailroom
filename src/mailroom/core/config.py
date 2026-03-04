@@ -355,11 +355,11 @@ class MailroomSettings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def reject_old_labels_key(cls, data: dict) -> dict:
-        """Reject config files that still use the old 'labels:' section name."""
+        """Reject config files that use an unknown 'labels:' key."""
         if isinstance(data, dict) and "labels" in data:
             raise ValueError(
-                "Config section 'labels:' has been renamed to 'mailroom:'. "
-                "Please update your config.yaml."
+                "Unknown configuration key 'labels'. "
+                "Valid top-level keys: triage, mailroom, logging, polling."
             )
         return data
 
