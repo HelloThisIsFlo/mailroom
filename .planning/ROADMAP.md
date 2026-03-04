@@ -142,6 +142,6 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13
 **Plans**: 3 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Config rename (labels -> mailroom), provenance_group field, update all references, setup provisioner
+- [x] 14-01-PLAN.md — Config rename (labels -> mailroom), provenance_group field, update all references, setup provisioner
 - [ ] 14-02-PLAN.md — CardDAV provenance tracking (group membership, note format, infrastructure_groups), @MailroomWarning cleanup
 - [ ] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order

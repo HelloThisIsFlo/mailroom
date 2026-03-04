@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
-status: completed
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-04T13:44:29.700Z"
-last_activity: "2026-03-04 - Completed quick task 1: Add a mailroom reset CLI command that undoes all mailroom changes (contacts, labels, groups) with dry-run/apply mode"
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-04T14:31:53.360Z"
+last_activity: "2026-03-04 - Completed 14-01: Config rename labels->mailroom + provenance_group field"
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 13
+  completed_plans: 11
+  percent: 33
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** v1.2 Milestone Complete
+**Current focus:** Phase 14 - Contact provenance tracking for clean reset
 
 ## Current Position
 
-Phase: 13 of 13 (Re-triage) -- fourth of 4 v1.2 phases
-Plan: 3 of 3 (complete)
-Status: v1.2 Milestone Complete
-Last activity: 2026-03-04 - Completed quick task 1: Add a mailroom reset CLI command that undoes all mailroom changes (contacts, labels, groups) with dry-run/apply mode
+Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
+Plan: 1 of 3 (complete)
+Status: In Progress
+Last activity: 2026-03-04 - Completed 14-01: Config rename labels->mailroom + provenance_group field
 
-Progress: [██████████] 100% (3/3 plans complete in Phase 13)
+Progress: [███░░░░░░░] 33% (1/3 plans complete in Phase 14)
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [██████████] 100% (3/3 plans complete in Phase 13)
 | 11-config-layer | 4 | 22min | 6min |
 | 12-label-scanning | 1 | 8min | 8min |
 | 13-re-triage | 3 | 21min | 7min |
+| 14-contact-provenance | 1/3 | 6min | 6min |
 
 *Updated after each plan completion*
 
@@ -86,6 +87,9 @@ Recent decisions for v1.2:
 - [13-02] Chain diff uses set operations on contact_group names
 - [13-02] Inbox explicitly excluded from managed label removal set
 - [13-03] JMAP pagination uses len-based check instead of total field (total requires calculateTotal: true)
+- [Phase 14]: MailroomSectionSettings replaces LabelSettings with field renames: mailroom_error->label_error, mailroom_warning->label_warning
+- [Phase 14]: Provenance group tracked as kind=mailroom in provisioner (infrastructure, not triage)
+- [Phase 14]: apply_resources routes non-@ mailroom resources through carddav.create_group
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T13:44:29.679Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-contact-provenance-tracking-for-clean-reset/14-CONTEXT.md
+Last session: 2026-03-04T14:31:53.357Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None
