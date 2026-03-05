@@ -210,7 +210,10 @@ def main() -> None:
             consecutive_failures = 0
             HealthHandler.last_successful_poll = time.time()
             HealthHandler.last_poll_trigger = trigger
-            log.info("poll_completed", trigger=trigger)
+            if trigger == "push":
+                log.info("poll_completed", trigger=trigger)
+            else:
+                log.debug("poll_completed", trigger=trigger)
         except Exception:
             consecutive_failures += 1
             log.error(
