@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-5 (shipped 2026-02-25)
 - ✅ **v1.1 Push & Config** — Phases 6-9 (shipped 2026-03-02)
-- 🚧 **v1.2 Triage Pipeline v2** — Phases 10-15 (in progress)
+- ✅ **v1.2 Triage Pipeline v2** — Phases 10-15 (shipped 2026-03-05)
 
 ## Phases
 
@@ -36,133 +36,39 @@ Full details: `milestones/v1.1-ROADMAP.md`
 
 </details>
 
-### 🚧 v1.2 Triage Pipeline v2 (In Progress)
+<details>
+<summary>✅ v1.2 Triage Pipeline v2 (Phases 10-15) — SHIPPED 2026-03-05</summary>
 
-**Milestone Goal:** Evolve the triage pipeline -- independent config axes (inbox flag, additive parent labels), label-based scanning beyond Screener, and re-triage support for moving senders between groups.
+- [x] Phase 10: Tech Debt Cleanup (2/2 plans) — completed 2026-03-02
+- [x] Phase 11: Config Layer (4/4 plans) — completed 2026-03-02
+- [x] Phase 12: Label Scanning (1/1 plan) — completed 2026-03-03
+- [x] Phase 13: Re-triage (3/3 plans) — completed 2026-03-04
+- [x] Phase 14: Contact Provenance (6/6 plans) — completed 2026-03-04
+- [x] Phase 15: Milestone Closeout (2/2 plans) — completed 2026-03-05
 
-- [x] **Phase 10: Tech Debt Cleanup** - Close v1.1 carry-forward items and expose public interfaces needed by config refactor (completed 2026-03-02)
-- [x] **Phase 11: Config Layer** - Separate inbox flag, make children fully independent categories with additive parent labels (completed 2026-03-02)
-- [x] **Phase 12: Label Scanning** - Scan for triage labels via label mailbox queries with batched JMAP requests (completed 2026-03-03)
-- [x] **Phase 13: Re-triage** - Move senders between contact groups with email re-filing and triage history (completed 2026-03-04)
+Full details: `milestones/v1.2-ROADMAP.md`
 
-## Phase Details
-
-### Phase 10: Tech Debt Cleanup
-**Goal**: v1.1 audit is fully closed and public interfaces are ready for config refactor
-**Depends on**: Nothing (first phase of v1.2)
-**Requirements**: DEBT-01, DEBT-02, DEBT-03, DEBT-04, DEBT-05
-**Success Criteria** (what must be TRUE):
-  1. `MailroomSettings.resolved_categories` is a public property usable by any module without accessing private attributes
-  2. `sieve_guidance.py` generates correct output using only the public `resolved_categories` interface
-  3. `test_13_docker_polling.py` passes poll interval via config.yaml mount and the interval is actually respected
-  4. `conftest.py` cleanup list contains only env var names that exist in current `MailroomSettings`
-  5. Phase 09.1.1 has a VERIFICATION.md that documents its UAT results
-**Plans**: 2 plans
-
-Plans:
-- [ ] 10-01-PLAN.md — Public resolved_categories property, sieve_guidance update, Docker test fix, conftest cleanup
-- [ ] 10-02-PLAN.md — Write retroactive VERIFICATION.md for Phase 09.1.1
-
-### Phase 11: Config Layer
-**Goal**: Operators can configure inbox visibility independently of destination mailbox, and child categories resolve as fully independent categories that additively carry parent labels
-**Depends on**: Phase 10
-**Requirements**: CFG-01, CFG-02, CFG-03, CFG-04, CFG-05, CFG-06, CFG-07, CFG-08
-**Success Criteria** (what must be TRUE):
-  1. A category with `add_to_inbox: true` files emails to its destination mailbox AND adds them to Inbox; a category without the flag files only to its destination (Inbox visibility is independent of destination)
-  2. A child category has its own label, contact group, and destination mailbox derived from its name -- it does not inherit these fields from its parent
-  3. Triaging a sender with a child category applies both the child's label and the parent's label chain (additive propagation, not field inheritance)
-  4. Circular parent references and `destination_mailbox: Inbox` are rejected at startup with clear error messages
-  5. Setup CLI provisions separate mailboxes and contact groups for each child category, and sieve guidance reflects additive label semantics
-**Plans**: 4 plans
-
-Plans:
-- [ ] 11-01-PLAN.md — Config models, defaults, validation, resolution (add_to_inbox, independent children, CFG-02, parent chain)
-- [ ] 11-02-PLAN.md — Screener workflow additive filing and additive contact groups
-- [ ] 11-03-PLAN.md — Sieve guidance all-category display, syntax highlighting, config.yaml.example
-- [ ] 11-04-PLAN.md — Gap closure: CFG-02 case-insensitive Inbox rejection, remove --ui-guide and sieve clutter
-
-### Phase 12: Label Scanning
-**Goal**: Triage pipeline discovers labeled emails by querying label mailboxes directly, scanning beyond the Screener mailbox with batched JMAP requests
-**Depends on**: Phase 11
-**Requirements**: SCAN-01, SCAN-02, SCAN-03
-**Success Criteria** (what must be TRUE):
-  1. Emails with triage labels are discovered regardless of which mailbox they reside in (not limited to Screener)
-  2. All label mailbox queries execute in a single JMAP HTTP round-trip (batched request)
-  3. A per-method error in a batched JMAP response is detected and logged, not silently dropped
-**Plans**: 1 plan
-
-Plans:
-- [ ] 12-01-PLAN.md — Batched _collect_triaged() with per-method error handling and escalating log severity
-
-### Phase 13: Re-triage
-**Goal**: Applying a triage label to an already-grouped sender moves them to the new group with email re-filing and auditable triage history
-**Depends on**: Phase 12
-**Requirements**: RTRI-01, RTRI-02, RTRI-03, RTRI-04, RTRI-05, RTRI-06
-**Success Criteria** (what must be TRUE):
-  1. Applying a triage label to a sender who is already in a contact group moves them to the new group (add-to-new first, then remove-from-old)
-  2. Re-triaged sender's emails are re-filed by fetching ALL emails from the contact (any mailbox) and applying new additive labels (child + parent chain destinations)
-  3. Contact note captures triage history with dates -- both initial "Added to [group]" and subsequent "Moved from [old] to [new]" entries
-  4. Re-triage is logged as a `group_reassigned` structured event with old and new group names
-  5. A human integration test validates the full re-triage workflow end-to-end against live Fastmail
-  6. `add_to_inbox` only adds Inbox label to emails from Screener -- re-triage does NOT re-add Inbox to existing emails
-**Note**: Sweep logic decisions captured in `docs/WIP.md` during Phase 11 discussion. Key: sweep fetches all emails from contact, applies additive mailbox labels, add_to_inbox is Screener-only.
-**Plans**: 3 plans
-
-Plans:
-- [ ] 13-01-PLAN.md — Client layer: remove_from_group, query_emails_by_sender, get_email_mailbox_ids, triage history notes
-- [ ] 13-02-PLAN.md — Screener workflow re-triage logic replacing already-grouped error path
-- [ ] 13-03-PLAN.md — Human integration tests: test_17_retriage + test_9 early exit
+</details>
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 10 -> 11 -> 12 -> 13
-
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 10. Tech Debt Cleanup | 2/2 | Complete    | 2026-03-02 | - |
-| 11. Config Layer | 4/4 | Complete    | 2026-03-03 | - |
-| 12. Label Scanning | 1/1 | Complete    | 2026-03-03 | - |
-| 13. Re-triage | 3/3 | Complete   | 2026-03-04 | - |
-
-### Phase 14: Contact provenance tracking for clean reset
-
-**Goal:** Track which contacts Mailroom created vs. merely annotated (adopted), enabling the reset command to delete created contacts entirely while only stripping notes from pre-existing ones. Includes config section rename, setup provisioning, and triage pipeline @MailroomWarning cleanup.
-**Requirements**: PROV-01, PROV-02, PROV-03, PROV-04, PROV-05, PROV-06, PROV-07, PROV-08, PROV-09, PROV-10, PROV-11
-**Depends on:** Phase 13
-**Success Criteria** (what must be TRUE):
-  1. Config uses `mailroom:` section (renamed from `labels:`) with `label_error`, `label_warning`, `warnings_enabled`, and `provenance_group` keys
-  2. Setup CLI creates and validates the provenance contact group
-  3. New contacts are added to provenance group; existing (adopted) contacts are not
-  4. Contact notes include provenance line: "Created by Mailroom" or "Adopted by Mailroom"
-  5. Provenance group is invisible to triage pipeline (check_membership excludes it)
-  6. @MailroomWarning removed from all sender emails on every successful triage, reapplied if condition persists
-  7. Reset DELETEs unmodified provenance contacts, WARNs modified provenance contacts, strips adopted contacts
-  8. Reset follows exact 7-step operation order
-**Plans**: 6 plans
-
-Plans:
-- [x] 14-01-PLAN.md — Config rename (labels -> mailroom), provenance_group field, update all references, setup provisioner
-- [x] 14-02-PLAN.md — CardDAV provenance tracking (group membership, note format, infrastructure_groups), @MailroomWarning cleanup
-- [x] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order
-- [x] 14-04-PLAN.md — Gap closure: fix JMAP label removal (move-to-Screener) and stale ETag on contact deletion
-- [x] 14-05-PLAN.md — Gap closure: config error simplification, reset UX banners/progress, REV field test coverage
-- [x] 14-06-PLAN.md — Gap closure: reset --apply confirmation prompt before destructive operations
-
-### Phase 15: Milestone Closeout & Cleanup
-
-**Goal:** Close all audit gaps — finalize WIP documentation, fix latent integration inconsistency, resolve test cross-contamination, remove dead production code, and update requirement checkboxes.
-**Requirements**: CLOSE-01
-**Depends on:** Phase 14
-**Gap Closure:** Closes gaps from v1.2 milestone audit
-**Success Criteria** (what must be TRUE):
-  1. `docs/WIP.md` is finalized into proper documentation integrated into `docs/`
-  2. `run_reset()` passes `infrastructure_groups` to `validate_groups()` (consistent with triage path)
-  3. `TestRunResetConfirmation._run_reset_with_mocks()` mocks `configure_logging` — no structlog cross-contamination in full test suite
-  4. Dead code removed: `_get_destination_mailbox_ids()` (screener.py) and `batch_move_emails()` (jmap.py) and their tests
-  5. RTRI-05 checkbox updated to `[x] Complete`; RTRI-04 wording aligned between REQUIREMENTS.md and code
-**Plans**: 2 plans
-
-Plans:
-- [ ] 15-01-PLAN.md — Code/test fixes: infrastructure_groups consistency, structlog mock, dead code removal, REQUIREMENTS.md updates
-- [ ] 15-02-PLAN.md — Documentation finalization: workflow.md, config.md rewrite, architecture.md update, WIP.md removal
+| 1. Foundation | v1.0 | 3/3 | Complete | 2026-02-24 |
+| 2. CardDAV | v1.0 | 3/3 | Complete | 2026-02-24 |
+| 3. Triage Pipeline | v1.0 | 3/3 | Complete | 2026-02-24 |
+| 3.1 Person Contact | v1.0 | 3/3 | Complete | 2026-02-25 |
+| 4. Packaging | v1.0 | 3/3 | Complete | 2026-02-25 |
+| 5. Documentation | v1.0 | 3/3 | Complete | 2026-02-25 |
+| 6. Categories | v1.1 | 2/2 | Complete | 2026-02-26 |
+| 7. Setup Script | v1.1 | 4/4 | Complete | 2026-02-27 |
+| 8. EventSource | v1.1 | 3/3 | Complete | 2026-02-27 |
+| 9. Tech Debt | v1.1 | 2/2 | Complete | 2026-02-28 |
+| 9.1 Config.yaml | v1.1 | 5/5 | Complete | 2026-03-01 |
+| 9.1.1 Helm Chart | v1.1 | 2/2 | Complete | 2026-03-02 |
+| 10. Tech Debt | v1.2 | 2/2 | Complete | 2026-03-02 |
+| 11. Config Layer | v1.2 | 4/4 | Complete | 2026-03-02 |
+| 12. Label Scanning | v1.2 | 1/1 | Complete | 2026-03-03 |
+| 13. Re-triage | v1.2 | 3/3 | Complete | 2026-03-04 |
+| 14. Provenance | v1.2 | 6/6 | Complete | 2026-03-04 |
+| 15. Closeout | v1.2 | 2/2 | Complete | 2026-03-05 |

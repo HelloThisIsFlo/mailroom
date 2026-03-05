@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A background Python service that replicates HEY Mail's Screener workflow on Fastmail. Users triage unknown senders by applying a label on their phone (`@ToImbox`, `@ToFeed`, `@ToPaperTrail`, `@ToJail`, `@ToPerson`), and Mailroom automatically adds the sender to the right Fastmail contact group, sweeps all their emails out of the Screener, and ensures future emails are routed correctly by existing Fastmail rules. Supports both company and person contact types. Triage categories are fully configurable via YAML, with an idempotent setup CLI that provisions Fastmail resources. Push notifications via JMAP EventSource deliver sub-10-second triage latency with polling fallback. Deployed as a Helm chart on Kubernetes. Built for one user migrating from HEY to Fastmail.
+A background Python service that replicates HEY Mail's Screener workflow on Fastmail. Users triage unknown senders by applying a label on their phone, and Mailroom automatically adds the sender to the right Fastmail contact group, sweeps all their emails to the correct destination, and ensures future emails are auto-routed by existing Fastmail sieve rules. Supports parent-child category hierarchies with additive label propagation, re-triage for moving senders between groups, contact provenance tracking for clean reset, and batched label scanning beyond the Screener mailbox. Categories are fully configurable via YAML, with an idempotent setup CLI and a provenance-aware reset CLI. Push notifications via JMAP EventSource deliver sub-10-second triage latency with polling fallback. Deployed as a Helm chart on Kubernetes. Built for one user migrating from HEY to Fastmail.
 
 ## Core Value
 
@@ -25,8 +25,8 @@ One label tap on a phone triages an entire sender — all their backlogged email
 - ✓ ConfigMap-driven configuration (polling interval, label names, contact group names) — v1.0
 - ✓ Secrets managed via Kubernetes Secret (API token, CardDAV password) — v1.0
 - ✓ Person/company contact types via @ToPerson label — v1.0 (bonus)
-- ✓ Sender display name preservation when creating contacts — v1.0 (bonus, originally v2)
-- ✓ Health/liveness probe for k8s restart on hang — v1.0 (bonus, originally v2)
+- ✓ Sender display name preservation when creating contacts — v1.0 (bonus)
+- ✓ Health/liveness probe for k8s restart on hang — v1.0 (bonus)
 - ✓ Triage categories configurable via structured YAML config with zero-config defaults — v1.1
 - ✓ All derived properties (labels, groups, mailboxes) computed from category mapping — v1.1
 - ✓ Startup validation rejects invalid category configurations — v1.1
@@ -36,26 +36,30 @@ One label tap on a phone triages an entire sender — all their backlogged email
 - ✓ Auto-reconnect with exponential backoff on SSE disconnect — v1.1
 - ✓ Polling fallback when SSE unavailable — v1.1
 - ✓ Health endpoint reports EventSource status and thread liveness — v1.1
-- ✓ Config.yaml replaces env vars for non-secret settings — v1.1 (inserted)
-- ✓ Helm chart deployment with secrets-values.yaml pattern — v1.1 (inserted)
+- ✓ Config.yaml replaces env vars for non-secret settings — v1.1
+- ✓ Helm chart deployment with secrets-values.yaml pattern — v1.1
+- ✓ Independent `add_to_inbox` flag per category (does not inherit through parent chain) — v1.2
+- ✓ `destination_mailbox: Inbox` rejected with clear error pointing to `add_to_inbox` — v1.2
+- ✓ Child categories resolve as fully independent (own label, contact group, destination mailbox) — v1.2
+- ✓ Parent relationship applies additive label chain (not field inheritance) — v1.2
+- ✓ Circular parent references detected and rejected at startup — v1.2
+- ✓ Triage labels discovered via batched label mailbox queries (not limited to Screener) — v1.2
+- ✓ All label mailbox queries in single JMAP HTTP round-trip — v1.2
+- ✓ Per-method errors in batched JMAP responses detected and handled — v1.2
+- ✓ Re-triage moves sender to new contact group with email re-filing — v1.2
+- ✓ Contact note captures triage history with dates — v1.2
+- ✓ Re-triage logged as `group_reassigned` structured event — v1.2
+- ✓ `add_to_inbox` only adds Inbox at initial triage from Screener (not on re-triage) — v1.2
+- ✓ Config `mailroom:` section with provenance_group, label_error, label_warning — v1.2
+- ✓ Provenance contact group tracks created vs. adopted contacts — v1.2
+- ✓ `@MailroomWarning` cleaned on every successful triage, reapplied if condition persists — v1.2
+- ✓ Provenance-aware reset: delete created, warn modified, strip adopted contacts — v1.2
+- ✓ Reset follows 7-step operation order with confirmation prompt — v1.2
+- ✓ Human integration test validates re-triage workflow end-to-end — v1.2
 
 ### Active
 
-## Current Milestone: v1.2 Triage Pipeline v2
-
-**Goal:** Evolve the triage pipeline — independent config axes (inbox flag, additive parent labels), label-based scanning beyond Screener, and re-triage support for moving senders between groups.
-
-**Target features:**
-- Separate `add_to_inbox` flag from `destination_mailbox` in category config
-- Change parent inheritance to additive label propagation (child = independent category + parent's labels)
-- Scan for triage labels via label mailbox queries (not limited to Screener)
-- Re-triage: move sender between contact groups, re-file emails, `@MailroomWarning`
-- JMAP batched queries for scanning multiple label mailboxes in one round-trip
-- v1.1 tech debt cleanup (4 carry-forward items)
-
-**Open questions (resolve during phase planning):**
-- Should `add_to_inbox` inherit through parent chain?
-- Scan scope: all label mailboxes or configurable subset?
+(None — planning next milestone)
 
 ### Future Milestones
 
@@ -72,22 +76,22 @@ One label tap on a phone triages an entire sender — all their backlogged email
 - Multi-account support — single user; deploy separate instances if needed
 - CI/CD pipeline — manual build-and-push is sufficient for a personal tool
 - `List-Unsubscribe` header auto-classification — future idea, complexity not justified yet
-- Pluggable workflow engine — v1 code is cleanly separated; plugin system is premature
+- Pluggable workflow engine — code is cleanly separated; plugin system is premature
 - noreply address cleanup — known gotcha, can be addressed later
-- IMAP IDLE — over-engineering; EventSource is the correct JMAP push mechanism
 - Async runtime (asyncio) — synchronous-by-design; single-user service gains nothing from async
-- Backward compatibility with v1.0 flat env vars — clean break, no established user base
+- Backward compatibility with pre-v1.2 config formats — clean break, no established user base
 - Sieve rule creation via API — Fastmail has no API for filter rules
-- Nested mailbox hierarchy — flat namespace sufficient
+- `add_to_inbox` inheritance through parent chain — explicit per-category is clearer
+- Retroactive provenance migration — provenance tracking starts from v1.2 forward
 
 ## Context
 
-Shipped v1.1 with 12,572 LOC Python across 46 files.
+Shipped v1.2 with 15,765 LOC Python.
 Tech stack: Python, JMAP (httpx), CardDAV (httpx + vobject), pydantic-settings + YAML, structlog, Click CLI, Docker, Helm/Kubernetes.
-278 unit tests + 16 human integration tests against live Fastmail.
+407 unit tests + 18 human integration tests against live Fastmail.
 Deployed as a Helm chart on home Kubernetes cluster with JMAP EventSource push (sub-10s triage).
-Two inserted phases (9.1 config.yaml, 9.1.1 Helm chart) added during milestone for deployment improvements.
-Pre-v1.2 research: JMAP labels are mailboxes — scanning for triage labels by querying label mailbox IDs directly (batched) is fast and eliminates Screener-only limitation.
+v1.2 added parent-child category hierarchies, batched label scanning, re-triage with group reassignment, contact provenance tracking, and provenance-aware reset.
+Documentation finalized: workflow.md, config.md, architecture.md with mermaid diagrams.
 
 ## Key Decisions
 
@@ -98,18 +102,23 @@ Pre-v1.2 research: JMAP labels are mailboxes — scanning for triage labels by q
 | Retry on failure (leave triage label) | Safer than silently dropping; next poll retries | ✓ Good — zero lost triages in testing |
 | Re-add Inbox label on Imbox sweep | Swept emails should appear in Inbox immediately | ✓ Good — emails appear immediately after triage |
 | Structured JSON logs | Running headless on k8s, need queryable logs | ✓ Good — structlog JSON mode works well |
-| Clean module separation (not plugin system) | Extensibility prep without over-engineering v1 | ✓ Good — JMAPClient, CardDAVClient, ScreenerWorkflow are clean boundaries |
+| Clean module separation (not plugin system) | Extensibility prep without over-engineering | ✓ Good — JMAPClient, CardDAVClient, ScreenerWorkflow are clean boundaries |
 | ghcr.io for container registry | Free, works with GitHub repos, no extra infra | ✓ Good — GitHub Actions CI pushes automatically |
-| CardDAV as validation gate (Phase 2) | KIND:group model from training data, unverified | ✓ Good — live validation prevented building on assumptions |
 | Company-default contacts with @ToPerson override | Most senders are companies; person-type is opt-in | ✓ Good — clean separation, users choose explicitly |
 | Batch chunking at 100 emails per JMAP call | Conservative under 500 minimum maxObjectsInSet | ✓ Good — no batch size errors observed |
 | Two-pass category resolution | Handle any parent/child declaration order | ✓ Good — no ordering constraints on user config |
 | Guidance-only sieve module | No Fastmail API for filter rules | ✓ Good — outputs instructions for all categories |
 | SSE via httpx streaming | Consistency with existing JMAP client | ✓ Good — shared session, single HTTP library |
 | Drain-wait-drain debounce pattern | Collapse rapid SSE events into one poll | ✓ Good — prevents thundering herd on state changes |
-| Queue sentinel for shutdown | `put(None)` in signal handler for instant wakeup | ✓ Good — graceful shutdown < 1s |
 | Config.yaml over env vars | Nested config, name-only shorthand, cleaner K8s | ✓ Good — auth stays as env vars for secrets |
 | Helm chart over plain manifests | Templated values, secrets-values.yaml pattern | ✓ Good — simplified deployment and config management |
+| Additive parent labels (not field inheritance) | Children are independent categories; parent adds labels only | ✓ Good — clean model, no confusing overrides — v1.2 |
+| `add_to_inbox` explicit per-category | Inheritance would be confusing; only labels propagate | ✓ Good — clear intent per category — v1.2 |
+| Batched JMAP queries for label scanning | Single HTTP round-trip for all label mailboxes | ✓ Good — efficient scanning regardless of category count — v1.2 |
+| Add-to-new-first group reassignment | Safe partial-failure order for contact group moves | ✓ Good — sender never orphaned from all groups — v1.2 |
+| Provenance group as infrastructure | Invisible to triage pipeline, excluded from check_membership | ✓ Good — clean separation of concerns — v1.2 |
+| 7-step reset operation order | Deterministic, testable, documented ordering | ✓ Good — each step has clear pre/post conditions — v1.2 |
+| `labels:` → `mailroom:` config rename | Broader scope than just labels (provenance, warnings) | ✓ Good — no backward compat needed for personal tool — v1.2 |
 
 ## Constraints
 
@@ -120,4 +129,4 @@ Pre-v1.2 research: JMAP labels are mailboxes — scanning for triage labels by q
 - **Architecture**: Clean separation of concerns — Screener logic in its own module, clear interfaces
 
 ---
-*Last updated: 2026-03-02 after v1.2 milestone start*
+*Last updated: 2026-03-05 after v1.2 milestone*

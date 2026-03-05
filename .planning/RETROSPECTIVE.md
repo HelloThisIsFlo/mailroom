@@ -80,6 +80,51 @@
 
 ---
 
+## Milestone: v1.2 — Triage Pipeline v2
+
+**Shipped:** 2026-03-05
+**Phases:** 6 (2 added for provenance + closeout) | **Plans:** 18 | **Timeline:** 3 days | **Commits:** 150
+
+### What Was Built
+- Independent config axes — `add_to_inbox` flag, 7 default categories, additive parent chain filing
+- Batched label scanning — single JMAP round-trip for all label mailbox queries
+- Re-triage pipeline — group reassignment, email label reconciliation, triage history
+- Contact provenance tracking — created/adopted distinction, provenance-aware reset with 3-way classification
+- Documentation finalization — workflow.md, config.md, architecture.md with mermaid diagrams
+
+### What Worked
+- Phase discussion (`/gsd:discuss-phase`) before Phase 11 — resolved major design questions (parent inheritance, add_to_inbox semantics) before any code was written
+- Milestone audit caught 6 tech debt items + 1 orphaned requirement — Phase 15 closed all gaps cleanly
+- TDD pattern continued strong — 407 tests, zero failures, zero cross-contamination after structlog fix
+- Gap closure phases (14-04, 14-05, 14-06, 15) were fast and surgical — avg 4min/plan
+- Execution velocity: 18 plans in 93 minutes total (~5 min/plan average)
+
+### What Was Inefficient
+- Phase 14 needed 3 gap closure plans (14-04, 14-05, 14-06) discovered during UAT — could have been caught earlier with more thorough plan review
+- SUMMARY.md one-liner field still null for all files — CLI couldn't auto-extract accomplishments at milestone completion
+- `docs/WIP.md` lingered through Phases 11-14 without being finalized — should have been addressed in the phase where decisions stabilized
+
+### Patterns Established
+- Additive parent labels — children are independent categories, parents add their labels on top
+- Add-to-new-first group reassignment — safe partial-failure order for contact moves
+- 7-step reset operation order — deterministic, testable, documented
+- Provenance tracking — created vs. adopted contacts enables safe cleanup
+- Warning cleanup-then-reapply — remove @MailroomWarning before processing, reapply if condition persists
+
+### Key Lessons
+1. Phase discussions before planning prevent expensive mid-phase design pivots — the v1.2 config design was settled before Phase 11 code began
+2. Milestone audits are invaluable — `gaps_found` → gap closure phase → `passed` is a reliable quality gate
+3. Gap closure plans are fast when the codebase is well-tested — fix is surgical, tests verify immediately
+4. Documentation should be finalized in the phase where the feature stabilizes, not deferred to milestone end
+5. `add_to_inbox` as explicit-only (no inheritance) was the right call — inheritance would have created confusing cascading behavior
+
+### Cost Observations
+- Model mix: opus for planning/execution, sonnet for research, haiku for simple tasks
+- Sessions: ~10 across 3 days
+- Notable: 93 minutes total execution time for 18 plans — fastest milestone per plan
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -88,6 +133,7 @@
 |-----------|----------|--------|-------|------------|
 | v1.0 | 3 days | 6 | 18 | Established TDD + human test pattern |
 | v1.1 | 5 days | 6 | 18 | Added quick tasks, inserted phases for urgent work |
+| v1.2 | 3 days | 6 | 18 | Milestone audit → gap closure loop, phase discussions |
 
 ### Cumulative Quality
 
@@ -95,9 +141,20 @@
 |-----------|-----------|-------------|-----|-------|
 | v1.0 | 180 | 13 | 8,666 | 122 |
 | v1.1 | 278 | 16 | 12,572 | 46 |
+| v1.2 | 407 | 18 | 15,765 | 228 |
+
+### Execution Velocity
+
+| Milestone | Total Exec Time | Avg per Plan | Plans |
+|-----------|-----------------|-------------|-------|
+| v1.0 | — | — | 18 |
+| v1.1 | — | — | 18 |
+| v1.2 | 93 min | 5 min | 18 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Human integration tests against live APIs are essential — caught issues in both milestones that unit tests missed
+1. Human integration tests against live APIs are essential — caught issues in all three milestones that unit tests missed
 2. Inserted phases (decimal numbering) are a reliable pattern for scope additions mid-milestone
-3. Validate external API behavior early (CardDAV in v1.0, EventSource in v1.1) before building abstractions
+3. Validate external API behavior early (CardDAV in v1.0, EventSource in v1.1, JMAP batch in v1.2) before building abstractions
+4. Milestone audits before completion catch accumulated tech debt and orphaned requirements (v1.1, v1.2)
+5. Phase discussions resolve design questions before code — prevents expensive mid-phase pivots (v1.2)

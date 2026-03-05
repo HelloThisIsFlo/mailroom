@@ -1,5 +1,31 @@
 # Milestones
 
+## v1.2 Triage Pipeline v2 (Shipped: 2026-03-05)
+
+**Delivered:** Evolved triage pipeline with independent config axes, batched label scanning beyond Screener, re-triage support for moving senders between groups, contact provenance tracking for clean reset, and full documentation.
+
+**Stats:** 6 phases, 18 plans | 15,765 LOC Python | 407 tests + 18 human integration tests | 228 files changed | 3 days | 150 commits
+
+**Git range:** Phase 10 → Phase 15 | Tag: `v1.2`
+
+**Key accomplishments:**
+- Resolved v1.1 tech debt — public resolved_categories API, Docker test fix, conftest cleanup
+- Independent config axes — add_to_inbox flag, 7 default categories, additive parent chain filing
+- Batched label scanning — single JMAP round-trip for all label mailbox queries with escalating error handling
+- Full re-triage pipeline — group reassignment via chain diff, email label reconciliation, human integration test against live Fastmail
+- Contact provenance tracking — created/adopted distinction, provenance-aware reset with 3-way classification (delete/warn/strip) and confirmation gate
+- Documentation finalization — workflow.md, config.md, architecture.md with mermaid diagrams
+
+**Inserted phases (beyond original scope):**
+- Phase 14: Contact provenance tracking for clean reset (added during v1.2)
+- Phase 15: Milestone closeout and cleanup (gap closure from audit)
+
+**Tech debt:** None — all items from v1.1 carry-forward resolved in Phase 10, all audit gaps closed by Phase 15.
+
+**Archives:** `milestones/v1.2-ROADMAP.md`, `milestones/v1.2-REQUIREMENTS.md`, `milestones/v1.2-MILESTONE-AUDIT.md`
+
+---
+
 ## v1.1 Push & Config (Shipped: 2026-03-02)
 
 **Delivered:** Configurable triage categories, automated Fastmail setup, sub-10-second push notifications via JMAP EventSource, config.yaml migration, and Helm chart deployment.
