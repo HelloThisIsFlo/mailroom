@@ -54,7 +54,7 @@ kubectl apply -f k8s/secret.yaml
 kubectl apply -f k8s/configmap.yaml
 ```
 
-The ConfigMap contains all non-secret configuration (poll interval, label names, contact group names). See [config.md](config.md) for a full reference of every environment variable.
+The ConfigMap contains all non-secret configuration (poll interval, label names, contact group names). See [config.md](config.md) for the full configuration reference.
 
 ### 6. Deploy
 
