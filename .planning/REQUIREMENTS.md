@@ -37,7 +37,7 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 - [x] **RTRI-01**: Applying a triage label to an already-grouped sender moves them to the new contact group
 - [x] **RTRI-02**: Re-triaged sender's emails re-filed by fetching ALL emails from the contact (any mailbox, not just Screener) and applying the new additive mailbox labels (child + parent chain)
 - [x] **RTRI-03**: Re-triage logged as `group_reassigned` structured event with old and new group names
-- [x] **RTRI-04**: Contact note captures triage history — "Added to [group] on [date]" and "Moved from [old] to [new] on [date]"
+- [x] **RTRI-04**: Contact note captures triage history — "Triaged to [group] on [date]" and "Re-triaged to [group] on [date]"
 - [x] **RTRI-05**: Human integration test validates re-triage workflow end-to-end
 - [x] **RTRI-06**: `add_to_inbox` only adds Inbox label to emails that were in Screener at triage time — re-triage does NOT add Inbox to existing emails (they are not new)
 

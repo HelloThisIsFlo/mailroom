@@ -458,27 +458,6 @@ class ScreenerWorkflow:
         for email_id in email_ids:
             self._jmap.remove_label(email_id, label_id)
 
-    def _get_destination_mailbox_ids(self, label_name: str) -> list[str]:
-        """Return mailbox IDs for additive filing (child + all ancestors).
-
-        Walks the parent chain and collects destination mailbox IDs.
-        If the triaged category (NOT ancestors) has add_to_inbox=True,
-        Inbox is also added.
-        """
-        category = self._settings.label_to_category_mapping[label_name]
-        resolved_map = {c.name: c for c in self._settings.resolved_categories}
-        chain = get_parent_chain(category.name, resolved_map)
-
-        ids = [self._mailbox_ids[c.destination_mailbox] for c in chain]
-
-        # add_to_inbox: per-category only (never inherited), Screener-only
-        if category.add_to_inbox:
-            inbox_id = self._mailbox_ids["Inbox"]
-            if inbox_id not in ids:
-                ids.append(inbox_id)
-
-        return ids
-
     def _detect_retriage(
         self,
         sender: str,

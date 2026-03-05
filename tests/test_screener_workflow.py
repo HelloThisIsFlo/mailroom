@@ -429,50 +429,6 @@ class TestCollectTriagedFilterErrorLabel:
 # =============================================================================
 
 
-class TestGetDestinationMailboxIds:
-    """_get_destination_mailbox_ids maps triage labels to correct mailbox IDs (additive chain)."""
-
-    def test_imbox_maps_to_imbox_plus_inbox(self, workflow):
-        """@ToImbox -> [mb-imbox, mb-inbox]: Imbox mailbox + Inbox (add_to_inbox=True)."""
-        result = workflow._get_destination_mailbox_ids("@ToImbox")
-        assert result == ["mb-imbox", "mb-inbox"]
-
-    def test_feed_maps_to_feed(self, workflow):
-        """@ToFeed -> [feed_id]: root, no parent, no add_to_inbox."""
-        result = workflow._get_destination_mailbox_ids("@ToFeed")
-        assert result == ["mb-feed"]
-
-    def test_paper_trail_maps_to_paper_trail(self, workflow):
-        """@ToPaperTrail -> [paper_trail_id]: root, no parent, no add_to_inbox."""
-        result = workflow._get_destination_mailbox_ids("@ToPaperTrail")
-        assert result == ["mb-papertrl"]
-
-    def test_jail_maps_to_jail(self, workflow):
-        """@ToJail -> [jail_id]: root, no parent, no add_to_inbox."""
-        result = workflow._get_destination_mailbox_ids("@ToJail")
-        assert result == ["mb-jail"]
-
-    def test_person_maps_to_person_plus_imbox(self, workflow):
-        """@ToPerson -> [mb-person, mb-imbox]: child + parent (additive chain)."""
-        result = workflow._get_destination_mailbox_ids("@ToPerson")
-        assert result == ["mb-person", "mb-imbox"]
-
-    def test_billboard_maps_to_billboard_plus_paper_trail(self, workflow):
-        """@ToBillboard -> [mb-billboard, mb-papertrl]: child + parent (additive chain)."""
-        result = workflow._get_destination_mailbox_ids("@ToBillboard")
-        assert result == ["mb-billboard", "mb-papertrl"]
-
-    def test_truck_maps_to_truck_plus_paper_trail(self, workflow):
-        """@ToTruck -> [mb-truck, mb-papertrl]: child + parent (additive chain)."""
-        result = workflow._get_destination_mailbox_ids("@ToTruck")
-        assert result == ["mb-truck", "mb-papertrl"]
-
-    def test_person_does_not_include_inbox(self, workflow):
-        """@ToPerson does NOT include Inbox -- add_to_inbox does NOT propagate from Imbox."""
-        result = workflow._get_destination_mailbox_ids("@ToPerson")
-        assert "mb-inbox" not in result
-
-
 class TestProcessSenderNewContact:
     """New sender triaged to @ToImbox: full pipeline with contact creation."""
 
@@ -994,7 +950,7 @@ class TestCardDAVFailureDuringUpsert:
             workflow._process_sender(
                 "alice@example.com", [("email-1", "@ToImbox")]
             )
-        jmap.batch_move_emails.assert_not_called()
+        jmap.call.assert_not_called()
 
 
 class TestJMAPFailureDuringReconciliation:
@@ -1740,15 +1696,6 @@ class TestWarningAppliedToTriggeringEmailsOnly:
         assert warned_ids == {"email-1", "email-2"}
 
 
-class TestToPersonDestinationMailbox:
-    """@ToPerson maps to Person + Imbox mailboxes (additive chain)."""
-
-    def test_toperson_maps_to_person_plus_imbox(self, workflow):
-        """@ToPerson -> [mb-person, mb-imbox]: child + parent (additive chain)."""
-        result = workflow._get_destination_mailbox_ids("@ToPerson")
-        assert result == ["mb-person", "mb-imbox"]
-
-
 # =============================================================================
 # Plan 11-02: Additive parent chain tests
 # =============================================================================
@@ -1854,56 +1801,6 @@ class TestAdditiveContactGroups:
         )
         carddav.upsert_contact.assert_called_once()
         carddav.add_to_group.assert_not_called()
-
-
-class TestAddToInboxNotInherited:
-    """Person triage does NOT add Inbox even though Imbox has add_to_inbox=True."""
-
-    def test_person_no_inbox(self, workflow):
-        """Person destination list does NOT include Inbox (add_to_inbox not inherited)."""
-        result = workflow._get_destination_mailbox_ids("@ToPerson")
-        assert "mb-inbox" not in result
-        assert result == ["mb-person", "mb-imbox"]
-
-    def test_billboard_no_inbox(self, workflow):
-        """Billboard destination list does NOT include Inbox (Paper Trail has no add_to_inbox)."""
-        result = workflow._get_destination_mailbox_ids("@ToBillboard")
-        assert "mb-inbox" not in result
-        assert result == ["mb-billboard", "mb-papertrl"]
-
-    def test_truck_no_inbox(self, workflow):
-        """Truck destination list does NOT include Inbox (Paper Trail has no add_to_inbox)."""
-        result = workflow._get_destination_mailbox_ids("@ToTruck")
-        assert "mb-inbox" not in result
-        assert result == ["mb-truck", "mb-papertrl"]
-
-
-class TestRootCategoryAddToInbox:
-    """Imbox triage adds Inbox via add_to_inbox flag."""
-
-    def test_imbox_adds_inbox(self, workflow):
-        """Imbox destination includes Inbox because add_to_inbox=True."""
-        result = workflow._get_destination_mailbox_ids("@ToImbox")
-        assert "mb-inbox" in result
-        assert result == ["mb-imbox", "mb-inbox"]
-
-    def test_feed_no_inbox(self, workflow):
-        """Feed destination does NOT include Inbox (add_to_inbox=False)."""
-        result = workflow._get_destination_mailbox_ids("@ToFeed")
-        assert "mb-inbox" not in result
-        assert result == ["mb-feed"]
-
-    def test_paper_trail_no_inbox(self, workflow):
-        """Paper Trail destination does NOT include Inbox (add_to_inbox=False)."""
-        result = workflow._get_destination_mailbox_ids("@ToPaperTrail")
-        assert "mb-inbox" not in result
-        assert result == ["mb-papertrl"]
-
-    def test_jail_no_inbox(self, workflow):
-        """Jail destination does NOT include Inbox (add_to_inbox=False)."""
-        result = workflow._get_destination_mailbox_ids("@ToJail")
-        assert "mb-inbox" not in result
-        assert result == ["mb-jail"]
 
 
 # =============================================================================
@@ -2205,7 +2102,7 @@ class TestInitialTriageUsesReconciliation:
         jmap.query_emails_by_sender.assert_any_call("new@example.com")
 
     def test_initial_triage_reconciles_via_email_set(self, workflow, jmap):
-        """New sender reconciles via Email/set patches (not batch_move_emails)."""
+        """New sender reconciles via inline Email/set patches."""
         workflow._process_sender(
             "new@example.com",
             [("email-1", "@ToImbox")],
