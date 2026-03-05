@@ -147,7 +147,7 @@ Plans:
 - [x] 14-03-PLAN.md — Provenance-aware reset with DELETE, user-modified detection, 7-step operation order
 - [x] 14-04-PLAN.md — Gap closure: fix JMAP label removal (move-to-Screener) and stale ETag on contact deletion
 - [x] 14-05-PLAN.md — Gap closure: config error simplification, reset UX banners/progress, REV field test coverage
-- [ ] 14-06-PLAN.md — Gap closure: reset --apply confirmation prompt before destructive operations
+- [x] 14-06-PLAN.md — Gap closure: reset --apply confirmation prompt before destructive operations
 
 ### Phase 15: Milestone Closeout & Cleanup
 
@@ -161,4 +161,8 @@ Plans:
   3. `TestRunResetConfirmation._run_reset_with_mocks()` mocks `configure_logging` — no structlog cross-contamination in full test suite
   4. Dead code removed: `_get_destination_mailbox_ids()` (screener.py) and `batch_move_emails()` (jmap.py) and their tests
   5. RTRI-05 checkbox updated to `[x] Complete`; RTRI-04 wording aligned between REQUIREMENTS.md and code
-**Plans**: 0 plans (pending)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — Code/test fixes: infrastructure_groups consistency, structlog mock, dead code removal, REQUIREMENTS.md updates
+- [ ] 15-02-PLAN.md — Documentation finalization: workflow.md, config.md rewrite, architecture.md update, WIP.md removal
