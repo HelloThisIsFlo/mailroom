@@ -910,6 +910,8 @@ class TestRunResetConfirmation:
         import mailroom.reset.resetter as resetter_mod
         import mailroom.reset.reporting as reporting_mod
 
+        monkeypatch.setattr(resetter_mod, "configure_logging", lambda level: None)
+
         call_order = []
         fake_plan = ResetPlan(
             email_labels={}, group_members={},

@@ -444,7 +444,10 @@ def run_reset(apply: bool = False) -> int:
         return 1
 
     # Validate groups + provenance group (needed for group operations)
-    carddav.validate_groups(settings.contact_groups + [settings.mailroom.provenance_group])
+    carddav.validate_groups(
+        settings.contact_groups + [settings.mailroom.provenance_group],
+        infrastructure_groups=[settings.mailroom.provenance_group],
+    )
 
     # Show mode banner before any scanning output
     print_mode_banner(apply)
