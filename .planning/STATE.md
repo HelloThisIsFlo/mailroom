@@ -109,7 +109,6 @@ Recent decisions for v1.2:
 
 ### Pending Todos
 
-5. Sweep workflow: re-label archived emails by contact group membership (area: general) -- far-future idea
 7. Migrate to JMAP Contacts API and add programmatic sieve rules (area: api) -- future milestone
 12. Deploy Grafana + Loki observability stack (area: deployment) -- deferred to v1.3
 
