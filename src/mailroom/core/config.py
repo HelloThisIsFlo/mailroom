@@ -272,7 +272,7 @@ class PollingSettings(BaseModel):
     """Polling and debounce configuration."""
 
     interval: int = 60
-    debounce_seconds: int = 3
+    debounce_seconds: int = 1  # enough to coalesce multi-event SSE bursts
 
 
 class TriageSettings(BaseModel):

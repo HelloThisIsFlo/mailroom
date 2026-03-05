@@ -11,7 +11,7 @@
 # SSE push is the primary trigger; polling is the safety net.
 polling:
   interval: 60            # Seconds between fallback polls (default: 60)
-  debounce_seconds: 3     # SSE event debounce window in seconds (default: 3)
+  debounce_seconds: 1     # SSE event debounce window (default: 1, sufficient for real-world use)
 
 # --- Triage Categories ---
 # Each category derives:

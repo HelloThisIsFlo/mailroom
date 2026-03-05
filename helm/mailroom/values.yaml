@@ -25,7 +25,7 @@ setup:
 config:
   polling:
     interval: 60
-    debounce_seconds: 5
+    debounce_seconds: 1  # enough to coalesce multi-event SSE bursts
   triage:
     screener_mailbox: Screener
     categories:

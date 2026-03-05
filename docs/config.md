@@ -126,13 +126,13 @@ The `polling:` section controls the fallback poll interval and SSE debounce wind
 ```yaml
 polling:
   interval: 60
-  debounce_seconds: 3
+  debounce_seconds: 1
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `interval` | `int` | `60` | Seconds between fallback poll cycles. SSE push is the primary trigger; polling is the safety net. |
-| `debounce_seconds` | `int` | `3` | SSE event debounce window in seconds. Multiple rapid events are collapsed into a single poll. |
+| `debounce_seconds` | `int` | `1` | SSE event debounce window in seconds. Coalesces the burst of SSE events that a single user action fires (Email + Mailbox state changes). 1 second is sufficient — events that arrive while `poll()` is running queue safely and trigger the next cycle automatically, so longer windows just add latency without improving correctness. |
 
 ---
 
@@ -169,7 +169,7 @@ This is the complete `config.yaml.example` shipped with the project:
 # SSE push is the primary trigger; polling is the safety net.
 polling:
   interval: 60            # Seconds between fallback polls (default: 60)
-  debounce_seconds: 3     # SSE event debounce window in seconds (default: 3)
+  debounce_seconds: 1     # SSE event debounce window (default: 1, sufficient for real-world use)
 
 # --- Triage Categories ---
 # Each category derives:
