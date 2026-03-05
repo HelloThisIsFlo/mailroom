@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Triage Pipeline v2
 status: completed
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-05T00:06:19.301Z"
-last_activity: "2026-03-04 - Completed 14-06: Reset --apply confirmation prompt"
+stopped_at: "Completed 15-02: Documentation finalization"
+last_updated: "2026-03-05T00:32:53Z"
+last_activity: "2026-03-05 - Completed 15-02: Documentation finalization (WIP.md -> workflow.md, config.md, architecture.md)"
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 18
   percent: 100
 ---
 
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** One label tap on a phone triages an entire sender -- all their backlogged emails move to the right place, and all future emails are auto-routed.
-**Current focus:** Phase 14 - Contact provenance tracking for clean reset
+**Current focus:** v1.2 Milestone Complete
 
 ## Current Position
 
-Phase: 14 (Contact Provenance Tracking) -- fifth of 5 phases
-Plan: 6 of 6 (all gap closure plans complete)
+Phase: 15 (Milestone Closeout & Cleanup) -- sixth of 6 phases
+Plan: 2 of 2 (all plans complete)
 Status: All Plans Complete
-Last activity: 2026-03-04 - Completed 14-06: Reset --apply confirmation prompt
+Last activity: 2026-03-05 - Completed 15-02: Documentation finalization
 
-Progress: [██████████] 100% (6 plans complete in Phase 14, including gap closure)
+Progress: [██████████] 100% (2 of 2 plans complete in Phase 15)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15 (v1.2)
-- Average duration: 6min
-- Total execution time: 86min
+- Total plans completed: 18 (v1.2)
+- Average duration: 5min
+- Total execution time: 93min
 
 **By Phase:**
 
@@ -48,13 +48,11 @@ Progress: [██████████] 100% (6 plans complete in Phase 14, i
 | 12-label-scanning | 1 | 8min | 8min |
 | 13-re-triage | 3 | 21min | 7min |
 | 14-contact-provenance | 5 | 32min | 6min |
+| 15-milestone-closeout | 2 | 7min | 4min |
 
 *Updated after each plan completion*
-| Phase 14 P02 | 11min | 2 tasks | 5 files |
-| Phase 14 P03 | 7min | 2 tasks | 7 files |
-| Phase 14 P04 | 4min | 2 tasks | 2 files |
-| Phase 14 P05 | 3min | 2 tasks | 6 files |
-| Phase 14 P06 | 4min | 1 task | 3 files |
+| Phase 15 P01 | 3min | 2 tasks | 7 files |
+| Phase 15 P02 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -106,6 +104,11 @@ Recent decisions for v1.2:
 - [Phase 14]: REV field exclusion from MAILROOM_MANAGED_FIELDS documented as relied-upon Fastmail behavior
 - [14-06]: Reset --apply confirmation default [y/N] declines on Enter (safe default for destructive ops)
 - [14-06]: Non-interactive stdin aborts with explicit message, not silent failure
+- [15-01]: Replaced batch_move_emails.assert_not_called() with jmap.call.assert_not_called() after removing dead method
+- [15-01]: Updated RTRI-04 wording to match actual code: "Triaged to" / "Re-triaged to"
+- [15-02]: Split architecture.md into two mermaid diagrams (triage flow + category hierarchy) for clarity
+- [15-02]: Did NOT update docs/index.html (marketing page, out of scope for cleanup phase)
+- [15-02]: config.md full example reproduces config.yaml.example verbatim
 
 ### Pending Todos
 
@@ -115,6 +118,7 @@ Recent decisions for v1.2:
 ### Roadmap Evolution
 
 - Phase 14 added: Contact provenance tracking for clean reset
+- Phase 15 added: Milestone closeout and cleanup
 
 ### Blockers/Concerns
 
@@ -128,6 +132,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T00:06:19.292Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-milestone-closeout-cleanup/15-CONTEXT.md
+Last session: 2026-03-05T00:32:10Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: .planning/phases/15-milestone-closeout-cleanup/15-02-PLAN.md

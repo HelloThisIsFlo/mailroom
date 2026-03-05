@@ -57,7 +57,7 @@ Requirements for Triage Pipeline v2. Each maps to roadmap phases.
 
 ### Milestone Closeout
 
-- [ ] **CLOSE-01**: `docs/WIP.md` finalized into proper documentation and integrated into `docs/` at end of milestone
+- [x] **CLOSE-01**: `docs/WIP.md` finalized into proper documentation and integrated into `docs/` at end of milestone
 
 ## Future Requirements
 
@@ -124,7 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-09 | Phase 14 | Complete |
 | PROV-10 | Phase 14 | Complete |
 | PROV-11 | Phase 14 | Complete |
-| CLOSE-01 | Phase 15 | Pending |
+| CLOSE-01 | Phase 15 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 34 total
