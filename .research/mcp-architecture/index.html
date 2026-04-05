@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mailroom MCP Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME — Blueprint: deep slate + teal ============ */
+  :root {
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'Fira Code', 'SF Mono', Consolas, monospace;
+
+    --bg: #0c1220;
+    --surface: #121a2e;
+    --surface2: #182240;
+    --surface-elevated: #1a2544;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-bright: rgba(255, 255, 255, 0.12);
+    --text: #e2e8f0;
+    --text-dim: #7a8ba8;
+
+    --teal: #14b8a6;
+    --teal-dim: rgba(20, 184, 166, 0.12);
+    --amber: #d4a73a;
+    --amber-dim: rgba(212, 167, 58, 0.12);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.12);
+    --slate: #64748b;
+    --slate-dim: rgba(100, 116, 139, 0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59, 130, 246, 0.12);
+    --rose: #f43f5e;
+    --rose-dim: rgba(244, 63, 94, 0.10);
+
+    --grid-color: rgba(59, 130, 246, 0.04);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #e8edf4;
+      --surface-elevated: #f8fafc;
+      --border: rgba(0, 0, 0, 0.08);
+      --border-bright: rgba(0, 0, 0, 0.15);
+      --text: #1e293b;
+      --text-dim: #64748b;
+
+      --teal: #0d9488;
+      --teal-dim: rgba(13, 148, 136, 0.08);
+      --amber: #b45309;
+      --amber-dim: rgba(180, 83, 9, 0.08);
+      --green: #16a34a;
+      --green-dim: rgba(22, 163, 74, 0.08);
+      --slate: #94a3b8;
+      --slate-dim: rgba(148, 163, 184, 0.1);
+      --blue: #2563eb;
+      --blue-dim: rgba(37, 99, 235, 0.08);
+      --rose: #e11d48;
+      --rose-dim: rgba(225, 29, 72, 0.08);
+
+      --grid-color: rgba(37, 99, 235, 0.04);
+    }
+  }
+
+  /* ============ RESET ============ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+      radial-gradient(ellipse at 25% 0%, var(--teal-dim) 0%, transparent 50%),
+      radial-gradient(ellipse at 75% 100%, var(--blue-dim) 0%, transparent 40%);
+    background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%;
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 40px;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ============ ANIMATION ============ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeScale {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes drawLine {
+    from { stroke-dashoffset: 200; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .anim { animation: fadeUp 0.45s ease-out both; animation-delay: calc(var(--i, 0) * 0.06s); }
+  .anim-scale { animation: fadeScale 0.4s ease-out both; animation-delay: calc(var(--i, 0) * 0.06s); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* ============ NAV ============ */
+  .wrap {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0 40px;
+  }
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    padding: 14px 0;
+    grid-row: 1 / -1;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+  }
+  .toc::-webkit-scrollbar { width: 3px; }
+  .toc::-webkit-scrollbar-thumb { background: var(--surface-elevated); border-radius: 2px; }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    padding: 0 0 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toc a {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 5px 8px;
+    border-radius: 5px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.4;
+    margin-bottom: 1px;
+  }
+  .toc a:hover { color: var(--text); background: var(--surface2); }
+  .toc a.active { color: var(--teal); border-left-color: var(--teal); }
+
+  @media (max-width: 1000px) {
+    .wrap { grid-template-columns: 1fr; padding-top: 0; }
+    body { padding: 20px; padding-top: 0; }
+    .toc {
+      position: sticky; top: 0; z-index: 200;
+      max-height: none; display: flex; gap: 4px; align-items: center;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 10px 0; margin: 0 -20px; padding-left: 20px; padding-right: 20px;
+      grid-row: auto;
+    }
+    .toc::-webkit-scrollbar { display: none; }
+    .toc-title { display: none; }
+    .toc a {
+      white-space: nowrap; flex-shrink: 0;
+      border-left: none; border-bottom: 2px solid transparent;
+      border-radius: 4px 4px 0 0; padding: 6px 10px; font-size: 10px;
+    }
+    .toc a.active { border-left: none; border-bottom-color: var(--teal); background: var(--surface); }
+    .main { padding-top: 20px; }
+    .sec-head { scroll-margin-top: 52px; }
+  }
+
+  /* ============ TYPOGRAPHY ============ */
+  h1 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    margin-bottom: 6px;
+    text-wrap: balance;
+    line-height: 1.1;
+  }
+  h1 span { color: var(--teal); }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 48px;
+    font-family: var(--font-mono);
+    font-weight: 400;
+  }
+  .subtitle a { color: var(--teal); text-decoration: none; }
+  .subtitle a:hover { text-decoration: underline; }
+
+  .sec-head {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--teal);
+    margin: 56px 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sec-head .num {
+    background: var(--teal-dim);
+    color: var(--teal);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  p.desc {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    max-width: 720px;
+  }
+
+  /* ============ CARDS ============ */
+  .ve-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .ve-card--hero {
+    background: var(--surface-elevated);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  }
+  .ve-card--recessed {
+    background: var(--surface2);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .ve-card-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ve-card-label .dot {
+    width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+  }
+
+  /* Color accents for cards */
+  .c-teal { border-left: 3px solid var(--teal); }
+  .c-teal .ve-card-label { color: var(--teal); }
+  .c-teal .ve-card-label .dot { background: var(--teal); }
+
+  .c-amber { border-left: 3px solid var(--amber); }
+  .c-amber .ve-card-label { color: var(--amber); }
+  .c-amber .ve-card-label .dot { background: var(--amber); }
+
+  .c-green { border-left: 3px solid var(--green); }
+  .c-green .ve-card-label { color: var(--green); }
+  .c-green .ve-card-label .dot { background: var(--green); }
+
+  .c-blue { border-left: 3px solid var(--blue); }
+  .c-blue .ve-card-label { color: var(--blue); }
+  .c-blue .ve-card-label .dot { background: var(--blue); }
+
+  .c-slate { border-left: 3px solid var(--slate); }
+  .c-slate .ve-card-label { color: var(--slate); }
+  .c-slate .ve-card-label .dot { background: var(--slate); }
+
+  .c-rose { border-left: 3px solid var(--rose); }
+  .c-rose .ve-card-label { color: var(--rose); }
+  .c-rose .ve-card-label .dot { background: var(--rose); }
+
+  /* ============ LAYOUT HELPERS ============ */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--teal-dim);
+    color: var(--teal);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* ============ SECTION 1: TWO FRONT DOORS ============ */
+  .arch-diagram {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 768px) {
+    .arch-diagram { grid-template-columns: 1fr; }
+  }
+
+  .door-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+  }
+  .door-card:hover {
+    border-color: var(--border-bright);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .door-icon {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 24px;
+  }
+
+  .door-card h4 {
+    font-size: 18px; font-weight: 700; margin-bottom: 8px;
+  }
+
+  .door-card .tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .door-card .detail {
+    font-size: 13px; color: var(--text-dim); line-height: 1.6;
+  }
+  .door-card .detail strong { color: var(--text); font-weight: 500; }
+
+  .door--existing .door-icon { background: var(--blue-dim); }
+  .door--existing h4 { color: var(--blue); }
+  .door--existing .tag { background: var(--blue-dim); color: var(--blue); }
+
+  .door--new .door-icon { background: var(--teal-dim); }
+  .door--new h4 { color: var(--teal); }
+  .door--new .tag { background: var(--teal-dim); color: var(--teal); }
+
+  .foundation-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+    text-align: center;
+    position: relative;
+  }
+  .foundation-bar .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--amber);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+  }
+  .foundation-pills {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  }
+  .foundation-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+  }
+
+  .flow-connector {
+    display: flex; justify-content: center; gap: 40px; padding: 8px 0;
+    color: var(--text-dim);
+  }
+  .flow-connector svg {
+    width: 24px; height: 24px;
+    stroke: var(--border-bright); fill: none;
+    stroke-width: 2; stroke-linecap: round;
+  }
+
+  /* ============ SECTION 2: COMPARISON TABLE ============ */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .compare-table th {
+    background: var(--surface2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 12px 16px;
+    text-align: left;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table th:first-child { width: 160px; }
+  .compare-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:nth-child(even) td { background: var(--surface); }
+  .compare-table tr:nth-child(odd) td { background: var(--surface-elevated); }
+  .compare-table .col-poll { color: var(--blue); font-weight: 500; }
+  .compare-table .col-mcp { color: var(--teal); font-weight: 500; }
+
+  /* ============ SECTION 3: PACKAGE TREE ============ */
+  .tree {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.9;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+  }
+  .tree .item {
+    position: relative;
+    padding-left: 20px;
+  }
+  .tree .item::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    width: 12px;
+    height: 0;
+    border-top: 1px dashed var(--border-bright);
+  }
+  .tree .dir { color: var(--text-dim); }
+  .tree .file { color: var(--text); }
+
+  .tree .badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+  }
+  .badge-new { background: var(--green-dim); color: var(--green); }
+  .badge-mod { background: var(--amber-dim); color: var(--amber); }
+  .badge-same { background: var(--slate-dim); color: var(--slate); }
+
+  .tree-legend {
+    display: flex; gap: 20px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .tree-legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+  }
+  .tree-legend-swatch {
+    width: 10px; height: 10px; border-radius: 2px;
+  }
+
+  /* ============ SECTION 4: TOOL CATALOG ============ */
+  .tool-row {
+    display: grid;
+    grid-template-columns: 170px 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+  .tool-row:hover { background: var(--surface2); }
+  .tool-row:last-child { border-bottom: none; }
+
+  .tool-name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--teal);
+  }
+  .tool-desc {
+    color: var(--text-dim);
+  }
+  .tool-maps {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+  .tool-arrow {
+    color: var(--text-dim);
+    margin: 0 4px;
+  }
+
+  .tool-header {
+    display: grid;
+    grid-template-columns: 170px 1fr 1fr;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    border-radius: 10px 10px 0 0;
+  }
+  @media (max-width: 768px) {
+    .tool-row, .tool-header { grid-template-columns: 1fr; }
+    .tool-header { display: none; }
+    .tool-row { gap: 4px; }
+  }
+
+  /* ============ SECTION 5: DATA FLOW ============ */
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    padding: 12px 0 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    text-align: center;
+    min-width: 120px;
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .flow-step:hover { border-color: var(--border-bright); }
+  .flow-step .step-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .flow-step .step-name {
+    font-size: 13px; font-weight: 600;
+  }
+  .flow-step .step-detail {
+    font-size: 11px; color: var(--text-dim); margin-top: 2px;
+  }
+
+  .flow-arrow-h {
+    flex-shrink: 0;
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 18px;
+    position: relative;
+  }
+  .flow-arrow-h::after {
+    content: '';
+    width: 30px;
+    height: 0;
+    border-top: 1px dashed var(--border-bright);
+    position: absolute;
+  }
+  .flow-arrow-h span {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    padding: 0 2px;
+    font-size: 14px;
+  }
+
+  .flow-step.s-teal { border-color: var(--teal-dim); }
+  .flow-step.s-teal .step-label { color: var(--teal); }
+  .flow-step.s-blue { border-color: var(--blue-dim); }
+  .flow-step.s-blue .step-label { color: var(--blue); }
+  .flow-step.s-amber { border-color: var(--amber-dim); }
+  .flow-step.s-amber .step-label { color: var(--amber); }
+
+  /* ============ SECTION 6: INIT COMPARISON ============ */
+  .init-col {
+    min-width: 0;
+  }
+  .init-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 13px;
+    position: relative;
+  }
+  .init-step .step-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .init-step .step-text {
+    padding-top: 2px;
+    line-height: 1.5;
+  }
+  .init-step .step-text small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .init-step.shared .step-num { background: var(--teal-dim); color: var(--teal); }
+  .init-step.poll-only .step-num { background: var(--blue-dim); color: var(--blue); }
+  .init-step.mcp-only .step-num { background: var(--green-dim); color: var(--green); }
+  .init-step.skipped .step-num { background: var(--surface2); color: var(--slate); }
+  .init-step.skipped .step-text { color: var(--text-dim); text-decoration: line-through; opacity: 0.5; }
+
+  /* ============ SECTION 7: DECISIONS ============ */
+  .decision-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 900px) {
+    .decision-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .decision-grid { grid-template-columns: 1fr; }
+  }
+
+  .dec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .dec-card:hover { border-color: var(--border-bright); }
+
+  .dec-card summary {
+    padding: 16px 18px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .dec-card summary::-webkit-details-marker { display: none; }
+  .dec-card summary::marker { display: none; content: ''; }
+
+  .dec-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .dec-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .dec-tldr {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .dec-body {
+    padding: 0 18px 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    border-top: 1px solid var(--border);
+    margin-top: 0;
+    padding-top: 14px;
+  }
+  .dec-body strong { color: var(--text); font-weight: 600; }
+
+  .dec-revisit {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: var(--surface2);
+    padding: 6px 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    color: var(--amber);
+  }
+
+  /* ============ CROSS-REFS ============ */
+  .cross-refs {
+    margin-top: 48px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .cross-refs .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+  }
+  .cross-refs a {
+    color: var(--teal);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border: 1px solid var(--teal-dim);
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .cross-refs a:hover { background: var(--teal-dim); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <nav class="toc" id="toc">
+    <div class="toc-title">Sections</div>
+    <a href="#s1">1. Two Front Doors</a>
+    <a href="#s2">2. Side-by-Side</a>
+    <a href="#s3">3. Package Tree</a>
+    <a href="#s4">4. Tool Catalog</a>
+    <a href="#s5">5. Data Flows</a>
+    <a href="#s6">6. Init Comparison</a>
+    <a href="#s7">7. Design Decisions</a>
+  </nav>
+
+  <div class="main">
+    <h1 class="anim" style="--i:0">Mailroom <span>MCP</span> Architecture</h1>
+    <p class="subtitle anim" style="--i:1">
+      dual-identity design &mdash; automated triage backend + interactive email access for Claude
+      <br>
+      <a href="README.md">README.md</a> &middot; <a href="decisions.md">decisions.md</a>
+    </p>
+
+    <!-- ═══════ SECTION 1: TWO FRONT DOORS ═══════ -->
+    <div id="s1" class="sec-head anim" style="--i:2">
+      <span class="num">01</span> The "Two Front Doors" Concept
+    </div>
+
+    <p class="desc anim" style="--i:3">
+      Mailroom gains a dual identity: it remains an <strong>automated triage backend</strong> (the polling service)
+      while also becoming an <strong>interactive email access layer</strong> for Claude via MCP. Both identities
+      share the same foundation &mdash; clients, config, credentials &mdash; but serve fundamentally different purposes.
+    </p>
+
+    <div class="arch-diagram">
+      <div class="door-card door--existing anim" style="--i:4">
+        <div class="door-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        </div>
+        <div class="tag">Existing</div>
+        <h4>Polling Service</h4>
+        <div class="detail">
+          Automated email triage via SSE push + interval polling.
+          <br>Runs as a <strong>long-lived daemon</strong>.
+          <br>Uses <strong>ScreenerWorkflow</strong> for triage logic.
+          <br><code>mailroom run</code>
+        </div>
+      </div>
+
+      <div class="door-card door--new anim" style="--i:5">
+        <div class="door-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="tag">New</div>
+        <h4>MCP Server</h4>
+        <div class="detail">
+          Interactive email access via Claude tool calls.
+          <br>Runs as a <strong>stdio subprocess</strong>.
+          <br>Uses <strong>JMAPClient directly</strong> &mdash; no workflow.
+          <br><code>mailroom mcp</code>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-connector anim" style="--i:6">
+      <svg viewBox="0 0 24 24"><path d="M12 4 L12 20 M8 16 L12 20 L16 16"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M12 4 L12 20 M8 16 L12 20 L16 16"/></svg>
+    </div>
+
+    <div class="foundation-bar anim" style="--i:7">
+      <div class="label">Shared Foundation</div>
+      <div class="foundation-pills">
+        <div class="foundation-pill">JMAPClient</div>
+        <div class="foundation-pill">CardDAVClient</div>
+        <div class="foundation-pill">MailroomSettings</div>
+        <div class="foundation-pill">structlog</div>
+        <div class="foundation-pill">config.yaml</div>
+      </div>
+    </div>
+
+    <!-- ═══════ SECTION 2: SIDE-BY-SIDE ═══════ -->
+    <div id="s2" class="sec-head anim" style="--i:8">
+      <span class="num">02</span> Side-by-Side Comparison
+    </div>
+
+    <p class="desc anim" style="--i:9">
+      Two interfaces, one infrastructure. The polling service automates; the MCP server assists.
+    </p>
+
+    <div class="ve-card anim" style="--i:10; padding: 0; overflow: hidden;">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Polling Service</th>
+            <th>MCP Server</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Trigger</strong></td>
+            <td class="col-poll">SSE events / timer interval</td>
+            <td class="col-mcp">Claude tool calls</td>
+          </tr>
+          <tr>
+            <td><strong>Entry point</strong></td>
+            <td><code>mailroom run</code></td>
+            <td><code>mailroom mcp</code></td>
+          </tr>
+          <tr>
+            <td><strong>Process model</strong></td>
+            <td class="col-poll">Long-running daemon</td>
+            <td class="col-mcp">stdio subprocess</td>
+          </tr>
+          <tr>
+            <td><strong>Logic layer</strong></td>
+            <td><code>ScreenerWorkflow</code></td>
+            <td><code>mcp/tools.py</code> (direct client calls)</td>
+          </tr>
+          <tr>
+            <td><strong>Clients used</strong></td>
+            <td>JMAPClient + CardDAVClient</td>
+            <td>JMAPClient only (Phase 1)</td>
+          </tr>
+          <tr>
+            <td><strong>Purpose</strong></td>
+            <td class="col-poll">Automated triage (move, label, contact)</td>
+            <td class="col-mcp">Interactive access (search, read, label)</td>
+          </tr>
+          <tr>
+            <td><strong>Side effects</strong></td>
+            <td>Contact creation, group membership, label reconciliation across all mailboxes</td>
+            <td>Only what Claude explicitly requests</td>
+          </tr>
+          <tr>
+            <td><strong>Concurrency</strong></td>
+            <td>Single-threaded poll loop + SSE thread</td>
+            <td>Serial (stdio, one request at a time)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════ SECTION 3: PACKAGE TREE ═══════ -->
+    <div id="s3" class="sec-head anim" style="--i:11">
+      <span class="num">03</span> Package Structure
+    </div>
+
+    <p class="desc anim" style="--i:12">
+      3 new files, 2 modifications, zero changes to existing business logic. The MCP server slots in alongside the existing code.
+    </p>
+
+    <div class="tree-legend anim" style="--i:13">
+      <div class="tree-legend-item">
+        <div class="tree-legend-swatch" style="background: var(--green);"></div> New
+      </div>
+      <div class="tree-legend-item">
+        <div class="tree-legend-swatch" style="background: var(--amber);"></div> Modified
+      </div>
+      <div class="tree-legend-item">
+        <div class="tree-legend-swatch" style="background: var(--slate);"></div> Untouched
+      </div>
+    </div>
+
+    <div class="tree anim" style="--i:14">
+      <div><span class="dir">src/mailroom/</span></div>
+      <div class="item"><span class="file">__init__.py</span> <span class="badge badge-same">untouched</span></div>
+      <div class="item"><span class="file">__main__.py</span> <span class="badge badge-same">untouched</span> <span style="color:var(--text-dim); font-size:11px">&mdash; polling loop</span></div>
+      <div class="item"><span class="file">cli.py</span> <span class="badge badge-mod">modified</span> <span style="color:var(--text-dim); font-size:11px">&mdash; +2 lines: mcp subcommand</span></div>
+      <div class="item"><span class="file">eventsource.py</span> <span class="badge badge-same">untouched</span></div>
+      <br>
+      <div class="item"><span class="dir">core/</span></div>
+      <div class="item" style="padding-left:40px"><span class="file">config.py</span> <span class="badge badge-same">untouched</span></div>
+      <div class="item" style="padding-left:40px"><span class="file">logging.py</span> <span class="badge badge-same">untouched</span></div>
+      <br>
+      <div class="item"><span class="dir">clients/</span></div>
+      <div class="item" style="padding-left:40px"><span class="file">jmap.py</span> <span class="badge badge-same">untouched</span></div>
+      <div class="item" style="padding-left:40px"><span class="file">carddav.py</span> <span class="badge badge-same">untouched</span></div>
+      <br>
+      <div class="item"><span class="dir">workflows/</span></div>
+      <div class="item" style="padding-left:40px"><span class="file">screener.py</span> <span class="badge badge-same">untouched</span></div>
+      <br>
+      <div class="item"><span class="dir" style="color:var(--green)">mcp/</span> <span class="badge badge-new">new directory</span></div>
+      <div class="item" style="padding-left:40px"><span class="file" style="color:var(--green)">__init__.py</span> <span class="badge badge-new">new</span></div>
+      <div class="item" style="padding-left:40px"><span class="file" style="color:var(--green)">server.py</span> <span class="badge badge-new">new</span> <span style="color:var(--text-dim); font-size:11px">&mdash; FastMCP app + lifespan</span></div>
+      <div class="item" style="padding-left:40px"><span class="file" style="color:var(--green)">tools.py</span> <span class="badge badge-new">new</span> <span style="color:var(--text-dim); font-size:11px">&mdash; tool definitions</span></div>
+      <br>
+      <div class="item"><span class="dir">setup/</span> <span class="badge badge-same">untouched</span></div>
+      <div class="item"><span class="dir">reset/</span> <span class="badge badge-same">untouched</span></div>
+      <br>
+      <div style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 12px;">
+        <span class="dir" style="font-weight:600;">pyproject.toml</span> <span class="badge badge-mod">modified</span> <span style="color:var(--text-dim); font-size:11px">&mdash; +mcp dep, +mailroom-mcp entry point</span>
+      </div>
+    </div>
+
+    <!-- ═══════ SECTION 4: TOOL CATALOG ═══════ -->
+    <div id="s4" class="sec-head anim" style="--i:15">
+      <span class="num">04</span> MCP Tool Catalog
+    </div>
+
+    <p class="desc anim" style="--i:16">
+      Phase 1 exposes email-only tools. Each MCP tool maps directly to existing <code>JMAPClient</code> methods &mdash; no new protocol work needed.
+    </p>
+
+    <div class="ve-card anim" style="--i:17; padding: 0; overflow: hidden;">
+      <div class="tool-header">
+        <div>Tool</div>
+        <div>Description</div>
+        <div>Maps to</div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">list_mailboxes</div>
+        <div class="tool-desc">List all Fastmail mailboxes with IDs</div>
+        <div class="tool-maps">resolve_mailboxes()</div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">search_emails</div>
+        <div class="tool-desc">Search emails by mailbox and/or sender</div>
+        <div class="tool-maps">query_emails()<br>query_emails_by_sender()</div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">read_email</div>
+        <div class="tool-desc">Get full email content by ID</div>
+        <div class="tool-maps">Email/get <span class="badge badge-new" style="font-size:8px">new method</span></div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">get_email_headers</div>
+        <div class="tool-desc">Get sender, subject, date for email IDs</div>
+        <div class="tool-maps">get_email_senders()</div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">add_labels</div>
+        <div class="tool-desc">Add mailbox labels to emails</div>
+        <div class="tool-maps">batch_add_labels()</div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">remove_labels</div>
+        <div class="tool-desc">Remove mailbox labels from emails</div>
+        <div class="tool-maps">batch_remove_labels()</div>
+      </div>
+      <div class="tool-row">
+        <div class="tool-name">move_email</div>
+        <div class="tool-desc">Move email between mailboxes</div>
+        <div class="tool-maps">batch_add_labels() +<br>batch_remove_labels()</div>
+      </div>
+    </div>
+
+    <div class="grid-3 anim" style="margin-top: 16px; --i:18">
+      <div class="ve-card c-slate ve-card--recessed" style="padding: 14px 18px;">
+        <div class="ve-card-label"><span class="dot"></span> Phase 2: Contacts</div>
+        <div style="font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+          <code>list_contacts</code>, <code>search_contacts</code> via existing CardDAVClient
+        </div>
+      </div>
+      <div class="ve-card c-slate ve-card--recessed" style="padding: 14px 18px;">
+        <div class="ve-card-label"><span class="dot"></span> Phase 2: Resources</div>
+        <div style="font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+          <code>mailroom://categories</code>, <code>mailroom://mailboxes</code>
+        </div>
+      </div>
+      <div class="ve-card c-slate ve-card--recessed" style="padding: 14px 18px;">
+        <div class="ve-card-label"><span class="dot"></span> Phase 2: Prompts</div>
+        <div style="font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+          <code>triage-helper</code> &mdash; guided manual triage conversation
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ SECTION 5: DATA FLOWS ═══════ -->
+    <div id="s5" class="sec-head anim" style="--i:19">
+      <span class="num">05</span> Data Flow Diagrams
+    </div>
+
+    <h3 class="anim" style="--i:20; color: var(--teal);">MCP Flow</h3>
+    <p class="desc anim" style="--i:21">
+      Claude invokes a tool &rarr; stdio transport delivers it &rarr; tool function calls JMAPClient &rarr; response flows back.
+    </p>
+
+    <div class="flow-diagram anim" style="--i:22">
+      <div class="flow-step s-teal">
+        <div class="step-label">Client</div>
+        <div class="step-name">Claude</div>
+        <div class="step-detail">tool call</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-teal">
+        <div class="step-label">Transport</div>
+        <div class="step-name">stdio</div>
+        <div class="step-detail">JSON-RPC</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-teal">
+        <div class="step-label">MCP</div>
+        <div class="step-name">tools.py</div>
+        <div class="step-detail">tool function</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-amber">
+        <div class="step-label">Client</div>
+        <div class="step-name">JMAPClient</div>
+        <div class="step-detail">httpx sync</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-amber">
+        <div class="step-label">External</div>
+        <div class="step-name">Fastmail</div>
+        <div class="step-detail">JMAP API</div>
+      </div>
+    </div>
+
+    <h3 class="anim" style="--i:23; color: var(--blue); margin-top: 32px;">Polling Flow</h3>
+    <p class="desc anim" style="--i:24">
+      SSE event triggers a poll &rarr; ScreenerWorkflow orchestrates triage logic &rarr; JMAPClient + CardDAVClient act on Fastmail.
+    </p>
+
+    <div class="flow-diagram anim" style="--i:25">
+      <div class="flow-step s-blue">
+        <div class="step-label">Trigger</div>
+        <div class="step-name">SSE Event</div>
+        <div class="step-detail">state change</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-blue">
+        <div class="step-label">Debounce</div>
+        <div class="step-name">1s wait</div>
+        <div class="step-detail">coalesce events</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-blue">
+        <div class="step-label">Workflow</div>
+        <div class="step-name">poll()</div>
+        <div class="step-detail">ScreenerWorkflow</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-amber">
+        <div class="step-label">Clients</div>
+        <div class="step-name">JMAP + CardDAV</div>
+        <div class="step-detail">email + contacts</div>
+      </div>
+      <div class="flow-arrow-h"><span>&rarr;</span></div>
+      <div class="flow-step s-amber">
+        <div class="step-label">External</div>
+        <div class="step-name">Fastmail</div>
+        <div class="step-detail">JMAP + CardDAV</div>
+      </div>
+    </div>
+
+    <div class="ve-card c-amber ve-card--recessed anim" style="--i:26; margin-top: 16px; padding: 14px 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7;">
+      <strong style="color: var(--amber);">Key difference:</strong> The polling flow goes through <code>ScreenerWorkflow</code> which encodes triage <em>policy</em> (conflict detection, retry safety, label ordering).
+      The MCP flow calls <code>JMAPClient</code> directly &mdash; tools are <em>operations</em>, not automation.
+    </div>
+
+    <!-- ═══════ SECTION 6: INIT COMPARISON ═══════ -->
+    <div id="s6" class="sec-head anim" style="--i:27">
+      <span class="num">06</span> Initialization Comparison
+    </div>
+
+    <p class="desc anim" style="--i:28">
+      The MCP lifespan is deliberately simpler &mdash; 4 steps vs 10. No CardDAV, no mailbox resolution, no workflow, no health server.
+    </p>
+
+    <div class="grid-2 anim" style="--i:29">
+      <div class="init-col">
+        <div class="ve-card c-blue" style="padding: 18px 20px;">
+          <div class="ve-card-label"><span class="dot"></span> Polling Service (10 steps)</div>
+          <div class="init-step shared"><div class="step-num">1</div><div class="step-text">Load MailroomSettings<small>config.yaml + env vars</small></div></div>
+          <div class="init-step shared"><div class="step-num">2</div><div class="step-text">configure_logging<small>structlog setup</small></div></div>
+          <div class="init-step shared"><div class="step-num">3</div><div class="step-text">JMAPClient.connect()<small>session discovery</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">4</div><div class="step-text">CardDAVClient.connect()<small>PROPFIND chain</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">5</div><div class="step-text">resolve_mailboxes()<small>validate all labels exist</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">6</div><div class="step-text">validate_groups()<small>check contact groups</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">7</div><div class="step-text">Build ScreenerWorkflow<small>wire up clients + config</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">8</div><div class="step-text">Start health server<small>:8080/healthz daemon thread</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">9</div><div class="step-text">Start SSE listener<small>EventSource daemon thread</small></div></div>
+          <div class="init-step poll-only"><div class="step-num">10</div><div class="step-text">Enter polling loop<small>push / scheduled / fallback</small></div></div>
+        </div>
+      </div>
+
+      <div class="init-col">
+        <div class="ve-card c-teal" style="padding: 18px 20px;">
+          <div class="ve-card-label"><span class="dot"></span> MCP Lifespan (4 steps)</div>
+          <div class="init-step shared"><div class="step-num">1</div><div class="step-text">Load MailroomSettings<small>same config, same env vars</small></div></div>
+          <div class="init-step shared"><div class="step-num">2</div><div class="step-text">configure_logging<small>logs to stderr (not stdout)</small></div></div>
+          <div class="init-step shared"><div class="step-num">3</div><div class="step-text">JMAPClient.connect()<small>warm client for all tools</small></div></div>
+          <div class="init-step mcp-only"><div class="step-num">4</div><div class="step-text">yield {jmap, settings}<small>server ready, tools can access ctx</small></div></div>
+          <div style="border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px;">
+            <div class="init-step skipped"><div class="step-num">&times;</div><div class="step-text">CardDAV connect</div></div>
+            <div class="init-step skipped"><div class="step-num">&times;</div><div class="step-text">resolve_mailboxes</div></div>
+            <div class="init-step skipped"><div class="step-num">&times;</div><div class="step-text">validate_groups</div></div>
+            <div class="init-step skipped"><div class="step-num">&times;</div><div class="step-text">Build workflow</div></div>
+            <div class="init-step skipped"><div class="step-num">&times;</div><div class="step-text">Health server</div></div>
+            <div class="init-step skipped"><div class="step-num">&times;</div><div class="step-text">SSE listener</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2 anim" style="--i:30; margin-top: 14px;">
+      <div class="ve-card ve-card--recessed" style="padding: 14px 18px; font-size: 12px; line-height: 1.7;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <div style="width: 10px; height: 10px; border-radius: 3px; background: var(--teal);"></div>
+          <strong style="font-size: 11px; font-family: var(--font-mono); color: var(--teal);">SHARED</strong>
+        </div>
+        <span style="color: var(--text-dim);">Steps 1-3 are identical. Same config file, same credentials, same JMAP session discovery.</span>
+      </div>
+      <div class="ve-card ve-card--recessed" style="padding: 14px 18px; font-size: 12px; line-height: 1.7;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <div style="width: 10px; height: 10px; border-radius: 3px; background: var(--blue);"></div>
+          <strong style="font-size: 11px; font-family: var(--font-mono); color: var(--blue);">POLLING-ONLY</strong>
+        </div>
+        <span style="color: var(--text-dim);">Steps 4-10 are automation concerns: contacts, validation, health checks, SSE, the poll loop itself.</span>
+      </div>
+    </div>
+
+    <!-- ═══════ SECTION 7: DESIGN DECISIONS ═══════ -->
+    <div id="s7" class="sec-head anim" style="--i:31">
+      <span class="num">07</span> Key Design Decisions
+    </div>
+
+    <p class="desc anim" style="--i:32">
+      Each card summarizes a decision. Click to expand full rationale.
+      See <a href="decisions.md" style="color: var(--teal); text-decoration: none;">decisions.md</a> for the complete tradeoff analysis.
+    </p>
+
+    <div class="decision-grid">
+
+      <details class="dec-card anim" style="--i:33">
+        <summary>
+          <div class="dec-id">DEC-01</div>
+          <div class="dec-title">Monorepo</div>
+          <div class="dec-tldr">Single package, single venv, single test suite</div>
+        </summary>
+        <div class="dec-body">
+          The MCP server lives in <code>src/mailroom/mcp/</code>. It imports <code>mailroom.clients.jmap</code> directly. No separate repo, no published library, no path hacks.
+          <br><br><strong>Why:</strong> The project is ~950 lines. A subdirectory is proportionate.
+          <div class="dec-revisit">Revisit when: project grows to multiple maintainers</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:34">
+        <summary>
+          <div class="dec-id">DEC-02</div>
+          <div class="dec-title">No Config Split</div>
+          <div class="dec-tldr">Same config.yaml + env vars for both identities</div>
+        </summary>
+        <div class="dec-body">
+          Zero new config surface. If you can run <code>mailroom run</code>, you can run <code>mailroom mcp</code>. Same JMAP token, same categories, same mailbox names.
+          <div class="dec-revisit">Revisit when: MCP-specific settings emerge</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:35">
+        <summary>
+          <div class="dec-id">DEC-03</div>
+          <div class="dec-title">No Workflow Dependency</div>
+          <div class="dec-tldr">MCP tools never import from workflows/</div>
+        </summary>
+        <div class="dec-body">
+          <strong>Intentional boundary.</strong> The workflow embodies <em>policy</em> (conflict detection, retry safety). MCP tools are <em>operations</em>. Exposing <code>poll()</code> as an MCP tool would be dangerous &mdash; automated triage from a casual conversation.
+          <div class="dec-revisit">Revisit when: never (intentional)</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:36">
+        <summary>
+          <div class="dec-id">DEC-04</div>
+          <div class="dec-title">Sync Client in Async Tools</div>
+          <div class="dec-tldr">httpx.Client works fine for stdio transport</div>
+        </summary>
+        <div class="dec-body">
+          MCP tools are <code>async def</code> but call <code>JMAPClient</code> synchronously. stdio transport is inherently serial &mdash; no concurrent request handling to worry about. Zero refactor to existing code.
+          <div class="dec-revisit">Revisit when: migrating to async clients or SSE transport</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:37">
+        <summary>
+          <div class="dec-id">DEC-05</div>
+          <div class="dec-title">stdio Transport</div>
+          <div class="dec-tldr">Subprocess, no HTTP server, no auth needed</div>
+        </summary>
+        <div class="dec-body">
+          Personal use case. Claude Desktop/Code launches the MCP server as a subprocess. The process inherits the parent's environment. Zero infrastructure.
+          <div class="dec-revisit">Revisit when: need remote MCP access</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:38">
+        <summary>
+          <div class="dec-id">DEC-06</div>
+          <div class="dec-title">Warm Client via Lifespan</div>
+          <div class="dec-tldr">Connect once at startup, store on app context</div>
+        </summary>
+        <div class="dec-body">
+          FastMCP lifespan pattern. <code>JMAPClient.connect()</code> runs once, persists for the server's lifetime. Avoids ~200ms/request for session discovery. Idiomatic for long-lived MCP servers.
+          <div class="dec-revisit">Revisit when: never (lifespan is idiomatic)</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:39">
+        <summary>
+          <div class="dec-id">DEC-07</div>
+          <div class="dec-title">Logging Strategy</div>
+          <div class="dec-tldr">Same structlog, stderr (not stdout)</div>
+        </summary>
+        <div class="dec-body">
+          MCP protocol uses stdout. structlog writes to stderr. No conflict. Same log format regardless of entry point. Claude Desktop captures stderr for debugging.
+          <div class="dec-revisit">Revisit when: MCP logging conflicts with stdio</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:40">
+        <summary>
+          <div class="dec-id">DEC-08</div>
+          <div class="dec-title">Email-First</div>
+          <div class="dec-tldr">Phase 1 = email tools only, contacts later</div>
+        </summary>
+        <div class="dec-body">
+          Fastest path to value. Email search/read/label covers the primary use case. Contact tools come in Phase 2 using existing <code>CardDAVClient</code>. Don't refactor on the critical path.
+          <div class="dec-revisit">Revisit when: Phase 1 ships successfully</div>
+        </div>
+      </details>
+
+      <details class="dec-card anim" style="--i:41">
+        <summary>
+          <div class="dec-id">DEC-09</div>
+          <div class="dec-title">Raw Body Parts</div>
+          <div class="dec-tldr">No HTML-to-text, no MIME parsing in Phase 1</div>
+        </summary>
+        <div class="dec-body">
+          JMAP returns structured body parts. Pass them through. Claude handles both plain text and HTML natively. Keeps initial implementation simple.
+          <div class="dec-revisit">Revisit when: user feedback requests rendering</div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ CROSS-REFS ═══════ -->
+    <div class="cross-refs anim" style="--i:42">
+      <div class="label">Related docs</div>
+      <a href="README.md">README.md &mdash; Full Architecture</a>
+      <a href="decisions.md">decisions.md &mdash; Tradeoff Analysis</a>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /wrap -->
+
+<!-- Scroll spy -->
+<script>
+(function() {
+  const toc = document.getElementById('toc');
+  const links = toc.querySelectorAll('a');
+  const sections = [];
+
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ id, el, link });
+  });
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const match = sections.find(s => s.el === entry.target);
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1000) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  sections.forEach(s => observer.observe(s.el));
+
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
