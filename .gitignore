@@ -10,9 +10,13 @@ __pycache__/
 # Tools
 .ruff_cache/
 .pytest_cache/
+.mcp.json
 
 # Claude Code
 .claude/settings.local.json
+
+# Editor-local settings
+.vscode/
 
 # Helm secrets (never commit real credentials)
 helm/mailroom/secrets-values.yaml

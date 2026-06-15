@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "mailroom": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/path/to/mailroom",
+        "mailroom-mcp"
+      ],
+      "env": {
+        "MAILROOM_JMAP_TOKEN": "REPLACE_WITH_FASTMAIL_JMAP_TOKEN"
+      }
+    }
+  }
+}

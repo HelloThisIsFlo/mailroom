@@ -466,6 +466,125 @@ class JMAPClient:
                     f"Failed to remove labels from emails: {', '.join(errors)}"
                 )
 
+    def list_all_mailboxes(self) -> list[dict]:
+        """List all mailboxes in the account.
+
+        Returns the raw JMAP mailbox list without filtering or validation.
+
+        Returns:
+            List of mailbox dicts with keys: id, name, role, parentId, etc.
+        """
+        responses = self.call(
+            [["Mailbox/get", {"accountId": self.account_id, "ids": None}, "m0"]]
+        )
+        return responses[0][1]["list"]
+
+    def query_recent_emails(self, limit: int = 50) -> list[str]:
+        """Query the most recent email IDs across all mailboxes.
+
+        Returns up to `limit` emails sorted by receivedAt descending.
+        No pagination — returns a single page.
+
+        Args:
+            limit: Maximum number of email IDs to return.
+
+        Returns:
+            List of email ID strings, newest first.
+        """
+        responses = self.call(
+            [
+                [
+                    "Email/query",
+                    {
+                        "accountId": self.account_id,
+                        "sort": [{"property": "receivedAt", "isAscending": False}],
+                        "limit": limit,
+                    },
+                    "q0",
+                ]
+            ]
+        )
+        return responses[0][1]["ids"]
+
+    def get_email_headers(self, email_ids: list[str]) -> list[dict]:
+        """Get header summary (subject, sender, date, preview) for email IDs.
+
+        Processes in BATCH_SIZE chunks to handle large lists.
+
+        Args:
+            email_ids: List of email IDs to look up.
+
+        Returns:
+            List of dicts with keys: id, subject, from, receivedAt, preview.
+        """
+        result: list[dict] = []
+
+        for chunk_start in range(0, len(email_ids), BATCH_SIZE):
+            chunk = email_ids[chunk_start : chunk_start + BATCH_SIZE]
+
+            responses = self.call(
+                [
+                    [
+                        "Email/get",
+                        {
+                            "accountId": self.account_id,
+                            "ids": chunk,
+                            "properties": ["id", "subject", "from", "receivedAt", "preview"],
+                        },
+                        "g0",
+                    ]
+                ]
+            )
+            result.extend(responses[0][1]["list"])
+
+        return result
+
+    def get_email(self, email_id: str) -> dict:
+        """Get full email content including body values.
+
+        Args:
+            email_id: The email ID to fetch.
+
+        Returns:
+            Email dict with subject, from, to, cc, replyTo, receivedAt,
+            mailboxIds, keywords, bodyStructure, bodyValues, textBody, htmlBody.
+
+        Raises:
+            ValueError: If the email ID is not found.
+        """
+        responses = self.call(
+            [
+                [
+                    "Email/get",
+                    {
+                        "accountId": self.account_id,
+                        "ids": [email_id],
+                        "properties": [
+                            "id",
+                            "subject",
+                            "from",
+                            "to",
+                            "cc",
+                            "replyTo",
+                            "receivedAt",
+                            "mailboxIds",
+                            "keywords",
+                            "bodyStructure",
+                            "bodyValues",
+                            "textBody",
+                            "htmlBody",
+                        ],
+                        "fetchAllBodyValues": True,
+                    },
+                    "g0",
+                ]
+            ]
+        )
+        email_list = responses[0][1]["list"]
+        if not email_list:
+            raise ValueError(f"Email not found: {email_id}")
+        return email_list[0]
+
     def remove_label(self, email_id: str, mailbox_id: str) -> None:
         """Remove a single mailbox label from an email.
 

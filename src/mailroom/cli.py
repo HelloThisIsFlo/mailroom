@@ -44,3 +44,11 @@ def reset(apply: bool) -> None:
 
     exit_code = run_reset(apply=apply)
     sys.exit(exit_code)
+
+
+@cli.command()
+def mcp() -> None:
+    """Start the MCP server (stdio transport)."""
+    from mailroom.mcp.server import mcp as mcp_server
+
+    mcp_server.run()
